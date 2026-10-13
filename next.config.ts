@@ -1,7 +1,25 @@
 import type { NextConfig } from "next";
 
+// The public address the app is served from (BETTER_AUTH_URL). Behind a proxy (GitHub Codespaces,
+// a reverse proxy in production) the browser's origin differs from the Host the server sees, so
+// Server Action CSRF checks and dev-resource checks must trust this one configured address.
+// Next.js loads .env files before evaluating this config.
+const publicUrl = (() => {
+  try {
+    return process.env.BETTER_AUTH_URL ? new URL(process.env.BETTER_AUTH_URL) : undefined;
+  } catch {
+    return undefined;
+  }
+})();
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // Don't write an AGENTS.md into the repo on `next dev`.
+  agentRules: false,
+  allowedDevOrigins: publicUrl ? [publicUrl.hostname] : [],
+  experimental: {
+    serverActions: { allowedOrigins: publicUrl ? [publicUrl.host] : [] },
+  },
   reactStrictMode: true,
   // `pg` is a native-ish Node package; keep it out of the server bundle.
   serverExternalPackages: ["pg"],

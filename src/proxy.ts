@@ -12,7 +12,9 @@ export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   const isProtected = PROTECTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
   if (isProtected && !getSessionCookie(request, { cookiePrefix: "eightcore" })) {
-    const url = new URL("/sign-in", request.url);
+    // Behind a proxy (Codespaces, a reverse proxy) request.url carries the internal host,
+    // so redirect relative to the configured public URL.
+    const url = new URL("/sign-in", process.env.BETTER_AUTH_URL ?? request.url);
     url.searchParams.set("next", `${pathname}${search}`);
     return NextResponse.redirect(url);
   }
@@ -26,7 +28,7 @@ export function proxy(request: NextRequest) {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' blob: data:",
     "font-src 'self'",
-    `connect-src 'self'${isDev ? " ws:" : ""}`,
+    `connect-src 'self'${isDev ? " ws: wss:" : ""}`,
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",

@@ -42,7 +42,7 @@ export function ChangePasswordForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="grid max-w-sm gap-4">
+    <form method="post" onSubmit={onSubmit} className="grid max-w-sm gap-4">
       {result ? <Alert variant={result.ok ? "success" : "destructive"}>{result.message}</Alert> : null}
       <Field label="Current password" htmlFor="currentPassword">
         <Input

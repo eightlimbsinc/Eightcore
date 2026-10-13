@@ -1,0 +1,21 @@
+{
+  // GitHub Codespaces / VS Code Dev Containers: the full app plus Postgres and Mailpit,
+  // with nothing installed on your own computer. See docs/RUNBOOK.md §2d.
+  "name": "Eightcore",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+  "forwardPorts": [3000, "mailpit:8025"],
+  "portsAttributes": {
+    "3000": { "label": "Eightcore", "onAutoForward": "openBrowser" },
+    "mailpit:8025": { "label": "Mailpit (test inbox)", "onAutoForward": "silent" }
+  },
+  "postCreateCommand": "bash .devcontainer/setup.sh",
+  "postAttachCommand": "npm run dev",
+  "hostRequirements": { "cpus": 2, "memory": "4gb" },
+  "customizations": {
+    "vscode": {
+      "extensions": ["dbaeumer.vscode-eslint", "esbenp.prettier-vscode", "bradlc.vscode-tailwindcss"]
+    }
+  }
+}

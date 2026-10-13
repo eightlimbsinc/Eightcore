@@ -14,6 +14,8 @@ npm run db:migrate && npm run db:seed
 npm run dev                         # http://localhost:3000, owner@demo.eightcore.local / "eightcore demo password"
 ```
 
+No local setup? Open it in **GitHub Codespaces** (Code → Codespaces → Create codespace). The dev container starts the database, seeds demo data, and opens the app in your browser. See [RUNBOOK §2d](docs/RUNBOOK.md).
+
 Run every check CI runs with `npm run ci`. Everything is free and open source; see [Cost and licences](docs/COST_AND_LICENSES.md).
 
 ## Documents

@@ -1,0 +1,31 @@
+# Dev container services. The app container shares Postgres's network namespace, so the
+# same localhost database URLs as local development work unchanged.
+services:
+  app:
+    image: mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm
+    command: sleep infinity
+    volumes:
+      - ../..:/workspaces:cached
+    network_mode: service:postgres
+    depends_on:
+      - postgres
+      - mailpit
+
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ../docker/postgres/00-bootstrap.sql:/docker-entrypoint-initdb.d/00-bootstrap.sql:ro
+      - ../docker/postgres/01-grants.sh:/docker-entrypoint-initdb.d/01-grants.sh:ro
+      - ../docker/postgres/sql:/docker-entrypoint-initdb.d/sql:ro
+
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+
+volumes:
+  pgdata:

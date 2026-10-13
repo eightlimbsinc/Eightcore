@@ -68,6 +68,18 @@ Seeded accounts (password `eightcore demo password`, development only):
 
 Mail sent by the app appears at http://localhost:8025 (Mailpit) or in `.mail/`.
 
+### 2d. In the browser with GitHub Codespaces (nothing installed locally)
+
+The repo includes a dev container (`.devcontainer/`). It starts Postgres 17 and Mailpit next to the app, writes `.env.local` (with a fresh secret and the codespace's public URL), migrates, seeds, and starts `npm run dev`.
+
+1. On GitHub, open the repository, switch to the branch, then **Code → Codespaces → Create codespace on <branch>**.
+2. Wait for setup to finish (first time: a few minutes). Port 3000 opens in a new tab. If it doesn't, open the **Ports** tab and click the globe icon next to **Eightcore (3000)**.
+3. Sign in with a seeded account (table above). Emails appear on the **Mailpit (test inbox)** port.
+
+The forwarded URL is private to your GitHub account by default. To show it to a teammate, change the port's visibility in the **Ports** tab. Stop the codespace when you're done (**Codespaces → Stop**) so it stops using your free hours. Cost: see `COST_AND_LICENSES.md` §5.
+
+How it works behind GitHub's proxy: `BETTER_AUTH_URL` is set to the public `*.app.github.dev` address, and `next.config.ts` trusts exactly that host for Server Action CSRF checks and dev resources. Redirects are built from it too. The same mechanism serves a reverse proxy in production.
+
 ### Environment variables (`.env.example`)
 
 | Variable | Example | Secret? | Notes |
@@ -75,7 +87,7 @@ Mail sent by the app appears at http://localhost:8025 (Mailpit) or in `.mail/`.
 | `DATABASE_URL` | `postgres://eightcore_app:eightcore@localhost:5432/eightcore` | yes | App role: data access only |
 | `DATABASE_MIGRATOR_URL` | `postgres://eightcore_migrator:eightcore@localhost:5432/eightcore` | yes | DDL role. Used only by `db:*` scripts and tests |
 | `BETTER_AUTH_SECRET` | 32+ random characters | yes | Signs session cookies. Rotating it signs everyone out |
-| `BETTER_AUTH_URL` | `http://localhost:3000` | no | Public base URL. Also the only trusted origin |
+| `BETTER_AUTH_URL` | `http://localhost:3000` | no | Public base URL. The only trusted origin for auth, Server Actions, and dev resources, and the base for redirects. Must match the address in the browser |
 | `SMTP_URL` | `smtp://localhost:1025` | prod: yes | Empty → mail is written to `MAIL_OUTBOX_DIR` (refused in production) |
 | `MAIL_FROM` | `Eightcore <no-reply@eightcore.local>` | no | |
 | `MAIL_OUTBOX_DIR` | `.mail` | no | Git-ignored |

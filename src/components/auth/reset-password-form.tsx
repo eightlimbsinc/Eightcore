@@ -38,7 +38,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
     );
   }
   return (
-    <form onSubmit={onSubmit} className="grid gap-4">
+    <form method="post" onSubmit={onSubmit} className="grid gap-4">
       {error ? <Alert variant="destructive">{error}</Alert> : null}
       <Field label="New password" htmlFor="password" hint={`At least ${MIN_PASSWORD_LENGTH} characters.`}>
         <Input id="password" name="password" type="password" autoComplete="new-password" required autoFocus />

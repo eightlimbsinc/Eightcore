@@ -50,7 +50,7 @@ export function SignUpForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="grid gap-4" noValidate>
+    <form method="post" onSubmit={onSubmit} className="grid gap-4" noValidate>
       {error ? <Alert variant="destructive">{error}</Alert> : null}
       <Field label="Full name" htmlFor="name" error={fieldErrors.name}>
         <Input

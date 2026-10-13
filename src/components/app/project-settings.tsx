@@ -147,6 +147,7 @@ export function ProjectMembers({
       </ul>
       {canManage && addable.length > 0 ? (
         <form
+          method="post"
           className="grid gap-3"
           onSubmit={(e) => {
             e.preventDefault();
