@@ -1,0 +1,6 @@
+# Keep LF everywhere so Windows checkouts behave like Linux/macOS ones.
+* text=auto eol=lf
+# Shell scripts run inside the Linux Postgres container and break with CRLF.
+*.sh text eol=lf
+*.png binary
+*.svg text eol=lf

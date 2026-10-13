@@ -2,7 +2,7 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { Pool } from "pg";
-import { loadEnvFiles } from "../load-env";
+import { isMainModule, loadEnvFiles } from "../load-env";
 
 export async function runMigrations(connectionString: string): Promise<void> {
   const pool = new Pool({ connectionString, max: 1 });
@@ -13,7 +13,7 @@ export async function runMigrations(connectionString: string): Promise<void> {
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMainModule(import.meta.url)) {
   loadEnvFiles();
   const url = process.env.DATABASE_MIGRATOR_URL;
   if (!url) throw new Error("DATABASE_MIGRATOR_URL is not set (see .env.example)");

@@ -3,7 +3,7 @@
 import { readFile } from "node:fs/promises";
 import pg from "pg";
 import { runMigrations } from "./migrate";
-import { loadEnvFiles } from "../load-env";
+import { isMainModule, loadEnvFiles } from "../load-env";
 
 function withDatabase(url: string, database: string): string {
   const u = new URL(url);
@@ -38,7 +38,7 @@ export async function createTestDatabase(migratorUrl: string, name: string): Pro
   return target;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMainModule(import.meta.url)) {
   loadEnvFiles();
   const name = process.argv[2];
   const url = process.env.DATABASE_MIGRATOR_URL;
