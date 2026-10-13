@@ -20,9 +20,11 @@ let cached: Env | undefined;
 /**
  * Validated server environment. Read lazily so `next build` doesn't need
  * runtime secrets; the first request (or script) fails fast if anything is missing.
+ * Cached only in production: `next dev` reloads .env.local in place, and a stale
+ * copy would keep the old values until a full restart.
  */
 export function env(): Env {
-  if (cached) return cached;
+  if (cached && process.env.NODE_ENV === "production") return cached;
   const parsed = schema.safeParse(process.env);
   if (!parsed.success) {
     const issues = parsed.error.issues.map((i) => `  ${i.path.join(".")}: ${i.message}`).join("\n");

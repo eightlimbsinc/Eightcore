@@ -9,4 +9,10 @@ if [ -n "${CODESPACE_NAME:-}" ] && [ -n "${GITHUB_CODESPACES_PORT_FORWARDING_DOM
   echo "BETTER_AUTH_URL=${public_url}"
 fi
 
+# A dev server left over from an earlier start would keep port 3000 (and its old settings).
+if pkill -f "next dev" 2>/dev/null; then
+  echo "Stopped a previously running dev server."
+  sleep 2
+fi
+
 exec npm run dev

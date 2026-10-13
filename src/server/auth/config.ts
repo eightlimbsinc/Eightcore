@@ -137,10 +137,18 @@ function createAuth() {
 
 export type Auth = ReturnType<typeof createAuth>;
 
-const globalForAuth = globalThis as unknown as { eightcoreAuth?: Auth };
+const globalForAuth = globalThis as unknown as { eightcoreAuth?: { key: string; auth: Auth } };
 
-/** Lazily-created Better Auth instance (so builds don't need runtime secrets). */
+/**
+ * Lazily-created Better Auth instance (so builds don't need runtime secrets).
+ * Rebuilt when the public URL or secret changes, e.g. after .env.local is edited
+ * while `next dev` is running; otherwise origin checks would use the old URL.
+ */
 export function getAuth(): Auth {
-  globalForAuth.eightcoreAuth ??= createAuth();
-  return globalForAuth.eightcoreAuth;
+  const { BETTER_AUTH_URL, BETTER_AUTH_SECRET } = env();
+  const key = `${BETTER_AUTH_URL}\n${BETTER_AUTH_SECRET}`;
+  if (globalForAuth.eightcoreAuth?.key !== key) {
+    globalForAuth.eightcoreAuth = { key, auth: createAuth() };
+  }
+  return globalForAuth.eightcoreAuth.auth;
 }
