@@ -31,7 +31,11 @@ export interface ButtonProps extends React.ComponentProps<"button">, VariantProp
 
 export function Button({ className, variant, size, asChild = false, ...props }: ButtonProps) {
   const Comp = asChild ? Slot.Root : "button";
-  return <Comp className={cn(buttonVariants({ variant, size }), className)} {...props} />;
+  // suppressHydrationWarning: autofill/password extensions add attributes (e.g. fdprocessedid)
+  // to buttons before React hydrates. It only affects this element's own attributes.
+  return (
+    <Comp suppressHydrationWarning className={cn(buttonVariants({ variant, size }), className)} {...props} />
+  );
 }
 
 export { buttonVariants };

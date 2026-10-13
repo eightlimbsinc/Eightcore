@@ -30,6 +30,7 @@ export function ThemeToggle({ className }: { className?: string }) {
         const active = mounted && theme === value;
         return (
           <button
+            suppressHydrationWarning
             key={value}
             type="button"
             role="radio"
