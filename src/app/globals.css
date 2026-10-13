@@ -1,0 +1,95 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Eightcore design tokens. Charcoal and graphite, warm white, restrained champagne gold. */
+:root {
+  --background: #faf8f5; /* warm white */
+  --foreground: #17171a; /* charcoal */
+  --surface: #ffffff;
+  --surface-muted: #f3f0eb;
+  --muted-foreground: #66625c;
+  --border: #e7e2da;
+  --input: #ddd7cd;
+  --primary: #17171a;
+  --primary-foreground: #faf8f5;
+  --accent: #b08d4f; /* champagne gold, for focus, selection and small emphasis */
+  --accent-soft: #f4ecdd;
+  --accent-foreground: #6e5427;
+  --ring: #c9a96e;
+  --destructive: #b42318;
+  --destructive-soft: #fdecea;
+  --success: #2f6b4f;
+  --sidebar: #f3f0eb;
+  --radius: 0.5rem;
+}
+
+.dark {
+  --background: #141416;
+  --foreground: #eeeae3;
+  --surface: #1c1c20;
+  --surface-muted: #232328;
+  --muted-foreground: #a19c93;
+  --border: #2e2e34; /* graphite */
+  --input: #3a3a41;
+  --primary: #eeeae3;
+  --primary-foreground: #17171a;
+  --accent: #c9a96e;
+  --accent-soft: #2c261c;
+  --accent-foreground: #e2c99a;
+  --ring: #c9a96e;
+  --destructive: #f97066;
+  --destructive-soft: #3a1d1b;
+  --success: #6fcf97;
+  --sidebar: #17171a;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-ring: var(--ring);
+  --color-destructive: var(--destructive);
+  --color-destructive-soft: var(--destructive-soft);
+  --color-success: var(--success);
+  --color-sidebar: var(--sidebar);
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 4px);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  html {
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  ::selection {
+    background: var(--accent-soft);
+  }
+}

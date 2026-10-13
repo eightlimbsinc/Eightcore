@@ -1,0 +1,86 @@
+import type { Metadata } from "next";
+import { Lock } from "lucide-react";
+import { getProjectPage } from "@/modules/projects/queries";
+import { PageHeader } from "@/components/app/page-header";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { ArchiveProjectButton, ProjectDetailsForm, ProjectMembers } from "@/components/app/project-settings";
+
+export async function generateMetadata({ params }: { params: Promise<{ key: string }> }): Promise<Metadata> {
+  return { title: (await params).key.toUpperCase() };
+}
+
+export default async function ProjectPage({ params }: { params: Promise<{ slug: string; key: string }> }) {
+  const { slug, key } = await params;
+  const { actor, project, members, workspaceMembers } = await getProjectPage(slug, key);
+  return (
+    <>
+      <PageHeader
+        eyebrow={<span className="text-accent-foreground font-mono tracking-wide">{project.key}</span>}
+        title={
+          <span className="flex items-center gap-2">
+            {project.name}
+            {project.visibility === "private" ? (
+              <Lock className="text-muted-foreground size-4" aria-label="Private" />
+            ) : null}
+          </span>
+        }
+        description={project.description || undefined}
+        actions={
+          <Badge>
+            Your role: <span className="capitalize">{project.role}</span>
+          </Badge>
+        }
+      />
+      <div className="grid gap-6 px-8 py-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]">
+        <div className="grid content-start gap-6">
+          <Card>
+            <CardHeader className="border-b-0">
+              <CardTitle>Tasks</CardTitle>
+              <CardDescription>
+                Lists, tasks and boards for this project are part of the next milestone (Phase 3).
+              </CardDescription>
+            </CardHeader>
+          </Card>
+          {project.can.update ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Project details</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ProjectDetailsForm workspaceSlug={slug} project={project} />
+              </CardContent>
+            </Card>
+          ) : null}
+          {project.can.archive ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Archive</CardTitle>
+                <CardDescription>Archived projects are hidden but keep all their history.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ArchiveProjectButton workspaceSlug={slug} projectId={project.id} />
+              </CardContent>
+            </Card>
+          ) : null}
+        </div>
+        <Card className="content-start self-start">
+          <CardHeader>
+            <CardTitle>People</CardTitle>
+            <CardDescription>Explicit project roles.</CardDescription>
+          </CardHeader>
+          <CardContent className="min-w-0">
+            <ProjectMembers
+              workspaceSlug={slug}
+              projectId={project.id}
+              members={members}
+              candidates={workspaceMembers}
+              canManage={project.can.manageMembers}
+              currentUserId={actor.userId}
+            />
+          </CardContent>
+        </Card>
+      </div>
+    </>
+  );
+}

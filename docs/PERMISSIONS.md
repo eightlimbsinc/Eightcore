@@ -1,6 +1,6 @@
 # Eightcore — Permissions
 
-Status: Phase 1 proposal. Implemented in Phase 2 (`src/server/authz`) with automated tests. Last updated 2026-10-13.
+Status: **implemented in Phase 2** for the workspace and project actions below (`src/server/authz/matrix.ts` is the source of truth). Task, comment, and attachment actions arrive with their features in Phase 3. Last updated 2026-10-13.
 
 ## 1. Principles
 

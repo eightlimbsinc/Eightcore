@@ -1,13 +1,13 @@
 # Eightcore — Implementation Roadmap
 
-Status: Phase 1 complete (pending approval). Phases run strictly in order. A phase is done only when its acceptance criteria pass (see `TESTING_STRATEGY.md` §6). Last updated 2026-10-13.
+Status: Phase 1 approved. **Phase 2 complete** (pending your review). Phases run strictly in order. A phase is done only when its acceptance criteria pass (see `TESTING_STRATEGY.md` §6). Last updated 2026-10-13.
 
 ## Decisions needed before Phase 2
 
 | # | Decision | Recommendation |
 |---|---|---|
-| D1 | Approve the stack in `ARCHITECTURE.md` §2 | Approve |
-| D2 | Authentication library | **Better Auth** (MIT). Not on the original named list, so it needs approval. Fallback: Auth.js v4 |
+| D1 | Approve the stack in `ARCHITECTURE.md` §2 | ✅ Approved 2026-10-13 |
+| D2 | Authentication library | ✅ **Better Auth** approved 2026-10-13 |
 | D3 | Local Postgres via Docker Engine/Docker Desktop or native install | Either. Docker Desktop has licence conditions for larger companies (see `COST_AND_LICENSES.md`) |
 | D4 | Repository hosting | GitHub Free (current). Keep the repo private |
 | D5 | Rich-text editor | Tiptap open-source core (MIT), with Pro extensions excluded |
@@ -19,7 +19,7 @@ Status: Phase 1 complete (pending approval). Phases run strictly in order. A pha
 **Deliverables:** the nine documents in `docs/`.
 **Acceptance:** documents reviewed. Decisions D1–D5 answered.
 
-## Phase 2 — Local environment, database, authentication, permissions (next)
+## Phase 2 — Local environment, database, authentication, permissions ✅
 
 **Scope**
 
@@ -35,14 +35,18 @@ Status: Phase 1 complete (pending approval). Phases run strictly in order. A pha
 
 **Acceptance criteria**
 
-- [ ] `docker compose up -d && npm run db:migrate && npm run db:seed && npm run dev` works on a clean machine using only the RUNBOOK.
-- [ ] A user can sign up, verify email (Mailpit), sign in, create a workspace, invite a second user, who accepts and appears with the chosen role.
-- [ ] Generated permission-matrix tests pass for all Phase 2 actions. Cross-workspace IDOR tests return 404.
-- [ ] Composite-FK violation tests fail at the database as expected.
-- [ ] Sessions are revoked on sign-out-everywhere and password change (tested).
-- [ ] The client bundle scan finds no server secrets.
-- [ ] Lint, type check, unit, integration, and E2E (journey 1) are green locally and in CI.
-- [ ] `COST_AND_LICENSES.md` matches the installed `package.json` (licence-check script).
+- [x] `docker compose up -d && npm run db:migrate && npm run db:seed && npm run dev` works on a clean machine using only the RUNBOOK. *(Verified here with a native Postgres 16 via RUNBOOK §2b; the Docker path uses the same bootstrap files.)*
+- [x] A user can sign up, verify email, sign in, create a workspace, and invite a second user, who accepts and appears with the chosen role. *(Playwright: `tests/e2e/onboarding.spec.ts`)*
+- [x] Permission-matrix tests pass for all Phase 2 actions: unit (every role × action, hand-written expectations) and integration (every exposed action through the real services). Cross-workspace IDOR tests return 404 and change nothing.
+- [x] Composite-FK violation tests fail at the database as expected. The app role can't rewrite history or change the schema.
+- [x] Sessions are revoked on sign-out-everywhere, password change, and password reset (tested).
+- [x] The client bundle scan finds no server secrets (`npm run secrets:scan`).
+- [x] Lint, type check, unit, integration, and E2E (journey 1) are green locally. CI workflow added (`.github/workflows/ci.yml`).
+- [x] Licence check passes over the full `package-lock.json` (`npm run licenses:check`).
+
+**Delivered beyond the minimum:** member deactivation and reactivation, an invariant that every workspace keeps at least one active owner (deferred DB trigger), private projects with explicit project roles, guest cap at editor, project archive, account page (change password, sign out everywhere), transactional activity, audit, and outbox writes on every mutation.
+
+**Deferred, by design:** 2FA/passkeys (Better Auth plugins, add when wanted), the workspace settings and audit-log viewer screens (Phase 4), the background worker that drains `outbox_events` (Phase 6), Postgres RLS defence-in-depth (Phase 8).
 
 ## Phase 3 — Projects, tasks, subtasks, assignments, comments
 

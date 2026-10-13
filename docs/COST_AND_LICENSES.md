@@ -2,7 +2,7 @@
 
 Policy: free and open-source software by default. **Nothing that can incur a charge is added without written approval.** This file must be updated whenever a dependency is added, removed, or upgraded across a major version.
 
-Licences and versions below were checked against the npm registry and project sites on **2026-10-13**. "FOSS" = free and open-source software (the licence permits free use, modification, and redistribution). A "free tier" of a hosted service is **not** FOSS and is listed separately.
+Licences and versions below were checked against the npm registry and project sites on **2026-10-13**, and are enforced on every CI run by `npm run licenses:check` (§8). "FOSS" = free and open-source software (the licence permits free use, modification, and redistribution). A "free tier" of a hosted service is **not** FOSS and is listed separately.
 
 ## 1. Summary
 
@@ -43,7 +43,7 @@ Licences and versions below were checked against the npm registry and project si
 | sanitize-html | 2.18.0 | MIT | ✅ | — | — | None |
 | recharts (dashboards) | 3.10.1 | MIT | ✅ | — | — | None |
 | FullCalendar (alternative to an in-house calendar), **only** `core`, `daygrid`, `timegrid`, `interaction` | 6.1.x / 7.x | MIT | ✅ | — | **FullCalendar Premium (`resource-*`, `timeline`, `scheduler`) is commercial. Do not install** | None if only MIT packages are used |
-| Fonts: Inter or Geist | — | SIL OFL 1.1 | ✅ | — | — | None (self-hosted via `next/font`, no Google API calls at runtime) |
+| Geist font (`geist` npm package) | 1.7.2 | SIL OFL 1.1 | ✅ | — | — | None. Bundled locally, so builds and pages make no Google Fonts calls |
 
 ## 3. Data, auth, jobs, server
 
@@ -53,7 +53,7 @@ Licences and versions below were checked against the npm registry and project si
 | Drizzle ORM | 0.45.4 | Apache-2.0 | ✅ | — | — | None |
 | drizzle-kit (migrations CLI) | 0.31.11 | MIT | ✅ | — | — | None |
 | pg (node-postgres) | 8.23.1 | MIT | ✅ | — | — | None |
-| Better Auth (**pending approval**) | 1.7.7 | MIT | ✅ | — | Better Auth's hosted dashboard/infrastructure product is optional and **not used** | None |
+| Better Auth (**approved 2026-10-13**) | 1.7.7 | MIT | ✅ | — | Better Auth's hosted dashboard/infrastructure product is optional and **not used**. Telemetry is off by default and explicitly disabled in config | None |
 | — alternative: Auth.js / next-auth | 4.24.15 (v5 beta) | ISC | ✅ | — | — | None. Security-maintenance only |
 | — alternative: Supabase Auth (GoTrue, self-hosted) | — | MIT | ✅ | — | Supabase Cloud has a free tier with limits (**hosted, not used**) | None if self-hosted |
 | @node-rs/argon2 (optional Argon2id hashing) | 2.2.2 | MIT | ✅ | — | — | None |
@@ -74,7 +74,7 @@ Licences and versions below were checked against the npm registry and project si
 | Playwright (@playwright/test 1.64.0) | Apache-2.0 | ✅ | Browsers downloaded free | None |
 | @axe-core/playwright (4.13.0) | MPL-2.0 | ✅ | File-level copyleft applies only if *we modify axe's files*. Using it unmodified in tests imposes nothing on our code | None |
 | Testing Library, jsdom | MIT | ✅ | — | None |
-| ESLint 10, typescript-eslint 8.71, eslint-config-next | MIT | ✅ | typescript-eslint requires TypeScript < 6.1 (why TS is pinned) | None |
+| ESLint 9.39, typescript-eslint 8.71, eslint-config-next 16.4 | MIT | ✅ | ESLint 10 is out, but `eslint-plugin-react`, `-import` and `-jsx-a11y` (used by `eslint-config-next`) don't support it yet. typescript-eslint requires TypeScript < 6.1 (why TS is pinned) | None |
 | Prettier | MIT | ✅ | — | None |
 | Git | GPL-2.0 | ✅ | A tool, not distributed with the app | None |
 | Docker Engine / Docker Compose (Linux) | Apache-2.0 | ✅ | — | None |
@@ -116,7 +116,34 @@ Usage limits are set by each provider and can change. The core app never depends
 - Redis as required infrastructure.
 - MinIO (archived upstream). Any AGPL component **linked into** the app (AGPL services run as separate unmodified processes are acceptable after review).
 
-## 8. Enforcement
+## 8. Installed today (Phase 2)
 
-- Phase 2 adds `scripts/check-licenses.mjs`, which reads `package-lock.json` and fails CI if any production dependency's licence is outside the allowlist: MIT, ISC, Apache-2.0, BSD-2/3-Clause, 0BSD, CC0-1.0, Unlicense, MIT-0, BlueOak-1.0.0, Python-2.0, MPL-2.0 (dev only).
+Everything else in §2–§4 is **planned** and is added (and re-verified) in the phase that needs it.
+
+| Kind | Packages (exact versions in `package.json`) |
+|---|---|
+| Runtime | next 16.4.0, react / react-dom 19.3.0, better-auth 1.7.7, drizzle-orm 0.45.4, pg 8.23.1, zod 4.6.7, nodemailer 10.1.0, radix-ui 1.8.1, lucide-react 1.56.0, next-themes 0.4.6, class-variance-authority 0.7.1, clsx 2.1.1, tailwind-merge 3.7.0, geist 1.7.2, server-only 0.0.1 |
+| Development | typescript 6.0.3, tailwindcss + @tailwindcss/postcss 4.3.3, drizzle-kit 0.31.11, eslint 9.39.5, eslint-config-next 16.4.0, typescript-eslint 8.71.2, prettier 3.9.10, prettier-plugin-tailwindcss 0.8.1 (MIT), vitest 5.0.4, @playwright/test 1.64.0, tsx 4.23.15, @types/* |
+
+### Reviewed non-permissive transitive packages
+
+| Package | Licence | Pulled in by | Why it's acceptable |
+|---|---|---|---|
+| `lightningcss` (+ platform binaries) | MPL-2.0 | Tailwind CSS 4 (CSS compiler, build time) | File-level copyleft. Used unmodified, so there are no obligations for our code |
+| `axe-core` | MPL-2.0 | `eslint-plugin-jsx-a11y` (lint only) | Same. Dev tooling, unmodified |
+| `@img/sharp-libvips-*` | LGPL-3.0-or-later | `sharp`, Next.js's optional image optimiser | Dynamically linked, unmodified native library. LGPL permits this in proprietary apps. Optional and platform-specific |
+| `caniuse-lite` | CC-BY-4.0 | Browserslist (build tooling) | Data licence. Attribution is kept in the package |
+
+### Known `npm audit` findings (2026-10-13)
+
+| Advisory | Where | Exposure | Action |
+|---|---|---|---|
+| esbuild ≤ 0.24.2 dev-server CORS (GHSA-67mh-4wv8-2f99), moderate | `drizzle-kit` → `@esbuild-kit/*` | Only when running esbuild's *dev server*, which drizzle-kit never starts. Not in the app runtime | Track drizzle-kit 1.0, which drops `@esbuild-kit` |
+| braces stack exhaustion (GHSA-vfj7-8cjw-p6xm), high | `eslint-config-next` → `@next/eslint-plugin-next` → `fast-glob` | Lint-time glob matching over our own repo files only | Track the next `eslint-config-next` release |
+
+No advisory affects code that runs in the deployed app.
+
+## 9. Enforcement
+
+- `scripts/check-licenses.mjs` (`npm run licenses:check`, run in CI) reads `package-lock.json` and fails if **any** installed package's licence is outside the allowlist: MIT, MIT-0, ISC, Apache-2.0, BSD-2/3-Clause, 0BSD, CC0-1.0, Unlicense, BlueOak-1.0.0, Python-2.0, CC-BY-4.0 (data), SIL OFL 1.1 (fonts), plus the reviewed MPL-2.0 / LGPL-3.0 entries above. A new non-permissive licence fails CI until it's reviewed here.
 - `npm view <pkg> license` and the package's repository `LICENSE` are checked before adding any dependency, and the result is recorded in this file in the same pull request.

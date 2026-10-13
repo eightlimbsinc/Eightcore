@@ -11,7 +11,7 @@ Status: Phase 1 proposal. Every phase ships with passing tests for its acceptanc
 | Testing Library (React) + jsdom | MIT | Component tests for complex interactive components only |
 | Playwright (`@playwright/test`) | Apache-2.0 | End-to-end tests in Chromium (Firefox/WebKit in nightly runs) |
 | `@axe-core/playwright` | MPL-2.0 (unmodified use, no obligations for our code) | Automated accessibility checks in E2E |
-| ESLint 10 + `typescript-eslint` + `eslint-config-next` | MIT | Lint, including `no-floating-promises` and import boundaries |
+| ESLint 9 + `typescript-eslint` + `eslint-config-next` | MIT | Lint, including `no-floating-promises` and import boundaries |
 | TypeScript 6.0 (`strict`, `noUncheckedIndexedAccess`) | Apache-2.0 | `tsc --noEmit` type check |
 | Prettier | MIT | Formatting |
 | PostgreSQL 17 (Docker or native) | PostgreSQL Licence | Real database for integration and E2E tests. **No DB mocks for data-access code** |

@@ -1,6 +1,6 @@
 # Eightcore — Architecture
 
-Status: Phase 1 proposal, pending approval. Last updated 2026-10-13.
+Status: approved 2026-10-13 (Better Auth included). Phase 2 implemented. Last updated 2026-10-13.
 
 ## 1. Starting point
 
@@ -18,7 +18,7 @@ The repository was empty when discovery began (no commits, no code). This is a g
 | Database | **PostgreSQL 17** (16+ supported) | Authoritative store. Also powers search, jobs, and the event outbox |
 | ORM / migrations | **Drizzle ORM 0.45.x** + **drizzle-kit**, with generated SQL migrations committed to git | Typed SQL, no runtime engine binary, plain-SQL migrations that are reviewable. (Drizzle 1.0 is still RC. Adopt later.) |
 | DB driver | `pg` (node-postgres) | One driver shared by Drizzle, Better Auth, and pg-boss |
-| Auth | **Better Auth** (MIT), self-hosted in-process, sessions stored in Postgres (**needs approval**, see §6) | Auth.js is in security-only maintenance. Supabase Auth adds a separate service |
+| Auth | **Better Auth** (MIT), self-hosted in-process, sessions stored in Postgres (**approved**, see §6) | Auth.js is in security-only maintenance. Supabase Auth adds a separate service |
 | Authorization | Our own policy module (`src/server/authz`) with composite-FK workspace scoping in the database | Authorization belongs to the domain, not the auth library |
 | Validation | **Zod 4** at every server boundary | One schema used for forms, actions, webhooks, and env |
 | Jobs | **pg-boss** (MIT) on the same Postgres, with a separate `worker` process | No Redis, no paid orchestrator. Retries, cron, and throttling built in |
@@ -27,7 +27,7 @@ The repository was empty when discovery began (no commits, no code). This is a g
 | Files | `StorageAdapter` interface. **Local filesystem** in development. S3-compatible later (SeaweedFS or Garage, self-hosted) | No paid object storage. MinIO CE is archived upstream (2026). Do not adopt it |
 | Email | SMTP via `nodemailer`. **Mailpit** (MIT) catches mail locally | No paid email API required. Production SMTP is an optional choice |
 | Realtime | Not in MVP. Later: Postgres `LISTEN/NOTIFY` → Server-Sent Events | Free and needs no extra infrastructure |
-| Testing | Vitest, Playwright, ESLint, `tsc --noEmit` | Approved stack |
+| Testing | Vitest, Playwright, ESLint 9, `tsc --noEmit` | Approved stack. ESLint 10 waits on the React/import/a11y plugins |
 | Local infra | Docker Compose (Postgres, Mailpit) **or** native Postgres | Docker Engine is free. Docker Desktop has licence terms (see `COST_AND_LICENSES.md`) |
 
 ## 3. System context
@@ -125,7 +125,7 @@ Reads follow steps 2–4, then a workspace-scoped query. **Every query against a
 
 **Recommendation: Better Auth**, used for **identity and sessions only** (users, credentials, sessions, verification tokens, rate limiting, optional TOTP 2FA). Workspace membership, roles, and permissions stay in Eightcore's own schema and `authz` module, so the auth library can be swapped later. Its organisation plugin is not used.
 
-Better Auth is not on the master prompt's named list (Auth.js / Supabase Auth), so **this choice needs explicit approval before Phase 2 starts**. Fallback if not approved: Auth.js v4 with a JWT session strategy plus a server-side session denylist table for revocation, plus hand-built reset and verification flows (roughly +1 week of effort and more security surface).
+**Approved 2026-10-13.** Implemented in `src/server/auth/config.ts`: email + password with required verification, 12-character minimum, DB sessions with no cookie cache (revocation takes effect on the next request), database-backed rate limits on auth routes, audit hooks for sign-in, failed sign-in and sign-up, and telemetry disabled. Its tables are mapped onto Eightcore names (`users`, `auth_sessions`, `auth_accounts`, `auth_verifications`, `auth_rate_limits`) with UUID IDs.
 
 ## 7. Security architecture
 
@@ -137,9 +137,9 @@ Better Auth is not on the master prompt's named list (Auth.js / Supabase Auth), 
 | Authorization | Server-side `authz.assert` in every service function, plus composite FKs. Optional Postgres RLS as defence-in-depth in Phase 8 (see `PERMISSIONS.md` §6) |
 | Input | Zod on every boundary. Rich text sanitized server-side (`sanitize-html` allowlist) before storage *and* rendering |
 | Files | Uploaded through an authorized route. Size limit (default 50 MB). Content type sniffed with `file-type`. Stored under random keys, never under user-supplied paths. Downloaded through `/api/files/[id]` after an authz check, with `Content-Disposition: attachment` for non-image types and `X-Content-Type-Options: nosniff` |
-| Headers | CSP (nonce-based scripts), `frame-ancestors 'none'`, HSTS (prod), `Referrer-Policy: strict-origin-when-cross-origin` |
+| Headers | CSP per request in `src/proxy.ts` (Next.js 16's renamed middleware): nonce + `strict-dynamic` scripts, `frame-ancestors 'none'`, `form-action 'self'`. Styles allow `'unsafe-inline'` because Radix positions popovers with inline style attributes (scripts stay nonce-only). Plus `X-Frame-Options: DENY`, `nosniff`, HSTS (prod), `Referrer-Policy: strict-origin-when-cross-origin`, a restrictive `Permissions-Policy` |
 | Secrets | `.env.local` (git-ignored). `env.ts` validates with Zod and imports `server-only`. Only `NEXT_PUBLIC_*` reaches the browser, and none of those are secrets. Integration tokens are encrypted at rest with AES-256-GCM (`node:crypto`) using `EIGHTCORE_ENCRYPTION_KEY` |
-| DB roles | `eightcore_app` (DML only, no DDL, no `UPDATE/DELETE` on `activity_events`/`audit_log`), `eightcore_migrator` (DDL). The browser never sees any DB credential |
+| DB roles | `eightcore_app` (DML only, no DDL, no `UPDATE/DELETE/TRUNCATE` on `activity_events`/`audit_log`), `eightcore_migrator` (DDL). Set up by `docker/postgres/` and verified by `tests/integration/constraints.test.ts`. The browser never sees any DB credential |
 | Webhooks | Incoming: per-endpoint secret, HMAC-SHA256 over `timestamp.body`, 5-minute replay window, idempotency key table. Outgoing: same signature scheme so receivers can verify |
 | Audit | `activity_events` (domain changes) and `audit_log` (security events: sign-in, failed sign-in, role change, invitation, integration connect, export, import run) |
 | Rate limits | Better Auth limiter on auth routes. A per-user token bucket in Postgres for mutation-heavy routes and webhooks |

@@ -1,6 +1,6 @@
 # Eightcore — Data Model
 
-Status: Phase 1 proposal. Implemented incrementally with Drizzle + versioned SQL migrations. Last updated 2026-10-13.
+Status: implemented incrementally with Drizzle + versioned SQL migrations. **Phase 2 tables (live):** §4.1 identity, `workspaces`, `workspace_members`, `workspace_invitations`, `projects`, `project_members`, `activity_events`, `audit_log`, `outbox_events` (`drizzle/0000_init.sql`, `0001_invariants_and_privileges.sql`). Everything else is planned. Last updated 2026-10-13.
 
 ## 1. Conventions
 

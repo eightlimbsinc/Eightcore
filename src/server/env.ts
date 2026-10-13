@@ -1,0 +1,33 @@
+import "server-only";
+import { z } from "zod";
+
+const schema = z.object({
+  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
+  BETTER_AUTH_SECRET: z.string().min(32, "BETTER_AUTH_SECRET must be at least 32 characters"),
+  BETTER_AUTH_URL: z.url(),
+  SMTP_URL: z.preprocess((v) => (v === "" ? undefined : v), z.url({ protocol: /^smtps?$/ }).optional()),
+  MAIL_FROM: z.string().min(3).default("Eightcore <no-reply@eightcore.local>"),
+  MAIL_OUTBOX_DIR: z.string().default(".mail"),
+  /** Lets a production build write mail to MAIL_OUTBOX_DIR. Only for the local E2E server. */
+  EIGHTCORE_ALLOW_FILE_MAIL: z.enum(["0", "1"]).default("0"),
+});
+
+export type Env = z.infer<typeof schema>;
+
+let cached: Env | undefined;
+
+/**
+ * Validated server environment. Read lazily so `next build` doesn't need
+ * runtime secrets; the first request (or script) fails fast if anything is missing.
+ */
+export function env(): Env {
+  if (cached) return cached;
+  const parsed = schema.safeParse(process.env);
+  if (!parsed.success) {
+    const issues = parsed.error.issues.map((i) => `  ${i.path.join(".")}: ${i.message}`).join("\n");
+    throw new Error(`Environment validation failed:\n${issues}\nSee .env.example and docs/RUNBOOK.md.`);
+  }
+  cached = parsed.data;
+  return cached;
+}

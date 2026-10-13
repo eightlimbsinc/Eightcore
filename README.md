@@ -2,7 +2,21 @@
 
 **The operating system for modern agency operations.** Internal agency OS for 8limbs Inc.
 
-Status: **Phase 1 — architecture discovery.** No application code yet.
+Status: **Phase 2 complete:** local environment, database, authentication, workspaces, invitations, projects, and permissions.
+
+## Quick start
+
+```bash
+npm ci
+cp .env.example .env.local          # set BETTER_AUTH_SECRET (openssl rand -base64 32)
+docker compose up -d                # or a native Postgres: see docs/RUNBOOK.md §2b
+npm run db:migrate && npm run db:seed
+npm run dev                         # http://localhost:3000, owner@demo.eightcore.local / "eightcore demo password"
+```
+
+Run every check CI runs with `npm run ci`. Everything is free and open source; see [Cost and licences](docs/COST_AND_LICENSES.md).
+
+## Documents
 
 | Document | Contents |
 |---|---|
