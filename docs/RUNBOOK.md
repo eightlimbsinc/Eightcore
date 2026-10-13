@@ -78,7 +78,7 @@ The repo includes a dev container (`.devcontainer/`). It starts Postgres 17 and 
 
 The forwarded URL is private to your GitHub account by default. To show it to a teammate, change the port's visibility in the **Ports** tab. Stop the codespace when you're done (**Codespaces → Stop**) so it stops using your free hours. Cost: see `COST_AND_LICENSES.md` §5.
 
-How it works behind GitHub's proxy: `BETTER_AUTH_URL` is set to the public `*.app.github.dev` address, and `next.config.ts` trusts exactly that host for Server Action CSRF checks and dev resources. Redirects are built from it too. The same mechanism serves a reverse proxy in production.
+How it works behind GitHub's proxy: `BETTER_AUTH_URL` is set to the public `*.app.github.dev` address (`.devcontainer/start.sh` keeps it in sync), and `next.config.ts` trusts exactly that host for Server Action CSRF checks and dev resources. Redirects are built from it too. The forwarder also rewrites the browser's `Origin` header to `http://localhost:3000`, so outside production the auth config trusts that origin as well. Only pages served from the codespace's own port 3000 can send it. The same mechanism serves a reverse proxy in production.
 
 ### Environment variables (`.env.example`)
 

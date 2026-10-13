@@ -16,7 +16,12 @@ function createAuth() {
     appName: "Eightcore",
     baseURL: e.BETTER_AUTH_URL,
     secret: e.BETTER_AUTH_SECRET,
-    trustedOrigins: [e.BETTER_AUTH_URL],
+    trustedOrigins: [
+      e.BETTER_AUTH_URL,
+      // In development, forwarders such as GitHub Codespaces rewrite the browser's Origin
+      // to the internal address. Only pages served from localhost:3000 can send that origin.
+      ...(e.NODE_ENV === "production" ? [] : ["http://localhost:3000"]),
+    ],
     telemetry: { enabled: false },
     database: drizzleAdapter(db(), {
       provider: "pg",
@@ -42,6 +47,9 @@ function createAuth() {
       database: { generateId: "uuid" },
       useSecureCookies: e.NODE_ENV === "production",
       cookiePrefix: "eightcore",
+      // Better Auth skips origin checks under NODE_ENV=test by default; keep them on so
+      // tests exercise the same protection as the running app.
+      disableOriginCheck: false,
     },
     rateLimit: {
       enabled: true,

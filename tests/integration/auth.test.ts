@@ -120,3 +120,34 @@ describe("authentication", () => {
     expect((await signIn("reset@example.test", "a brand new passphrase")).status).toBe(200);
   });
 });
+
+describe("origin checks", () => {
+  async function signInFrom(origin: string) {
+    await signUpAndVerify(`origin-${Math.random().toString(36).slice(2)}@example.test`);
+    return getAuth().handler(
+      new Request("http://localhost:3000/api/auth/sign-in/email", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin,
+          "sec-fetch-site": "same-origin",
+          "sec-fetch-mode": "cors",
+        },
+        body: JSON.stringify({ email: "nobody@example.test", password }),
+      }),
+    );
+  }
+
+  it("refuses sign-in requests from a foreign origin", async () => {
+    const res = await signInFrom("https://evil.example");
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({ code: "INVALID_ORIGIN" });
+  });
+
+  it("accepts the configured public URL, and localhost:3000 outside production (Codespaces rewrites Origin)", async () => {
+    for (const origin of ["http://localhost:3000", process.env.BETTER_AUTH_URL!]) {
+      const res = await signInFrom(origin);
+      expect(res.status).not.toBe(403); // reaches the credential check: 401 for an unknown user
+    }
+  });
+});
