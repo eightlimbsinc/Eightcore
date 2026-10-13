@@ -73,7 +73,7 @@ Mail sent by the app appears at http://localhost:8025 (Mailpit) or in `.mail/`.
 The repo includes a dev container (`.devcontainer/`). It starts Postgres 17 and Mailpit next to the app, writes `.env.local` (with a fresh secret and the codespace's public URL), migrates, seeds, and starts `npm run dev`.
 
 1. On GitHub, open the repository, switch to the branch, then **Code → Codespaces → Create codespace on <branch>**.
-2. Wait for setup to finish (first time: a few minutes). Port 3000 opens in a new tab. If it doesn't, open the **Ports** tab and click the globe icon next to **Eightcore (3000)**.
+2. Wait for setup to finish (first time: a few minutes). The app starts automatically. If it doesn't, run `bash .devcontainer/start.sh` in the terminal. Then open the **Ports** tab and click the globe icon next to **Eightcore (3000)**.
 3. Sign in with a seeded account (table above). Emails appear on the **Mailpit (test inbox)** port.
 
 The forwarded URL is private to your GitHub account by default. To show it to a teammate, change the port's visibility in the **Ports** tab. Stop the codespace when you're done (**Codespaces → Stop**) so it stops using your free hours. Cost: see `COST_AND_LICENSES.md` §5.

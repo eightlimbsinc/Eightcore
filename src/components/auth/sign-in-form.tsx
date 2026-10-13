@@ -30,9 +30,14 @@ export function SignInForm() {
     const { error } = await authClient.signIn.email({ email, password: String(form.get("password")) });
     setPending(false);
     if (error) {
-      if (error.status === 403) {
+      if (error.code === "EMAIL_NOT_VERIFIED") {
         setUnverifiedEmail(email);
         setError("Please verify your email address first. Check your inbox for the link.");
+      } else if (error.status === 403) {
+        // Better Auth refuses requests from an origin other than BETTER_AUTH_URL.
+        setError(
+          `Sign-in was blocked because this address (${window.location.origin}) doesn't match the app's configured URL (BETTER_AUTH_URL).`,
+        );
       } else if (error.status === 429) {
         setError("Too many attempts. Wait a minute and try again.");
       } else {

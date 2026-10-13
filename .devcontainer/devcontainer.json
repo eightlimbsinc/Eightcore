@@ -11,7 +11,7 @@
     "mailpit:8025": { "label": "Mailpit (test inbox)", "onAutoForward": "silent" }
   },
   "postCreateCommand": "bash .devcontainer/setup.sh",
-  "postAttachCommand": "npm run dev",
+  "postAttachCommand": "bash .devcontainer/start.sh",
   "hostRequirements": { "cpus": 2, "memory": "4gb" },
   "customizations": {
     "vscode": {
