@@ -8,7 +8,7 @@ test-results/
 next-env.d.ts
 
 # local data
-storage/
+/storage/
 .mail/
 
 # env files: only the example is committed
