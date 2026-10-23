@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { Home, Inbox, Plus, Users } from "lucide-react";
+import { CircleUserRound, Home, Inbox, ListTodo, Plus, Users } from "lucide-react";
 import { getWorkspaceShell } from "@/modules/workspaces/queries";
 import { WorkspaceSwitcher } from "@/components/app/workspace-switcher";
 import { UserMenu } from "@/components/app/user-menu";
 import { ThemeToggle } from "@/components/app/theme-toggle";
 import { NavLink, ProjectTree } from "@/components/app/sidebar-nav";
 import { LogoMark } from "@/components/brand/logo";
+import { TimeZoneCookie } from "@/components/app/time-zone-cookie";
 
 export default async function WorkspaceLayout({
   children,
@@ -35,6 +36,12 @@ export default async function WorkspaceLayout({
         <nav className="grid gap-0.5 px-2 pt-1">
           <NavLink href={base} exact>
             <Home /> Home
+          </NavLink>
+          <NavLink href={`${base}/tasks?assignee=me&state=open`}>
+            <CircleUserRound /> My Work
+          </NavLink>
+          <NavLink href={`${base}/tasks`} exact unless={{ assignee: "me" }}>
+            <ListTodo /> All tasks
           </NavLink>
           <NavLink href={`${base}/inbox`}>
             <Inbox /> <span className="flex-1">Inbox</span>
@@ -82,6 +89,7 @@ export default async function WorkspaceLayout({
       <div className="flex min-w-0 flex-1 flex-col">
         <main className="flex-1">{children}</main>
         {modal}
+        <TimeZoneCookie />
         <footer className="text-muted-foreground flex items-center gap-1.5 px-8 py-4 text-[11px]">
           <LogoMark className="size-3.5" /> Eightcore
         </footer>

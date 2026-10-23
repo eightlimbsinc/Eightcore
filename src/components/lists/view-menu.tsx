@@ -46,18 +46,24 @@ export function ViewMenu({
   isProtected,
   canSave,
   canProtect,
+  filters,
+  filterChanges,
 }: {
   workspaceSlug: string;
   listId: string;
   view: ViewSettings;
   saved: ViewSettings;
+  /** The current filters as a query string (what "Save view" stores). */
+  filters: string;
+  /** The filters that differ from the saved ones (kept when switching view options). */
+  filterChanges: string;
   isProtected: boolean;
   canSave: boolean;
   canProtect: boolean;
 }) {
   const [pending, startTransition] = useTransition();
   const base = `/w/${workspaceSlug}/l/${listId}`;
-  const dirty = !sameView(view, saved);
+  const dirty = !sameView(view, saved) || filters !== saved.filters;
   const run = (fn: () => Promise<unknown>) =>
     startTransition(async () => {
       const result = (await fn()) as { ok: boolean; message?: string } | undefined;
@@ -90,7 +96,7 @@ export function ViewMenu({
                 return (
                   <Link
                     key={value}
-                    href={`${base}${viewQuery({ ...view, [key]: value } as ViewSettings, saved)}`}
+                    href={`${base}${viewQuery({ ...view, [key]: value } as ViewSettings, saved, filterChanges)}`}
                     aria-current={on ? "true" : undefined}
                     className={cn(
                       "hover:bg-surface-muted flex items-center justify-between rounded-md px-2 py-1.5 text-[13px]",
@@ -111,12 +117,18 @@ export function ViewMenu({
                   <button
                     type="button"
                     disabled={pending}
-                    onClick={() => run(() => saveListViewAction(workspaceSlug, listId, view))}
+                    onClick={() => run(() => saveListViewAction(workspaceSlug, listId, { ...view, filters }))}
                     className="bg-primary text-primary-foreground hover:bg-primary/90 flex items-center justify-center gap-2 rounded-md px-3 py-1.5 text-[13px] font-medium disabled:opacity-60"
                   >
                     <Save className="size-4" /> {pending ? "Saving…" : "Save view for everyone"}
                   </button>
-                ) : (
+                ) : null}
+                {canSave && filters ? (
+                  <p className="text-muted-foreground px-2 text-[11px]">
+                    Your current filters are saved too.
+                  </p>
+                ) : null}
+                {canSave ? null : (
                   <p className="text-muted-foreground px-2 text-[12px]">
                     {isProtected
                       ? "This view is protected: only managers can save changes. Yours apply to you only."

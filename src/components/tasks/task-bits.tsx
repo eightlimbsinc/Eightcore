@@ -32,9 +32,18 @@ export function PriorityLabel({ priority, showNone = false }: { priority: Priori
   );
 }
 
-export function DueDateLabel({ dueDate, completed }: { dueDate: string | null; completed: boolean }) {
+export function DueDateLabel({
+  dueDate,
+  completed,
+  today,
+}: {
+  dueDate: string | null;
+  completed: boolean;
+  /** The viewer's date (server pages pass it; defaults to the machine's date). */
+  today?: string;
+}) {
   if (!dueDate) return null;
-  const state = dueState(dueDate, completed);
+  const state = dueState(dueDate, completed, today);
   return (
     <span
       className={cn(

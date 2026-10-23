@@ -1,7 +1,8 @@
 import "server-only";
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db, type DbOrTx } from "@/server/db";
-import { tags, tasks, taskTags } from "@/server/db/schema";
+import { projectMembers, projects, tags, tasks, taskTags } from "@/server/db/schema";
+import { visibleProjectCondition } from "@/modules/projects/visibility";
 import { canProject, type ActorContext } from "@/server/authz/policy";
 import { ForbiddenError, NotFoundError, ValidationError, assertId, pgErrorInfo } from "@/server/errors";
 import { recordActivity } from "@/modules/activity/service";
@@ -169,4 +170,27 @@ export async function tagsForTasks(tx: DbOrTx, taskIds: string[]) {
     .orderBy(asc(sql`lower(${tags.name})`));
   for (const { taskId, ...tag } of rows) map.set(taskId, [...(map.get(taskId) ?? []), tag]);
   return map;
+}
+
+/** Distinct tag names across the projects the actor can see (for filter menus). */
+export async function visibleTagNames(actor: ActorContext): Promise<string[]> {
+  const rows = await db()
+    .selectDistinct({ name: tags.name })
+    .from(tags)
+    .innerJoin(projects, eq(projects.id, tags.projectId))
+    .leftJoin(
+      projectMembers,
+      and(eq(projectMembers.projectId, projects.id), eq(projectMembers.userId, actor.userId)),
+    )
+    .where(
+      and(
+        eq(tags.workspaceId, actor.workspaceId),
+        isNull(projects.archivedAt),
+        visibleProjectCondition(actor),
+      ),
+    )
+    .orderBy(tags.name)
+    .limit(200);
+  // Same name in several projects shows once.
+  return [...new Map(rows.map((r) => [r.name.toLowerCase(), r.name])).values()];
 }

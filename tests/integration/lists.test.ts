@@ -166,6 +166,7 @@ describe("saved list views", () => {
       order: "desc",
       subtasks: "expanded",
       closed: "show",
+      filters: "",
     });
 
     await expect(setListViewProtected(actors.member, list.id, true)).rejects.toBeInstanceOf(ForbiddenError);
@@ -179,6 +180,7 @@ describe("saved list views", () => {
       order: "asc",
       subtasks: "collapsed",
       closed: "hide",
+      filters: "",
     });
   });
 });

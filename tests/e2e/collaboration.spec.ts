@@ -143,3 +143,51 @@ test("files are not served to signed-out visitors", async ({ request }) => {
   });
   expect([302, 307, 404]).toContain(res.status());
 });
+
+test("search and filters across the workspace and on a list", async ({ page }) => {
+  await signIn(page, owner);
+  await expect(page).toHaveURL(/\/w\//);
+  await page.goto(`/w/${workspaceSlug}`);
+
+  // All tasks: search as you type.
+  await page.getByRole("link", { name: "All tasks" }).click();
+  await expect(page.getByRole("heading", { name: "Tasks" })).toBeVisible();
+  await page.getByLabel("Search tasks").fill("logo");
+  await expect(page).toHaveURL(/q=logo/);
+  await expect(page.getByRole("link", { name: "New logo" })).toBeVisible();
+  await page.getByLabel("Search tasks").fill("zzz-nothing");
+  await expect(page.getByText("No tasks match.")).toBeVisible();
+  await page.getByRole("button", { name: "Clear filters" }).click();
+  await expect(page.getByRole("link", { name: "New logo" })).toBeVisible();
+
+  // Filter menu: by tag, then "My Work" (nothing assigned to Cora yet).
+  await page.getByRole("button", { name: "Filters" }).click();
+  await page
+    .getByRole("group", { name: "Tags" })
+    .getByRole("menuitemcheckbox", { name: "Client review" })
+    .click();
+  await expect(page).toHaveURL(/tag=Client/);
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("link", { name: "New logo" })).toBeVisible();
+  await page.getByRole("link", { name: "My Work" }).click();
+  await expect(page.getByRole("heading", { name: "My Work" })).toBeVisible();
+  await expect(page.getByText("No tasks match.")).toBeVisible();
+  // Nothing late (like a delayed search update) takes the page elsewhere.
+  await page.waitForTimeout(600);
+  await expect(page).toHaveURL(/assignee=me/);
+
+  // On a list: filter by priority, nothing matches, clear again.
+  const projectsNav = page.getByRole("navigation", { name: "Projects" });
+  await projectsNav.getByRole("button", { name: "Expand Brand" }).click();
+  await projectsNav.getByRole("link", { name: "Design" }).click();
+  await expect(page.getByRole("heading", { name: "Design" })).toBeVisible();
+  await page.getByRole("button", { name: "Filters" }).click();
+  await page
+    .getByRole("group", { name: "Priority" })
+    .getByRole("menuitemcheckbox", { name: "Urgent" })
+    .click();
+  await page.keyboard.press("Escape");
+  await expect(page.getByText("No tasks match these filters.")).toBeVisible();
+  await page.getByRole("button", { name: "Clear filters" }).click();
+  await expect(page.getByRole("link", { name: "New logo" })).toBeVisible();
+});

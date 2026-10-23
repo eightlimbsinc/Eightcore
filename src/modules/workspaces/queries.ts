@@ -8,6 +8,10 @@ import { NotFoundError } from "@/server/errors";
 import { listVisibleProjects } from "@/modules/projects/service";
 import { getSidebarTree } from "@/modules/lists/service";
 import { countUnread, listNotifications } from "@/modules/notifications/service";
+import { readFilter } from "@/modules/tasks/filters";
+import { searchTasks } from "@/modules/tasks/search";
+import { visibleTagNames } from "@/modules/tags/service";
+import { viewerToday } from "@/server/today";
 import {
   getWorkspace,
   listMembers,
@@ -87,6 +91,23 @@ export async function getInboxPage(slug: string, filter: "all" | "unread") {
   const { user, actor } = await getWorkspaceContext(slug);
   const notifications = await listNotifications(actor, { unreadOnly: filter === "unread" });
   return { user, actor, notifications };
+}
+
+/** The workspace Tasks page (and "My Work"): filtered tasks across visible projects. */
+export async function getTasksPage(slug: string, params: Record<string, string | string[] | undefined>) {
+  const { user, actor } = await getWorkspaceContext(slug);
+  const filter = readFilter(params);
+  const today = await viewerToday();
+  const [results, people, tagNames] = await Promise.all([
+    searchTasks(actor, filter, { today }),
+    canWorkspace(actor.workspaceRole, "member.view_directory")
+      ? listMembers(actor).then((ms) =>
+          ms.filter((m) => m.status === "active").map((m) => ({ userId: m.userId, name: m.name })),
+        )
+      : Promise.resolve([]),
+    visibleTagNames(actor),
+  ]);
+  return { user, actor, filter, today, people, tagNames, ...results };
 }
 
 export { listWorkspacesForUser, previewInvitation };

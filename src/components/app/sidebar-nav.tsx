@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { ChevronRight, Folder, ListTodo, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -9,14 +9,23 @@ import { FolderMenu, InlineNameForm, ListMenu, ProjectAddMenu, type TreeEdit } f
 export function NavLink({
   href,
   exact,
+  unless,
   children,
 }: {
   href: string;
   exact?: boolean;
+  /** Not active when the address has these query values (e.g. "All tasks" vs "My Work"). */
+  unless?: Record<string, string>;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const active = exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
+  const search = useSearchParams();
+  const [path, query] = href.split("?") as [string, string | undefined];
+  const pathMatches =
+    exact || query ? pathname === path : pathname === path || pathname.startsWith(`${path}/`);
+  const queryMatches = !query || [...new URLSearchParams(query)].every(([k, v]) => search.get(k) === v);
+  const excluded = unless ? Object.entries(unless).every(([k, v]) => search.get(k) === v) : false;
+  const active = pathMatches && queryMatches && !excluded;
   return (
     <Link
       href={href}

@@ -3,7 +3,10 @@ import Link from "next/link";
 import { ChevronRight, ListChecks, Settings2 } from "lucide-react";
 import { getListPage } from "@/modules/lists/queries";
 import { canProject } from "@/server/authz/policy";
-import { effectiveView } from "@/modules/lists/view-settings";
+import { effectiveView, viewQuery } from "@/modules/lists/view-settings";
+import { filterQuery, isFiltering, matchesFilter, readFilter } from "@/modules/tasks/filters";
+import { viewerToday } from "@/server/today";
+import { FilterBar } from "@/components/tasks/filter-bar";
 import { isClosedCategory } from "@/modules/lists/templates";
 import { ViewMenu } from "@/components/lists/view-menu";
 import { PageHeader } from "@/components/app/page-header";
@@ -43,12 +46,48 @@ export default async function ListPage({
     view: savedView,
   } = await getListPage(slug, listId);
   // The saved view, with any changes from the address bar on top.
-  const view = effectiveView(savedView, await searchParams);
+  const query = await searchParams;
+  const view = effectiveView(savedView, query);
+  const savedFilter = readFilter(Object.fromEntries(new URLSearchParams(savedView.filters)));
+  const filter = readFilter(query, savedFilter);
+  const filtering = isFiltering(filter);
+  const today = await viewerToday();
+  const closedStatus = new Set(statuses.filter((s) => isClosedCategory(s.category)).map((s) => s.id));
+
+  // A task shows when it matches, or when one of its subtasks does (so the match has a parent).
+  const kids = new Map<string, typeof tasks>();
+  for (const t of tasks)
+    if (t.parentTaskId) kids.set(t.parentTaskId, [...(kids.get(t.parentTaskId) ?? []), t]);
+  const matches = (t: (typeof tasks)[number]) =>
+    matchesFilter(
+      {
+        title: t.title,
+        ref: `${project.key}-${t.number}`,
+        priority: t.priority,
+        dueDate: t.dueDate,
+        completed: Boolean(t.completedAt),
+        closed: closedStatus.has(t.statusId),
+        assigneeIds: t.assignees.map((a) => a.userId),
+        tagNames: t.tags.map((g) => g.name),
+        openBlockers: t.openBlockers,
+      },
+      filter,
+      { userId: user.id, today },
+    );
+  const shown = new Set<string>();
+  const markShown = (t: (typeof tasks)[number]): boolean => {
+    const childShown = (kids.get(t.id) ?? []).map(markShown).some(Boolean);
+    const show = !filtering || matches(t) || childShown;
+    if (show) shown.add(t.id);
+    return show;
+  };
+  tasks.filter((t) => t.parentTaskId === null).forEach(markShown);
   const visibleStatuses =
     view.closed === "hide" ? statuses.filter((s) => !isClosedCategory(s.category)) : statuses;
   const ordered = view.order === "desc" ? [...visibleStatuses].reverse() : visibleStatuses;
   // Groups hold top-level tasks; subtasks appear under their parent when it is expanded.
-  const topLevel = tasks.filter((t) => t.parentTaskId === null);
+  const allTopLevel = tasks.filter((t) => t.parentTaskId === null);
+  const topLevel = allTopLevel.filter((t) => shown.has(t.id));
   const groups = ordered.map((status) => ({
     status,
     tasks: topLevel.filter((t) => t.statusId === status.id),
@@ -57,7 +96,8 @@ export default async function ListPage({
 
   const childrenOf = new Map<string, typeof tasks>();
   for (const t of tasks) {
-    if (t.parentTaskId) childrenOf.set(t.parentTaskId, [...(childrenOf.get(t.parentTaskId) ?? []), t]);
+    if (t.parentTaskId && shown.has(t.id))
+      childrenOf.set(t.parentTaskId, [...(childrenOf.get(t.parentTaskId) ?? []), t]);
   }
   const renderTask = (task: (typeof tasks)[number], depth: number): React.ReactNode => {
     const ref = `${project.key}-${task.number}`;
@@ -65,8 +105,9 @@ export default async function ListPage({
     return (
       <ExpandableTask
         // Remount when the view's subtask setting changes, so rows pick up the new default.
-        key={`${task.id}:${view.subtasks}`}
-        defaultOpen={view.subtasks === "expanded"}
+        key={`${task.id}:${view.subtasks}:${filtering}`}
+        // Expanded by the view, or because a filter matched something inside.
+        defaultOpen={view.subtasks === "expanded" || (filtering && subtasks.length > 0)}
         gridClass={ROW_GRID}
         name={`${ref} ${task.title}`}
         subtaskCount={subtasks.length}
@@ -169,7 +210,11 @@ export default async function ListPage({
           </span>
         }
         title={list.name}
-        description={`${topLevel.length} ${topLevel.length === 1 ? "task" : "tasks"}`}
+        description={
+          filtering
+            ? `${topLevel.length} of ${allTopLevel.length} tasks match`
+            : `${topLevel.length} ${topLevel.length === 1 ? "task" : "tasks"}`
+        }
         actions={
           <>
             <ViewMenu
@@ -180,6 +225,8 @@ export default async function ListPage({
               isProtected={list.viewProtected}
               canSave={can.saveView}
               canProtect={can.protectView}
+              filters={filterQuery(filter).toString()}
+              filterChanges={filterQuery(filter, savedFilter).toString()}
             />
             {can.manage ? (
               <Button asChild variant="outline">
@@ -193,6 +240,14 @@ export default async function ListPage({
       />
       <div className="grid gap-6 px-8 py-6">
         {can.createTask ? <NewTaskForm workspaceSlug={slug} listId={list.id} statuses={statuses} /> : null}
+        <FilterBar
+          path={base}
+          filter={filter}
+          defaults={savedFilter}
+          extraQuery={viewQuery(view, savedView).replace(/^\?/, "")}
+          people={people.map((p) => ({ userId: p.userId, name: p.name }))}
+          tags={[...new Set(tasks.flatMap((t) => t.tags.map((g) => g.name)))].sort()}
+        />
 
         {tasks.length === 0 ? (
           <div className="grid place-items-center rounded-lg border border-dashed px-6 py-12 text-center">
@@ -202,6 +257,10 @@ export default async function ListPage({
               {can.createTask ? "Add the first task above." : "Tasks added to this list will appear here."}
             </p>
           </div>
+        ) : topLevel.length === 0 ? (
+          <p className="text-muted-foreground rounded-lg border border-dashed px-6 py-10 text-center">
+            No tasks match these filters.
+          </p>
         ) : (
           <div className="grid gap-6">
             {groups

@@ -180,7 +180,7 @@ export async function deleteStatusAction(
 export async function saveListViewAction(
   workspaceSlug: string,
   listId: string,
-  view: { order: string; subtasks: string; closed: string },
+  view: { order: string; subtasks: string; closed: string; filters: string },
 ): Promise<ActionState> {
   return runAction(async () => {
     await saveListView(await actorFor(workspaceSlug), listId, view);
