@@ -62,12 +62,26 @@ describe("subtasks", () => {
     const parent = await createTask(actors.member, list.id, { title: "Parent" });
     await createTask(actors.member, list.id, { title: "Child A", parentTaskId: parent.id });
     await createTask(actors.member, list.id, { title: "Child B", parentTaskId: parent.id });
-    const [top] = await listTasks(actors.member, list.id);
-    expect(top).toMatchObject({ title: "Parent", subtaskCount: 2 });
+    const rows = await listTasks(actors.member, list.id);
+    expect(rows.find((r) => r.parentTaskId === null)).toMatchObject({ title: "Parent", subtaskCount: 2 });
+    // The list includes subtasks, pointing at their parent, so the list view can expand them.
+    expect(rows.filter((r) => r.parentTaskId === parent.id).map((r) => r.title)).toEqual([
+      "Child A",
+      "Child B",
+    ]);
     const detail = await getTaskByRef(actors.member, parent.ref);
     expect(detail.subtasks.map((s) => s.title)).toEqual(["Child A", "Child B"]);
     const child = await getTaskByRef(actors.member, detail.subtasks[0]!.ref);
     expect(child.parent?.ref).toBe(parent.ref);
+  });
+
+  it("leaves out subtasks of an archived parent", async () => {
+    const { actors, list } = await setup();
+    const parent = await createTask(actors.member, list.id, { title: "Parent" });
+    const child = await createTask(actors.member, list.id, { title: "Child", parentTaskId: parent.id });
+    await createTask(actors.member, list.id, { title: "Grandchild", parentTaskId: child.id });
+    await setTaskArchived(actors.member, parent.id, true);
+    expect(await listTasks(actors.member, list.id)).toEqual([]);
   });
 
   it("allows at most 5 levels below a top-level task", async () => {

@@ -267,13 +267,24 @@ const taskSummaryColumns = {
 };
 
 /** Top-level tasks of a list, each with assignees and subtask count, in list order. */
+/**
+ * Every live task of a list, subtasks included (`parentTaskId` set), each with assignees and
+ * subtask count, in sibling order. Subtasks of an archived parent are left out.
+ */
 export async function listTasks(actor: ActorContext, listId: string) {
   await loadListAccess(db(), actor, listId);
-  const rows = await db()
-    .select(taskSummaryColumns)
+  const all = await db()
+    .select({ ...taskSummaryColumns, parentTaskId: tasks.parentTaskId })
     .from(tasks)
-    .where(and(eq(tasks.listId, listId), isNull(tasks.parentTaskId), isNull(tasks.archivedAt)))
+    .where(and(eq(tasks.listId, listId), isNull(tasks.archivedAt)))
     .orderBy(asc(tasks.position));
+  const live = new Set(all.map((r) => r.id));
+  // Keep only tasks whose whole parent chain is live.
+  const byId = new Map(all.map((r) => [r.id, r]));
+  const reachable = (r: (typeof all)[number], depth = 0): boolean =>
+    r.parentTaskId === null ||
+    (depth < 10 && live.has(r.parentTaskId) && reachable(byId.get(r.parentTaskId)!, depth + 1));
+  const rows = all.filter((r) => reachable(r));
   const assignees = await assigneesFor(
     db(),
     rows.map((r) => r.id),

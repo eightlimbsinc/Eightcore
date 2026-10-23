@@ -187,6 +187,14 @@ test("an owner organises work into lists and tasks", async ({ page }) => {
   await expect(page).toHaveURL(/order=desc/);
   await expect.poll(groupNames).toEqual([...firstOrder].reverse());
 
+  // Subtasks expand under their parent, with their own pickers.
+  await expect(page.getByRole("link", { name: "Pick hero video" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Show subtasks of WEB-1 Homepage hero" }).click();
+  await expect(page.getByRole("link", { name: "Pick hero video" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Status of WEB-2:/ })).toBeVisible();
+  await page.getByRole("button", { name: "Hide subtasks of WEB-1 Homepage hero" }).click();
+  await expect(page.getByRole("link", { name: "Pick hero video" })).toHaveCount(0);
+
   // Assign from the list row, then unassign.
   const newRow = page.getByRole("listitem").filter({ hasText: "Cross-browser check" });
   await newRow.getByRole("button", { name: /^Assignees of .*: nobody$/ }).click();
