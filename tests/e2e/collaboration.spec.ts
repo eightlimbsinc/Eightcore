@@ -252,3 +252,44 @@ test("the board moves tasks between statuses, also by keyboard", async ({ page }
   await page.getByRole("link", { name: "New logo" }).click();
   await expect(page.getByRole("dialog").getByText("changed status from Backlog to To Do")).toBeVisible();
 });
+
+test("the calendar schedules and reschedules tasks by dragging", async ({ page }) => {
+  await signIn(page, owner);
+  await expect(page).toHaveURL(/\/w\//);
+  await page.goto(`/w/${workspaceSlug}`);
+  const projectsNav = page.getByRole("navigation", { name: "Projects" });
+  await projectsNav.getByRole("button", { name: "Expand Brand" }).click();
+  await projectsNav.getByRole("link", { name: "Design" }).click();
+  await page.getByRole("navigation", { name: "Layout" }).getByRole("link", { name: "Calendar" }).click();
+  await expect(page).toHaveURL(/\/calendar/);
+
+  // "New logo" has no due date yet: drag it from the side panel onto today.
+  const undated = page.getByRole("region", { name: /^No due date/ });
+  const chip = page.getByRole("button", { name: "BRD-1 New logo" });
+  await expect(undated.getByRole("button", { name: "BRD-1 New logo" })).toBeVisible();
+  const today = page.getByRole("gridcell", { name: /, today:/ });
+  await page.setViewportSize({ width: 1400, height: 1100 });
+  await today.scrollIntoViewIfNeeded();
+  const from = (await chip.boundingBox())!;
+  const to = (await today.boundingBox())!;
+  await page.mouse.move(from.x + 10, from.y + 8);
+  await page.mouse.down();
+  await page.mouse.move(from.x + 20, from.y + 12, { steps: 4 });
+  // Aim near the top of the cell: dragging near the window's edge scrolls the page.
+  await page.mouse.move(to.x + to.width / 2, to.y + 28, { steps: 15 });
+  await page.mouse.up();
+  await expect(today.getByRole("button", { name: "BRD-1 New logo" })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("gridcell", { name: /, today: 1 task/ })).toContainText("New logo");
+
+  // Keyboard: one day later (in week view, so tomorrow is always on screen).
+  await page.getByRole("navigation", { name: "Calendar range" }).getByRole("link", { name: "Week" }).click();
+  await expect(page).toHaveURL(/cal=week/);
+  await chip.focus();
+  await page.keyboard.press("Space");
+  await expect(page.getByText(/Picked up New logo|New logo is over/)).toBeAttached();
+  await page.keyboard.press("ArrowRight");
+  await expect(page.getByText(/New logo is over (?!.*today)/)).toBeAttached();
+  await page.keyboard.press("Space");
+  await expect(page.getByRole("gridcell", { name: /, today: 0 tasks/ })).toBeVisible();
+});

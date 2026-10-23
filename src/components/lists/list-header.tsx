@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRight, Columns3, List, Settings2 } from "lucide-react";
+import { CalendarDays, ChevronRight, Columns3, List, Settings2 } from "lucide-react";
 import { viewQuery, type ViewSettings } from "@/modules/lists/view-settings";
 import { filterQuery, type TaskFilter } from "@/modules/tasks/filters";
 import { PageHeader } from "@/components/app/page-header";
@@ -26,7 +26,7 @@ export function ListHeader({
   tagNames,
 }: {
   slug: string;
-  layout: "list" | "board";
+  layout: "list" | "board" | "calendar";
   list: { id: string; name: string; viewProtected: boolean };
   project: { key: string; name: string };
   folder: { name: string } | null;
@@ -47,6 +47,7 @@ export function ListHeader({
   const tabs = [
     { key: "list", label: "List", icon: List, href: `${listPath}${query}` },
     { key: "board", label: "Board", icon: Columns3, href: `${listPath}/board${query}` },
+    { key: "calendar", label: "Calendar", icon: CalendarDays, href: `${listPath}/calendar${query}` },
   ] as const;
   return (
     <>
@@ -112,7 +113,7 @@ export function ListHeader({
           ))}
         </nav>
         <FilterBar
-          path={layout === "board" ? `${listPath}/board` : listPath}
+          path={layout === "list" ? listPath : `${listPath}/${layout}`}
           filter={filter}
           defaults={savedFilter}
           extraQuery={viewQuery(view, savedView).replace(/^\?/, "")}

@@ -59,13 +59,13 @@ export function ViewMenu({
   /** The filters that differ from the saved ones (kept when switching view options). */
   filterChanges: string;
   /** Which page the menu is on, so its links stay there. */
-  layout?: "list" | "board";
+  layout?: "list" | "board" | "calendar";
   isProtected: boolean;
   canSave: boolean;
   canProtect: boolean;
 }) {
   const [pending, startTransition] = useTransition();
-  const base = `/w/${workspaceSlug}/l/${listId}${layout === "board" ? "/board" : ""}`;
+  const base = `/w/${workspaceSlug}/l/${listId}${layout === "list" ? "" : `/${layout}`}`;
   const dirty = !sameView(view, saved) || filters !== saved.filters;
   const run = (fn: () => Promise<unknown>) =>
     startTransition(async () => {

@@ -57,7 +57,7 @@ Status: Phase 1 approved. **Phase 2 complete** (pending your review). Phases run
 
 ## Phase 4 — Premium interface, list, Kanban, calendar, search, filters (in progress)
 
-**Done so far:** sidebar tree with inline create/rename/delete; list view with status groups, columns and inline pickers (status, assignee, priority, due date), expandable subtasks, right-click task menu, saved and protected views; task window (deep link); filters and search (lists and an all-tasks page), My Work; dashboard; Board (Kanban) with drag and drop, including keyboard. **Next:** calendar, Ctrl+K command palette, bulk actions and keyboard navigation, accessibility and 1,000-task performance pass.
+**Done so far:** sidebar tree with inline create/rename/delete; list view with status groups, columns and inline pickers (status, assignee, priority, due date), expandable subtasks, right-click task menu, saved and protected views; task window (deep link); filters and search (lists and an all-tasks page), My Work; dashboard; Board (Kanban) with drag and drop, including keyboard; Calendar (month/week, drag to reschedule, unscheduled panel). **Next:** Ctrl+K command palette, bulk actions and keyboard navigation, accessibility and 1,000-task performance pass.
 
 
 **Scope:** final Eightcore design system (tokens, typography, light/dark), sidebar with project/folder/list tree, workspace switcher, list view (grouping, inline edit, bulk actions, keyboard navigation), Kanban (dnd-kit, fractional ordering), calendar (month/week, drag to reschedule), task detail drawer (deep link), command palette (`cmdk`), full-text search, filter builder, saved views, My Work, notification centre, settings screens.

@@ -181,13 +181,13 @@ export async function saveListViewAction(
   workspaceSlug: string,
   listId: string,
   view: { order: string; subtasks: string; closed: string; filters: string },
-  layout: "list" | "board" = "list",
+  layout: "list" | "board" | "calendar" = "list",
 ): Promise<ActionState> {
   return runAction(async () => {
     await saveListView(await actorFor(workspaceSlug), listId, view);
     revalidatePath(`/w/${workspaceSlug}`, "layout");
     // Back to the plain list address: it now shows the saved view.
-    redirect(`/w/${workspaceSlug}/l/${listId}${layout === "board" ? "/board" : ""}`);
+    redirect(`/w/${workspaceSlug}/l/${listId}${layout === "list" ? "" : `/${layout}`}`);
   });
 }
 
