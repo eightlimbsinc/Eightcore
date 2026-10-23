@@ -196,6 +196,20 @@ test("an owner organises work into lists and tasks", async ({ page }) => {
   await expect(newRow.getByRole("button", { name: /^Assignees of .*: nobody$/ })).toBeVisible();
   await page.keyboard.press("Escape");
 
+  // Priority and due date straight from the row.
+  await newRow.getByRole("button", { name: /^Priority of .*: none$/ }).click();
+  await page.getByRole("menuitem", { name: "Urgent" }).click();
+  await expect(newRow.getByRole("button", { name: /^Priority of .*: Urgent$/ })).toBeVisible();
+  await newRow.getByRole("button", { name: /^Due date of .*: none$/ }).click();
+  await page.getByRole("button", { name: /^Tomorrow/ }).click();
+  await expect(newRow.getByRole("button", { name: /^Due date of .*: (?!none)/ })).toBeVisible();
+  await newRow.getByRole("button", { name: /^Due date of / }).click();
+  await page.getByLabel("Due date", { exact: true }).last().fill("2031-05-20");
+  await expect(newRow.getByRole("button", { name: "Due date of WEB-3: May 20, 2031" })).toBeVisible();
+  await newRow.getByRole("button", { name: /^Due date of / }).click();
+  await page.getByRole("button", { name: "Clear due date" }).click();
+  await expect(newRow.getByRole("button", { name: /^Due date of .*: none$/ })).toBeVisible();
+
   // The window can open the full page, and Escape closes it.
   await page.getByRole("link", { name: "Cross-browser check" }).click();
   await expect(page.getByRole("dialog")).toBeVisible();

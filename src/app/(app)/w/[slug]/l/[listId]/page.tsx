@@ -8,7 +8,8 @@ import { NewTaskForm } from "@/components/tasks/new-task-form";
 import { QuickAddTask } from "@/components/tasks/quick-add-task";
 import { StatusMenu } from "@/components/tasks/status-menu";
 import { AssigneePicker } from "@/components/tasks/assignee-picker";
-import { BlockedBadge, DueDateLabel, FieldChips, PriorityLabel, TagList } from "@/components/tasks/task-bits";
+import { DueDatePicker, PriorityPicker } from "@/components/tasks/row-pickers";
+import { BlockedBadge, FieldChips, TagList } from "@/components/tasks/task-bits";
 
 export const metadata: Metadata = { title: "List" };
 
@@ -163,10 +164,25 @@ export default async function ListPage({
                               />
                             </span>
                             <span className="hidden md:block">
-                              <PriorityLabel priority={task.priority} />
+                              <PriorityPicker
+                                workspaceSlug={slug}
+                                taskId={task.id}
+                                version={task.version}
+                                priority={task.priority}
+                                label={`Priority of ${ref}`}
+                                canEdit={can.updateTask}
+                              />
                             </span>
                             <span className="hidden md:block">
-                              <DueDateLabel dueDate={task.dueDate} completed={Boolean(task.completedAt)} />
+                              <DueDatePicker
+                                workspaceSlug={slug}
+                                taskId={task.id}
+                                version={task.version}
+                                dueDate={task.dueDate}
+                                completed={Boolean(task.completedAt)}
+                                label={`Due date of ${ref}`}
+                                canEdit={can.updateTask}
+                              />
                             </span>
                           </li>
                         );

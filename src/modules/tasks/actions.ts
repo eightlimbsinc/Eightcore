@@ -5,6 +5,7 @@ import { requireUser } from "@/server/auth/session";
 import { resolveActor } from "@/server/authz/actor";
 import { formString, runAction } from "@/server/action";
 import type { ActionState } from "@/lib/action-state";
+import { ValidationError } from "@/server/errors";
 import { createTask, setTaskArchived, setTaskAssignees, setWatching, updateTask } from "./service";
 import { TASK_PRIORITIES, type TaskPriority } from "./validators";
 
@@ -69,6 +70,26 @@ export async function setTaskStatusAction(
 ): Promise<ActionState> {
   return runAction(async () => {
     await updateTask(await actorFor(workspaceSlug), taskId, version, { statusId });
+    revalidatePath(`/w/${workspaceSlug}`, "layout");
+  });
+}
+
+/** Quick edit of one field from a list row (priority or due date), using the row's version. */
+export async function setTaskQuickFieldAction(
+  workspaceSlug: string,
+  taskId: string,
+  version: number,
+  patch: { priority?: TaskPriority; dueDate?: string | null },
+): Promise<ActionState> {
+  return runAction(async () => {
+    const clean: { priority?: TaskPriority; dueDate?: string | null } = {};
+    if (patch.priority !== undefined) {
+      if (!(TASK_PRIORITIES as readonly string[]).includes(patch.priority))
+        throw new ValidationError("Pick a priority");
+      clean.priority = patch.priority;
+    }
+    if (patch.dueDate !== undefined) clean.dueDate = patch.dueDate;
+    await updateTask(await actorFor(workspaceSlug), taskId, version, clean);
     revalidatePath(`/w/${workspaceSlug}`, "layout");
   });
 }
