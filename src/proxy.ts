@@ -2,6 +2,15 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getSessionCookie } from "better-auth/cookies";
 
 const PROTECTED_PREFIXES = ["/w", "/account"];
+const FILE_ROUTE = /^\/w\/[^/]+\/files\/[^/]+$/;
+
+function storageOrigin(): string {
+  try {
+    return process.env.S3_ENDPOINT ? ` ${new URL(process.env.S3_ENDPOINT).origin}` : "";
+  } catch {
+    return "";
+  }
+}
 
 /**
  * Per-request CSP nonce, and a fast redirect for signed-out visitors on app pages.
@@ -19,6 +28,9 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // File downloads set their own, stricter headers (a sandboxed CSP).
+  if (FILE_ROUTE.test(pathname)) return NextResponse.next();
+
   // Web-standard APIs only (no Buffer), so this runs on Node.js and edge runtimes alike.
   const nonce = btoa(crypto.randomUUID());
   const isDev = process.env.NODE_ENV === "development";
@@ -27,7 +39,8 @@ export function proxy(request: NextRequest) {
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ""}`,
     // Inline style attributes are used by Radix positioning; scripts stay nonce-only.
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' blob: data:",
+    // Image previews redirect to short-lived links on the file storage host.
+    `img-src 'self' blob: data:${storageOrigin()}`,
     "font-src 'self'",
     `connect-src 'self'${isDev ? " ws: wss:" : ""}`,
     "object-src 'none'",

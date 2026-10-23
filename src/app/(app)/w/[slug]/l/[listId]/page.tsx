@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { Button } from "@/components/ui/button";
 import { NewTaskForm } from "@/components/tasks/new-task-form";
 import { StatusSelect } from "@/components/tasks/status-select";
-import { AssigneeStack, DueDateLabel, PriorityLabel, StatusDot } from "@/components/tasks/task-bits";
+import { AssigneeStack, DueDateLabel, PriorityLabel, StatusDot, TagList } from "@/components/tasks/task-bits";
 
 export const metadata: Metadata = { title: "List" };
 
@@ -92,6 +92,7 @@ export default async function ListPage({ params }: { params: Promise<{ slug: str
                               {task.subtaskCount} {task.subtaskCount === 1 ? "subtask" : "subtasks"}
                             </span>
                           ) : null}
+                          <TagList tags={task.tags} />
                           <PriorityLabel priority={task.priority} />
                           <DueDateLabel dueDate={task.dueDate} completed={Boolean(task.completedAt)} />
                           <AssigneeStack people={task.assignees} />

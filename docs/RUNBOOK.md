@@ -97,6 +97,11 @@ How it works behind GitHub's proxy: `BETTER_AUTH_URL` is set to the public `*.ap
 | `SIGNUP_MODE` | `invite-only` | no | Default: `invite-only` in production, `open` otherwise |
 | `SIGNUP_ALLOWED_EMAILS` | `you@yourdomain.com` | no | Emails that may sign up without an invitation (the first owner) |
 | `AUTH_IP_HEADERS` | `x-nf-client-connection-ip` | no | Visitor-IP header(s) behind a host's proxy, for auth rate limiting |
+| `STORAGE_DRIVER` | `local` / `s3` | no | Where attachments go. Default: `local` in development, `s3` in production |
+| `STORAGE_LOCAL_DIR` | `storage` | no | Folder for `local` (git-ignored, outside `public/`) |
+| `S3_ENDPOINT` / `S3_REGION` / `S3_BUCKET` | `https://<ref>.storage.supabase.co/storage/v1/s3`, `us-east-1`, `eightcore-files` | no | Any S3-compatible store, path-style. The endpoint's origin is allowed for image previews |
+| `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` | from Supabase Storage → S3 access keys | yes | Server-only |
+| `MAX_UPLOAD_BYTES` | `4194304` | no | Per file. Netlify accepts about 6 MB per request, so stay below that |
 | `EIGHTCORE_ENCRYPTION_KEY` | *(Phase 6)* | yes | Encrypts integration secrets at rest |
 | `CLICKUP_API_TOKEN` | *(Phase 7, unset)* | yes | Only for an approved import |
 

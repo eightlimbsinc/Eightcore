@@ -44,6 +44,11 @@ const projectExpectations: Record<ProjectAction, Row<ProjectRole>> = {
   "task.update": { manager: Y, editor: Y, commenter: N, viewer: N },
   "task.archive": { manager: Y, editor: N, commenter: N, viewer: N },
   "task.archive_own": { manager: Y, editor: Y, commenter: N, viewer: N },
+  "comment.create": { manager: Y, editor: Y, commenter: Y, viewer: N },
+  "comment.moderate": { manager: Y, editor: N, commenter: N, viewer: N },
+  "tag.manage": { manager: Y, editor: Y, commenter: N, viewer: N },
+  "attachment.upload": { manager: Y, editor: Y, commenter: Y, viewer: N },
+  "attachment.moderate": { manager: Y, editor: N, commenter: N, viewer: N },
 };
 
 describe("workspace permission matrix", () => {

@@ -75,6 +75,7 @@ export const tasks = pgTable(
     }).onDelete("cascade"),
     unique("tasks_id_workspace_uq").on(t.id, t.workspaceId),
     unique("tasks_id_list_uq").on(t.id, t.listId),
+    unique("tasks_id_project_uq").on(t.id, t.projectId),
     unique("tasks_project_number_uq").on(t.projectId, t.number),
     check("tasks_not_own_parent", sql`${t.parentTaskId} <> ${t.id}`),
     check("tasks_title_length", sql`char_length(${t.title}) between 1 and 500`),
@@ -107,6 +108,31 @@ export const taskAssignees = pgTable(
     // Assignees must be members of the same workspace.
     foreignKey({
       name: "task_assignees_member_fk",
+      columns: [t.workspaceId, t.userId],
+      foreignColumns: [workspaceMembers.workspaceId, workspaceMembers.userId],
+    }).onDelete("cascade"),
+    index().on(t.userId, t.workspaceId),
+  ],
+);
+
+/** People following a task: they're notified about comments and status changes. */
+export const taskWatchers = pgTable(
+  "task_watchers",
+  {
+    workspaceId: uuid().notNull(),
+    taskId: uuid().notNull(),
+    userId: uuid().notNull(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.taskId, t.userId] }),
+    foreignKey({
+      name: "task_watchers_task_fk",
+      columns: [t.taskId, t.workspaceId],
+      foreignColumns: [tasks.id, tasks.workspaceId],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "task_watchers_member_fk",
       columns: [t.workspaceId, t.userId],
       foreignColumns: [workspaceMembers.workspaceId, workspaceMembers.userId],
     }).onDelete("cascade"),

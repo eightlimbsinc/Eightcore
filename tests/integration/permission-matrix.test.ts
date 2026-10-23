@@ -33,6 +33,9 @@ import {
 } from "@/modules/projects/service";
 import { createList } from "@/modules/lists/service";
 import { createTask, setTaskArchived, updateTask } from "@/modules/tasks/service";
+import { createComment, deleteComment } from "@/modules/comments/service";
+import { createTag } from "@/modules/tags/service";
+import { deleteAttachment, uploadTaskAttachments } from "@/modules/attachments/service";
 import { actorFor, createUser, createWorkspaceWithRoles } from "../support/factories";
 
 type Fixture = Awaited<ReturnType<typeof createWorkspaceWithRoles>> & {
@@ -40,7 +43,11 @@ type Fixture = Awaited<ReturnType<typeof createWorkspaceWithRoles>> & {
   privateProject: { id: string; key: string };
   list: { id: string };
   ownerTask: { id: string };
+  ownerComment: { id: string };
+  ownerFile: { id: string };
 };
+
+const file = (name = "note.txt") => ({ name, bytes: new TextEncoder().encode("hello") });
 
 async function fixture(): Promise<Fixture> {
   const ctx = await createWorkspaceWithRoles();
@@ -55,7 +62,9 @@ async function fixture(): Promise<Fixture> {
   });
   const list = await createList(ctx.actors.owner, privateProject.id, { name: "Build" });
   const ownerTask = await createTask(ctx.actors.owner, list.id, { title: "Owner's task" });
-  return { ...ctx, target, privateProject, list, ownerTask };
+  const ownerComment = await createComment(ctx.actors.owner, ownerTask.id, { body: "Owner's comment" });
+  const [ownerFile] = await uploadTaskAttachments(ctx.actors.owner, ownerTask.id, [file()]);
+  return { ...ctx, target, privateProject, list, ownerTask, ownerComment, ownerFile: ownerFile! };
 }
 
 /** Each probe performs the action; it throws ForbiddenError when denied. */
@@ -121,6 +130,12 @@ const projectProbes: Record<ProjectAction, (actor: ActorContext, f: Fixture) => 
     const own = await createTask(actor, f.list.id, { title: "My task" });
     await setTaskArchived(actor, own.id, true);
   },
+  "comment.create": (actor, f) => createComment(actor, f.ownerTask.id, { body: "Hello" }),
+  "comment.moderate": (actor, f) => deleteComment(actor, f.ownerComment.id),
+  "tag.manage": (actor, f) => createTag(actor, f.privateProject.id, { name: "Urgent" }),
+  // Commenters attach files to their comments.
+  "attachment.upload": (actor, f) => createComment(actor, f.ownerTask.id, { body: "See file" }, [file()]),
+  "attachment.moderate": (actor, f) => deleteAttachment(actor, f.ownerFile.id),
 };
 
 describe("project actions through services", () => {

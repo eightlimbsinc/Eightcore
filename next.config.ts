@@ -18,7 +18,11 @@ const nextConfig: NextConfig = {
   agentRules: false,
   allowedDevOrigins: publicUrl ? [publicUrl.hostname] : [],
   experimental: {
-    serverActions: { allowedOrigins: publicUrl ? [publicUrl.host] : [] },
+    serverActions: {
+      allowedOrigins: publicUrl ? [publicUrl.host] : [],
+      // Attachments are uploaded through Server Actions (MAX_UPLOAD_BYTES, default 4 MB, plus form overhead).
+      bodySizeLimit: "5mb",
+    },
   },
   reactStrictMode: true,
   // `pg` is a native-ish Node package; keep it out of the server bundle.

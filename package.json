@@ -33,10 +33,12 @@
     "db:migrate:supabase": "tsx --env-file=.env.supabase-admin scripts/db/migrate.ts"
   },
   "dependencies": {
+    "aws4fetch": "1.0.20",
     "better-auth": "1.7.7",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
     "drizzle-orm": "0.45.4",
+    "file-type": "22.2.0",
     "fractional-indexing": "4.0.0",
     "geist": "1.7.2",
     "lucide-react": "1.56.0",

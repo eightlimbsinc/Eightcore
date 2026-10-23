@@ -79,3 +79,25 @@ export function AssigneeStack({
     </span>
   );
 }
+
+export function TagChip({ name, color }: { name: string; color: string }) {
+  return (
+    <span
+      className="inline-flex max-w-40 items-center rounded-sm px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap"
+      style={{ background: `${color}26`, color, boxShadow: `inset 0 0 0 1px ${color}40` }}
+    >
+      <span className="truncate">{name}</span>
+    </span>
+  );
+}
+
+export function TagList({ tags }: { tags: { id: string; name: string; color: string }[] }) {
+  if (!tags.length) return null;
+  return (
+    <span className="flex flex-wrap items-center gap-1" aria-label="Tags">
+      {tags.map((t) => (
+        <TagChip key={t.id} name={t.name} color={t.color} />
+      ))}
+    </span>
+  );
+}

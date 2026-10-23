@@ -7,6 +7,7 @@ import { canWorkspace, type ActorContext } from "@/server/authz/policy";
 import { NotFoundError } from "@/server/errors";
 import { listVisibleProjects } from "@/modules/projects/service";
 import { getSidebarTree } from "@/modules/lists/service";
+import { countUnread, listNotifications } from "@/modules/notifications/service";
 import {
   getWorkspace,
   listMembers,
@@ -31,10 +32,11 @@ export const getWorkspaceContext = cache(async (slug: string) => {
 /** Everything the workspace shell (sidebar, switcher) needs. */
 export const getWorkspaceShell = cache(async (slug: string) => {
   const { user, actor } = await getWorkspaceContext(slug);
-  const [workspace, workspaces, projects] = await Promise.all([
+  const [workspace, workspaces, projects, unread] = await Promise.all([
     getWorkspace(actor),
     listWorkspacesForUser(user.id),
     listVisibleProjects(actor),
+    countUnread(actor),
   ]);
   const tree = await getSidebarTree(
     actor,
@@ -46,6 +48,7 @@ export const getWorkspaceShell = cache(async (slug: string) => {
     workspace,
     workspaces,
     projects: projects.map((p) => ({ ...p, ...(tree.get(p.id) ?? { folders: [], rootLists: [] }) })),
+    unread,
     can: {
       createProject: canWorkspace(actor.workspaceRole, "project.create"),
       viewMembers: canWorkspace(actor.workspaceRole, "member.view_directory"),
@@ -74,6 +77,12 @@ export async function getMembersPage(slug: string) {
       deactivate: canWorkspace(actor.workspaceRole, "member.deactivate"),
     },
   };
+}
+
+export async function getInboxPage(slug: string, filter: "all" | "unread") {
+  const { user, actor } = await getWorkspaceContext(slug);
+  const notifications = await listNotifications(actor, { unreadOnly: filter === "unread" });
+  return { user, actor, notifications };
 }
 
 export { listWorkspacesForUser, previewInvitation };

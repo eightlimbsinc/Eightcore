@@ -38,6 +38,8 @@ export default defineConfig({
             BETTER_AUTH_SECRET: "test-secret-test-secret-test-secret-0123",
             BETTER_AUTH_URL: "http://localhost:3000",
             MAIL_OUTBOX_DIR: ".mail/test",
+            STORAGE_DRIVER: "local",
+            STORAGE_LOCAL_DIR: "storage/test",
             SMTP_URL: "",
           },
         },

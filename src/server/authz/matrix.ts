@@ -38,6 +38,16 @@ export const PROJECT_ACTIONS = {
   /** Archive any task. Editors may archive tasks they created (task.archive_own). */
   "task.archive": ["manager"],
   "task.archive_own": ["manager", "editor"],
+  /** Post comments and replies; edit or delete your own. */
+  "comment.create": ["manager", "editor", "commenter"],
+  /** Delete anyone's comment. */
+  "comment.moderate": ["manager"],
+  /** Create, rename, recolour and delete the project's tags (applying tags is task.update). */
+  "tag.manage": ["manager", "editor"],
+  /** Attach files to your comments (and, with task.update, to the task itself); delete your own. */
+  "attachment.upload": ["manager", "editor", "commenter"],
+  /** Delete anyone's attachment. */
+  "attachment.moderate": ["manager"],
 } as const satisfies Record<string, readonly ProjectRole[]>;
 export type ProjectAction = keyof typeof PROJECT_ACTIONS;
 

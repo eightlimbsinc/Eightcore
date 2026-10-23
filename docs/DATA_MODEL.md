@@ -142,6 +142,8 @@ If a workflow has **no** transition rows, any move is allowed (simple mode). Onc
 
 Example flow: *Ready to Test → Testing in Staging* opens cycle N. *Testing in Staging → In Development* (rule `creates_qa_cycle = fail`, `require_comment = true`) concludes cycle N as **fail**, with a note and evidence. A later re-entry opens cycle N+1. *Testing in Staging → Final Review* concludes as **pass**.
 
+> **As built (Phase 3b):** `tags` are per project (`project_id` required, unique `lower(name)` per project); `task_tags` carries `project_id` with composite FKs to both the task and the tag, so a task can only use its own project's tags. `comments.body` is plain text (mentions are stored in `comment_mentions`; a soft-deleted comment keeps a placeholder only while it has replies, and its files are removed). `task_watchers` (ws, task_id, user_id) records who follows a task. `notifications` has `type` (`assigned`, `mentioned`, `commented`, `status_changed`), `task_id`, `actor_id`, `data` jsonb and `read_at`; recipients are limited to people who can see the project. `attachments.comment_id` references `(id, task_id)` of `comments`, so a comment's file belongs to the same task. Uploads are capped by `MAX_UPLOAD_BYTES` (default 4 MB).
+
 ### 4.8 History, audit, notifications
 
 | Table | Columns | Notes |

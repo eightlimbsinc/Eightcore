@@ -44,11 +44,17 @@ export default defineConfig({
       BETTER_AUTH_URL: BASE_URL,
       BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET ?? "e2e-secret-e2e-secret-e2e-secret-0123456",
       SMTP_URL: "",
-      // Production defaults to invite-only sign-up; these two may sign up without an invitation.
-      SIGNUP_ALLOWED_EMAILS: "olivia@e2e.example.test,sam@e2e.example.test,tess@e2e.example.test",
+      // Production defaults to invite-only sign-up; these may sign up without an invitation.
+      SIGNUP_ALLOWED_EMAILS:
+        "olivia@e2e.example.test,sam@e2e.example.test,tess@e2e.example.test,cora@e2e.example.test",
       MAIL_OUTBOX_DIR: ".mail/e2e",
       // Production mode refuses to drop mail on disk; allow it only for this local test server.
       EIGHTCORE_ALLOW_FILE_MAIL: "1",
+      // Each spec sends its own client IP, so sign-up rate limits apply per spec as per visitor.
+      AUTH_IP_HEADERS: "x-e2e-client-ip",
+      // Attachments go to a local folder (production normally requires S3 storage).
+      STORAGE_DRIVER: "local",
+      STORAGE_LOCAL_DIR: "storage/e2e",
     },
   },
 });

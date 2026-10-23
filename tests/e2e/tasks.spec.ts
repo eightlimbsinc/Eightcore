@@ -5,6 +5,8 @@ import { linkFromLatestMail } from "./mail";
 const owner = { name: "Tess Tasks", email: "tess@e2e.example.test", password: "tess passphrase 123" };
 
 test.describe.configure({ mode: "serial" });
+// A separate visitor IP for this spec (see AUTH_IP_HEADERS in playwright.config.ts).
+test.use({ extraHTTPHeaders: { "x-e2e-client-ip": "203.0.113.2" } });
 
 test("an owner organises work into lists and tasks", async ({ page }) => {
   // Sign up, verify, create a workspace and a project.

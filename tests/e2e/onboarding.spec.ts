@@ -19,6 +19,8 @@ async function signUp(page: Page, user: typeof owner) {
 }
 
 test.describe.configure({ mode: "serial" });
+// A separate visitor IP for this spec (see AUTH_IP_HEADERS in playwright.config.ts).
+test.use({ extraHTTPHeaders: { "x-e2e-client-ip": "203.0.113.1" } });
 
 test("signed-out visitors are sent to sign-in, with a strict CSP", async ({ page }) => {
   const response = await page.goto(`/w/${workspaceSlug}`);

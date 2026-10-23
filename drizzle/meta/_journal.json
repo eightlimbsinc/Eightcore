@@ -29,6 +29,27 @@
       "when": 1792756419740,
       "tag": "0003_hierarchy_rules",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792758270252,
+      "tag": "0004_comments_tags_notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792758276651,
+      "tag": "0005_comments_triggers",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792758355276,
+      "tag": "0006_attachments",
+      "breakpoints": true
     }
   ]
 }

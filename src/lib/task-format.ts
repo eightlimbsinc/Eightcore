@@ -86,6 +86,27 @@ export function describeActivity(
         if (field === "title") return `renamed the task to “${show(field, to)}”`;
         return `changed ${label} from ${show(field, from)} to ${show(field, to)}`;
       });
+    case "commented":
+      return ["commented"];
+    case "replied":
+      return ["replied to a comment"];
+    case "comment_deleted":
+      return ["deleted a comment"];
+    case "tags_changed": {
+      const list = (v: unknown) => (Array.isArray(v) ? v.map((n) => `“${String(n)}”`) : []);
+      const added = list(event.metadata.added);
+      const removed = list(event.metadata.removed);
+      return [
+        ...(added.length ? [`added the tag${added.length > 1 ? "s" : ""} ${added.join(", ")}`] : []),
+        ...(removed.length ? [`removed the tag${removed.length > 1 ? "s" : ""} ${removed.join(", ")}`] : []),
+      ];
+    }
+    case "attachments_added": {
+      const files = Array.isArray(event.metadata.names) ? event.metadata.names.map(String) : [];
+      return [files.length === 1 ? `attached “${files[0]}”` : `attached ${files.length} files`];
+    }
+    case "attachment_removed":
+      return [`removed the file “${String(event.metadata.name ?? "")}”`];
     default:
       return [event.action.replace(/_/g, " ")];
   }

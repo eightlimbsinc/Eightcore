@@ -7,7 +7,16 @@ import { PageHeader } from "@/components/app/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NewTaskForm } from "@/components/tasks/new-task-form";
 import { ArchiveTaskButton, AssigneesForm, TaskForm } from "@/components/tasks/task-forms";
-import { AssigneeStack, DueDateLabel, PriorityLabel, StatusPill } from "@/components/tasks/task-bits";
+import {
+  AssigneeStack,
+  DueDateLabel,
+  PriorityLabel,
+  StatusPill,
+  TagList,
+} from "@/components/tasks/task-bits";
+import { AttachmentsPanel, TagsPanel, WatchButton } from "@/components/tasks/task-side-panels";
+import { CommentsSection } from "@/components/comments/comment-thread";
+import { env } from "@/server/env";
 
 export async function generateMetadata({ params }: { params: Promise<{ ref: string }> }): Promise<Metadata> {
   return { title: decodeURIComponent((await params).ref).toUpperCase() };
@@ -17,8 +26,25 @@ const timeFormat = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeS
 
 export default async function TaskPage({ params }: { params: Promise<{ slug: string; ref: string }> }) {
   const { slug, ref } = await params;
-  const { task, project, list, parent, statuses, assignees, assignable, subtasks, activity, can } =
-    await getTaskPage(slug, ref);
+  const {
+    task,
+    project,
+    list,
+    parent,
+    statuses,
+    assignees,
+    assignable,
+    subtasks,
+    activity,
+    can,
+    watchers,
+    watching,
+    comments,
+    attachments,
+    projectTags,
+    tags,
+  } = await getTaskPage(slug, ref);
+  const mentionable = assignable.map((a) => ({ userId: a.userId, name: a.name }));
   const taskRef = `${project.key}-${task.number}`;
   const status = statuses.find((s) => s.id === task.statusId);
   const names = new Map(assignable.map((a) => [a.userId, a.name]));
@@ -40,7 +66,12 @@ export default async function TaskPage({ params }: { params: Promise<{ slug: str
           </span>
         }
         title={task.title}
-        actions={status ? <StatusPill name={status.name} color={status.color} /> : null}
+        actions={
+          <span className="flex flex-wrap items-center gap-2">
+            <TagList tags={tags} />
+            {status ? <StatusPill name={status.name} color={status.color} /> : null}
+          </span>
+        }
       />
       <div className="grid gap-6 px-8 py-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
         <div className="grid content-start gap-6">
@@ -104,9 +135,43 @@ export default async function TaskPage({ params }: { params: Promise<{ slug: str
               ) : null}
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                Comments{" "}
+                {comments.threads.length ? (
+                  <span className="text-muted-foreground font-normal">({comments.threads.length})</span>
+                ) : null}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CommentsSection
+                workspaceSlug={slug}
+                taskId={task.id}
+                threads={comments.threads}
+                members={mentionable}
+                canComment={comments.can.comment}
+                canAttach={comments.can.attach}
+              />
+            </CardContent>
+          </Card>
         </div>
 
         <div className="grid content-start gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Watching</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <WatchButton
+                workspaceSlug={slug}
+                taskId={task.id}
+                watching={watching}
+                watcherNames={watchers.map((w) => w.name)}
+              />
+            </CardContent>
+          </Card>
           <Card>
             <CardHeader>
               <CardTitle>Assignees</CardTitle>
@@ -118,6 +183,38 @@ export default async function TaskPage({ params }: { params: Promise<{ slug: str
                 assignable={assignable}
                 assignedIds={assignees.map((a) => a.userId)}
                 canEdit={can.update}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Tags</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <TagsPanel
+                workspaceSlug={slug}
+                projectId={project.id}
+                taskId={task.id}
+                projectTags={projectTags}
+                taskTagIds={tags.map((t) => t.id)}
+                canEdit={can.update}
+                canManage={can.manageTags}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Files</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <AttachmentsPanel
+                workspaceSlug={slug}
+                taskId={task.id}
+                files={attachments}
+                canUpload={can.attach}
+                maxMb={Math.floor(env().MAX_UPLOAD_BYTES / (1024 * 1024))}
               />
             </CardContent>
           </Card>

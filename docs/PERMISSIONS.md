@@ -77,8 +77,10 @@ Status: **implemented in Phase 2** for the workspace and project actions below (
 | `task.archive` / `task.delete` | ✅ | ◐ (tasks they created) | ❌ | ❌ |
 | `task.restore` (from trash) | ✅ | ❌ | ❌ | ❌ |
 | `comment.create` | ✅ | ✅ | ✅ | ❌ |
+| `tag.manage` (create, rename, recolour, delete project tags; applying tags is `task.update`) | ✅ | ✅ | ❌ | ❌ |
+| Watch / unwatch a task | ✅ | ✅ | ✅ | ✅ |
 | `comment.update` / `comment.delete` | ◐ + delete any | ◐ | ◐ | ❌ |
-| `attachment.upload` | ✅ | ✅ | ✅ (on comments) | ❌ |
+| `attachment.upload` | ✅ | ✅ | ✅ (on comments; on the task itself also needs `task.update`) | ❌ |
 | `attachment.download` | ✅ | ✅ | ✅ | ✅ |
 | `attachment.delete` | ✅ | ◐ | ◐ | ❌ |
 | `qa_cycle.conclude` | ✅ | ✅ | ❌ | ❌ |
@@ -114,10 +116,12 @@ export async function can(ctx: ActorContext, action: Action, resource?: Resource
 
 ## 5. Protected file access
 
-- Files are served only by `GET /api/files/[attachmentId]`. That route loads the attachment by ID **and** `workspace_id` from the actor context, then asserts `attachment.download` on the parent task.
+- Files are served only by `GET /w/[slug]/files/[attachmentId]`. That route resolves the actor from the session and the workspace slug, loads the attachment by ID **and** `workspace_id`, then requires the parent task to be visible (`attachment.download` = `project.view`). Anything else is a 404.
+- The stored MIME type comes from the file's content (`file-type` signatures, else `text/plain` for valid UTF-8 text, else `application/octet-stream`), never from the browser. Only PNG, JPEG, GIF, WebP and PDF are shown inline; everything else downloads. Locally streamed files carry `X-Content-Type-Options: nosniff` and a sandboxed CSP.
 - Storage keys are random (`ws/<workspaceId>/<uuid>`), never guessable, and never returned to the client.
 - Local storage lives outside `public/`, so Next.js never serves it statically.
-- Future S3-compatible storage: short-lived (≤ 5 min) presigned URLs, generated only after the same authz check.
+- S3-compatible storage (Supabase Storage on the test deployment): the route answers with a redirect to a presigned URL valid for 5 minutes, generated only after the same check. The bucket is private.
+- Notifications are filtered by the same visibility rule when listed, so losing access to a project also hides its notifications.
 
 ## 6. Defence-in-depth: Postgres row-level security (optional, Phase 8)
 

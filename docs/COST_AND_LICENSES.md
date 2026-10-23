@@ -61,9 +61,9 @@ Licences and versions below were checked against the npm registry and project si
 | tsx (run TS worker in dev) | 4.23.15 | MIT | ✅ | — | — | None |
 | pino / pino-pretty (logging) | 10.4.0 / 13.2.0 | MIT | ✅ | — | Hosted log services (optional, not used) | None |
 | nodemailer (SMTP) | 10.1.0 | MIT-0 | ✅ | — | Production SMTP relay (optional) | Possibly, if a paid SMTP relay is chosen later |
-| file-type (MIME sniffing) | 22.1.1 | MIT | ✅ | — | — | None |
+| file-type (MIME sniffing, **in use since Phase 3b**) | 22.2.0 | MIT | ✅ | — | — | None |
+| aws4fetch (S3 request signing for file storage, **in use since Phase 3b**) | 1.0.20 | MIT | ✅ | — | Talks to any S3-compatible store; the test deployment uses Supabase Storage (Free plan, below) | None on the free tier |
 | server-only | 0.0.1 | MIT | ✅ | — | — | None |
-| @aws-sdk/client-s3 (later, for S3-compatible self-hosted storage) | 3.x | Apache-2.0 | ✅ | — | AWS S3 itself is paid (**not used**). The SDK talks to any S3-compatible server | None with a self-hosted backend |
 | @slack/web-api (optional integration) | 8.2.0 | MIT | ✅ | — | — | None (see §6) |
 
 ## 4. Tooling and local infrastructure
@@ -90,7 +90,7 @@ Licences and versions below were checked against the npm registry and project si
 | GitHub Actions (CI) | No (`npm run ci` locally) | Free for public repos. Private repos on Free get a monthly minutes quota (2,000 Linux min at time of writing) | Usage beyond the quota is billed **only if** a spending limit above $0 is set | Keep the spending limit at **$0** |
 | GitHub Codespaces (browser preview / cloud dev environment) | No (local setup works) | Personal GitHub Free accounts include 120 core-hours and 15 GB-month storage per month. The default 2-core machine therefore gives about 60 hours/month. Codespaces from this org repo bill to the creator's personal allowance unless the org opts to pay. GitHub org plans include no free Codespaces quota | Usage beyond the allowance is billed only if the account's Codespaces budget is above $0 (default $0 for personal accounts). If the org opts in, its usage is billed to the org | **Optional.** Keep budgets at **$0** and stop codespaces when idle |
 | **Netlify** (test deployment: runs the app) | No (any Node host works) | Free plan, commercial use allowed: 300 credits/month **hard cap**; a production deploy costs 15 credits; when credits run out every site on the team is paused until the next cycle. No overage billing on Free | Paid plans (per-member pricing; check current rates before go-live) | **Approved for testing 2026-10-23. Team upgraded to Personal ($9/month, 1,000 credits) on 2026-10-23**, the project's first paid service, so the team's other sites aren't at risk of the free-credit cutoff. Deploy only the `release` branch; deploy previews off (`DEPLOY_NETLIFY_SUPABASE.md`) |
-| **Supabase** (test deployment: Postgres only) | No (any Postgres works) | Free plan: 2 active projects per account, 500 MB database, pauses after 7 days without activity, no backups | Pro from $25/month per organization (includes compute credit for one small project; each further project adds compute cost). Spend cap on by default | **Approved for testing 2026-10-23** (Free). Data API and automatic RLS disabled; access verified by `npm run db:supabase:setup` |
+| **Supabase** (test deployment: Postgres + Storage for attachments) | No (any Postgres works; any S3-compatible store works for files) | Free plan: 2 active projects per account, 500 MB database, **1 GB file storage, 50 MB per file**, pauses after 7 days without activity, no backups | Pro from $25/month per organization (includes compute credit for one small project; each further project adds compute cost). Spend cap on by default | **Approved for testing 2026-10-23** (Free). Data API and automatic RLS disabled; access verified by `npm run db:supabase:setup` |
 | Production hosting | No (self-host) | Agency-owned machine + Docker + Caddy | Any VPS/PaaS (Hetzner, DigitalOcean, Render, Vercel, etc.) has a monthly fee or free-tier limits | **Requires approval before use** |
 | Domain name | Only for public HTTPS access | Can use an existing agency domain/subdomain | Domain registration (if a new one is needed) | Probably already owned |
 | Object storage | No (local FS) | Self-hosted SeaweedFS (Apache-2.0) or Garage (AGPL-3.0, separate unmodified service, no impact on our code) | Cloud S3/R2/B2 | Not planned. **MinIO CE is archived upstream (2026) and must not be adopted** |
@@ -125,7 +125,7 @@ Everything else in §2–§4 is **planned** and is added (and re-verified) in th
 
 | Kind | Packages (exact versions in `package.json`) |
 |---|---|
-| Runtime | next 16.4.2, react / react-dom 19.3.0, better-auth 1.7.7, drizzle-orm 0.45.4, pg 8.23.1, zod 4.6.7, nodemailer 10.1.0, radix-ui 1.8.1, lucide-react 1.56.0, next-themes 0.4.6, class-variance-authority 0.7.1, clsx 2.1.1, tailwind-merge 3.7.0, geist 1.7.2, server-only 0.0.1, fractional-indexing 4.0.0 (CC0-1.0) |
+| Runtime | next 16.4.2, react / react-dom 19.3.0, better-auth 1.7.7, drizzle-orm 0.45.4, pg 8.23.1, zod 4.6.7, nodemailer 10.1.0, radix-ui 1.8.1, lucide-react 1.56.0, next-themes 0.4.6, class-variance-authority 0.7.1, clsx 2.1.1, tailwind-merge 3.7.0, geist 1.7.2, server-only 0.0.1, fractional-indexing 4.0.0 (CC0-1.0), aws4fetch 1.0.20, file-type 22.2.0 |
 | Development | typescript 6.0.3, tailwindcss + @tailwindcss/postcss 4.3.3, drizzle-kit 0.31.11, eslint 9.39.5, eslint-config-next 16.4.2, typescript-eslint 8.71.2, prettier 3.9.10, prettier-plugin-tailwindcss 0.8.1 (MIT), vitest 5.0.4, @playwright/test 1.64.0, tsx 4.23.15, @types/* |
 
 ### Reviewed non-permissive transitive packages

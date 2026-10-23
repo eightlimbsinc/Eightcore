@@ -48,9 +48,9 @@ Status: Phase 1 approved. **Phase 2 complete** (pending your review). Phases run
 
 **Deferred, by design:** 2FA/passkeys (Better Auth plugins, add when wanted), the workspace settings and audit-log viewer screens (Phase 4), the background worker that drains `outbox_events` (Phase 6), Postgres RLS defence-in-depth (Phase 8).
 
-## Phase 3 — Projects, tasks, subtasks, assignments, comments (in progress)
+## Phase 3 — Projects, tasks, subtasks, assignments, comments (in progress: 3a, 3b done)
 
-**3a done:** folders, lists with **per-list customisable statuses** (templates: agency delivery, simple), tasks with per-project numbers, subtasks (max 5 levels, no cycles, enforced in the database), multiple assignees, priority, start/due dates, optimistic concurrency, activity history, list/task/status screens. **3b next:** comments with @mentions, tags, watchers, notifications. **3c:** dependencies, custom fields, attachments (Supabase Storage).
+**3a done:** folders, lists with **per-list customisable statuses** (templates: agency delivery, simple), tasks with per-project numbers, subtasks (max 5 levels, no cycles, enforced in the database), multiple assignees, priority, start/due dates, optimistic concurrency, activity history, list/task/status screens. **3b done:** comments with one level of replies, editing and deleting, @mentions; project tags on tasks and list rows; watchers (automatic on create, assign, comment, mention); in-app notifications with an Inbox and unread count; attachments on tasks and comments (local folder in development, Supabase Storage via its S3 API on the test deployment, downloads only after a permission check). **3c next:** dependencies, custom fields.
 
 **Scope:** folders, lists, workflows and statuses (with the seeded Agency Delivery template, simple mode first), tasks with subtasks (cycle/depth guards), multiple assignees, watchers, priority, dates, tags, relations and dependencies (cycle guard), optimistic locking, comments with threads and mentions, attachments via `StorageAdapter` (local FS), activity history, in-app notifications (synchronous insert for now), core custom field types.
 **Acceptance:** domain-invariant suite (`TESTING_STRATEGY.md` §3.2, minus QA) green. Attachment authz tests green. Every mutation writes activity and outbox rows. Minimal functional UI for each feature (polished in Phase 4).

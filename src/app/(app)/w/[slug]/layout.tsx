@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Home, Plus, Users } from "lucide-react";
+import { Home, Inbox, Plus, Users } from "lucide-react";
 import { getWorkspaceShell } from "@/modules/workspaces/queries";
 import { WorkspaceSwitcher } from "@/components/app/workspace-switcher";
 import { UserMenu } from "@/components/app/user-menu";
@@ -15,7 +15,7 @@ export default async function WorkspaceLayout({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const { user, actor, workspace, workspaces, projects, can } = await getWorkspaceShell(slug);
+  const { user, actor, workspace, workspaces, projects, unread, can } = await getWorkspaceShell(slug);
   const base = `/w/${workspace.slug}`;
   return (
     <div className="flex min-h-dvh">
@@ -32,6 +32,17 @@ export default async function WorkspaceLayout({
         <nav className="grid gap-0.5 px-2 pt-1">
           <NavLink href={base} exact>
             <Home /> Home
+          </NavLink>
+          <NavLink href={`${base}/inbox`}>
+            <Inbox /> <span className="flex-1">Inbox</span>
+            {unread > 0 ? (
+              <span
+                className="bg-accent min-w-5 rounded-full px-1.5 text-center text-[11px] leading-5 font-semibold text-[#17171a] tabular-nums"
+                aria-label={`${unread} unread`}
+              >
+                {unread > 99 ? "99+" : unread}
+              </span>
+            ) : null}
           </NavLink>
           {can.viewMembers ? (
             <NavLink href={`${base}/members`}>

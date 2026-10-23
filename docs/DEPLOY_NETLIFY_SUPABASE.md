@@ -1,6 +1,6 @@
 # Deploying Eightcore on Netlify + Supabase
 
-Status: test deployment for invited testers. Hosting: **Netlify (Personal plan, 1,000 credits/month)** runs the app, **Supabase (free)** holds the database, **Google Workspace** sends email, **Cloudflare DNS** serves your domain. Approved 2026-10-23. Production hosting is a separate decision (`COST_AND_LICENSES.md`).
+Status: test deployment for invited testers. Hosting: **Netlify (Personal plan, 1,000 credits/month)** runs the app, **Supabase (free)** holds the database and the attached files, **Google Workspace** sends email, **Cloudflare DNS** serves your domain. Approved 2026-10-23. Production hosting is a separate decision (`COST_AND_LICENSES.md`).
 
 Keep every password, connection string, and secret out of chat, issues, and git. They go only into the files named below (git-ignored) and into Netlify's environment variables.
 
@@ -47,6 +47,15 @@ Note: Eightcore's tables belong to `eightcore_migrator`, so Supabase's Table Edi
    MAIL_FROM="Eightcore <eightcore@yourdomain.com>"
    ```
 
+## 3b. File storage for attachments (Supabase Storage)
+
+1. Supabase dashboard → **Storage** → **New bucket**. Name: `eightcore-files`. **Public bucket: off.** Optional: *Restrict file size* → `5 MB`. Create.
+2. **Storage → Settings** (S3 connection section): make sure **Enable connection via S3 protocol** is on. Copy the **Endpoint** (`https://<project-ref>.storage.supabase.co/storage/v1/s3`) and the **Region** (e.g. `us-east-1`).
+3. Same page → **S3 access keys → New access key**, description "Eightcore Netlify". Copy the **Access key ID** and the **Secret access key**. The secret is shown only once.
+   These keys can read and write every bucket in the project, so they go only into Netlify's environment variables, never into the browser, chat, or git.
+
+The bucket stays private: Eightcore checks permissions on every download and then hands the browser a link that works for 5 minutes.
+
 ## 4. Netlify site
 
 1. https://app.netlify.com → **Add new project → Import an existing project → GitHub** → `eightlimbsinc/Eightcore`.
@@ -64,6 +73,11 @@ Note: Eightcore's tables belong to `eightcore_migrator`, so Supabase's Table Edi
    | `AUTH_IP_HEADERS` | `x-nf-client-connection-ip` |
    | `SMTP_URL` | from step 3 |
    | `MAIL_FROM` | from step 3 |
+   | `S3_ENDPOINT` | from step 3b |
+   | `S3_REGION` | from step 3b |
+   | `S3_BUCKET` | `eightcore-files` |
+   | `S3_ACCESS_KEY_ID` | from step 3b |
+   | `S3_SECRET_ACCESS_KEY` | from step 3b |
 
    Do **not** add `DATABASE_MIGRATOR_URL` to Netlify.
 4. **Deploy.** Open the site, sign up with the allowlisted email, verify it from your inbox, create the workspace, then invite testers from **Members**. Invitations are email-bound, single-use, and expire after 7 days.
@@ -98,7 +112,7 @@ It prints `Migrations applied.` and is safe to re-run: already-applied migration
 
 | Service | Limit | Effect |
 |---|---|---|
-| Supabase Free | Pauses after 7 days without activity; 500 MB; no backups | Restore from the Supabase dashboard if paused |
+| Supabase Free | Pauses after 7 days without activity; 500 MB database, 1 GB files; no backups | Restore from the Supabase dashboard if paused |
 | Netlify Free | 300 credits/month, hard cap | Site offline when exhausted; deploy deliberately |
 | Google Workspace | Gmail sending limits | Far above testing needs |
 
@@ -113,3 +127,6 @@ It prints `Migrations applied.` and is safe to re-run: already-applied migration
 | "Eightcore is invite-only" on sign-up | Expected for uninvited emails. Invite them, or add them to `SIGNUP_ALLOWED_EMAILS` |
 | Invitations never arrive | Check `SMTP_URL` (app password, `%40` for `@`) and the sender's Gmail "Sent" folder |
 | Site says "Site not available" | Netlify credits used up for the month |
+| "File storage isn't configured" when uploading | One of the `S3_*` variables is missing in Netlify. Add it and redeploy |
+| Uploads fail with "Storage upload failed (403)" | Wrong access key/secret or region, or the bucket name doesn't match `S3_BUCKET` |
+| Image previews don't show, downloads work | `S3_ENDPOINT` must be set so the page allows images from the storage host. Redeploy after setting it |

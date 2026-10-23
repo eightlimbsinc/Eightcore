@@ -5,7 +5,7 @@ import { requireUser } from "@/server/auth/session";
 import { resolveActor } from "@/server/authz/actor";
 import { formString, runAction } from "@/server/action";
 import type { ActionState } from "@/lib/action-state";
-import { createTask, setTaskArchived, setTaskAssignees, updateTask } from "./service";
+import { createTask, setTaskArchived, setTaskAssignees, setWatching, updateTask } from "./service";
 import { TASK_PRIORITIES, type TaskPriority } from "./validators";
 
 async function actorFor(workspaceSlug: string) {
@@ -100,4 +100,15 @@ export async function archiveTaskAction(
     redirect(`/w/${workspaceSlug}/l/${listId}`);
   }
   return result;
+}
+
+export async function setWatchingAction(
+  workspaceSlug: string,
+  taskId: string,
+  watching: boolean,
+): Promise<ActionState> {
+  return runAction(async () => {
+    await setWatching(await actorFor(workspaceSlug), taskId, watching);
+    revalidatePath(`/w/${workspaceSlug}`, "layout");
+  });
 }

@@ -5,6 +5,7 @@ import { db, type DbOrTx } from "@/server/db";
 import {
   activityEvents,
   projectMembers,
+  taskWatchers,
   projects,
   taskAssignees,
   tasks,
@@ -25,6 +26,7 @@ import { enqueueOutbox, recordActivity } from "@/modules/activity/service";
 import { loadProjectAccess } from "@/modules/projects/service";
 import { listStatusesFor, loadListAccess } from "@/modules/lists/service";
 import { isClosedCategory } from "@/modules/lists/templates";
+import { addWatchersInTx, listWatchers, notifyInTx, watcherIds } from "@/modules/notifications/service";
 import {
   createTaskInput,
   parseTaskRef,
@@ -52,7 +54,7 @@ function mapHierarchyError(error: unknown): never {
 }
 
 /** A task in the actor's workspace, with list, project and effective role. Invisible → NotFound. */
-async function loadTaskAccess(tx: DbOrTx, actor: ActorContext, taskId: string) {
+export async function loadTaskAccess(tx: DbOrTx, actor: ActorContext, taskId: string) {
   assertId(taskId, "Task not found");
   const [task] = await tx
     .select()
@@ -67,7 +69,7 @@ async function loadTaskAccess(tx: DbOrTx, actor: ActorContext, taskId: string) {
  * Users who may be assigned in a project: active workspace members who can see it
  * (owners/admins always; members on workspace-visible projects or when added; guests when added).
  */
-async function assignableUserIds(
+export async function assignableUserIds(
   tx: DbOrTx,
   actor: ActorContext,
   projectId: string,
@@ -199,14 +201,25 @@ export async function createTask(actor: ActorContext, listId: string, raw: Creat
         })
         .returning({ id: tasks.id, number: tasks.number });
 
+      let assigned: string[] = [];
       if (input.assigneeIds.length) {
-        await setAssigneesInTx(
+        ({ added: assigned } = await setAssigneesInTx(
           tx,
           actor,
           { id: task!.id, projectId: project.id },
           project.visibility,
           input.assigneeIds,
-        );
+        ));
+      }
+      // The creator and the assignees follow the task.
+      await addWatchersInTx(tx, actor, task!.id, [actor.userId, ...assigned]);
+      if (assigned.length) {
+        await notifyInTx(tx, actor, {
+          taskId: task!.id,
+          type: "assigned",
+          userIds: assigned,
+          allowed: new Set(assigned),
+        });
       }
       await recordActivity(tx, actor, {
         entityType: "task",
@@ -280,7 +293,7 @@ export async function getTaskByRef(actor: ActorContext, ref: string) {
   if (!row) throw new NotFoundError("Task not found");
   const { task, list } = await loadTaskAccess(db(), actor, row.id);
 
-  const [statuses, assigneeMap, subtaskRows, parent, activity, assignable] = await Promise.all([
+  const [statuses, assigneeMap, subtaskRows, parent, activity, assignable, watchers] = await Promise.all([
     listStatusesFor(db(), list.id),
     assigneesFor(db(), [task.id]),
     db()
@@ -296,6 +309,7 @@ export async function getTaskByRef(actor: ActorContext, ref: string) {
       : Promise.resolve([]),
     listTaskActivity(db(), actor, task.id),
     listAssignableMembers(actor, project.id),
+    listWatchers(db(), task.id),
   ]);
   const subtaskAssignees = await assigneesFor(
     db(),
@@ -316,8 +330,12 @@ export async function getTaskByRef(actor: ActorContext, ref: string) {
       assignees: subtaskAssignees.get(s.id) ?? [],
     })),
     activity,
+    watchers,
+    watching: watchers.some((w) => w.userId === actor.userId),
     can: {
       update: canProject(role, "task.update"),
+      manageTags: canProject(role, "tag.manage"),
+      attach: canProject(role, "attachment.upload") && canProject(role, "task.update"),
       createSubtask: canProject(role, "task.create"),
       archive: canProject(role, "task.archive") || (isCreator && canProject(role, "task.archive_own")),
     },
@@ -363,7 +381,7 @@ export async function updateTask(
   const input = updateTaskInput.parse(raw);
   try {
     return await db().transaction(async (tx) => {
-      const { task, list, role } = await loadTaskAccess(tx, actor, taskId);
+      const { task, list, project, role } = await loadTaskAccess(tx, actor, taskId);
       assertProject(role, "task.update");
       if (task.version !== expectedVersion) {
         throw new ConflictError(
@@ -404,6 +422,15 @@ export async function updateTask(
         );
 
       await recordActivity(tx, actor, { entityType: "task", entityId: taskId, action: "updated", changes });
+      if (changes.status) {
+        await notifyInTx(tx, actor, {
+          taskId,
+          type: "status_changed",
+          userIds: await watcherIds(tx, taskId),
+          allowed: await assignableUserIds(tx, actor, task.projectId, project.visibility),
+          data: { from: changes.status[0], to: changes.status[1] },
+        });
+      }
       await enqueueOutbox(tx, actor.workspaceId, "task.updated", { taskId, fields: Object.keys(changes) });
       return { version: updated.version };
     });
@@ -418,6 +445,9 @@ export async function setTaskAssignees(actor: ActorContext, taskId: string, user
     assertProject(role, "task.update");
     const { added, removed } = await setAssigneesInTx(tx, actor, task, project.visibility, userIds);
     if (!added.length && !removed.length) return;
+    await addWatchersInTx(tx, actor, taskId, added);
+    // setAssigneesInTx already checked every added person can see the project.
+    await notifyInTx(tx, actor, { taskId, type: "assigned", userIds: added, allowed: new Set(added) });
     await tx
       .update(tasks)
       .set({ version: sql`${tasks.version} + 1` })
@@ -449,5 +479,18 @@ export async function setTaskArchived(actor: ActorContext, taskId: string, archi
       entityId: taskId,
       action: archived ? "archived" : "restored",
     });
+  });
+}
+
+/** Anyone who can see a task may follow or unfollow it. */
+export async function setWatching(actor: ActorContext, taskId: string, watching: boolean) {
+  await db().transaction(async (tx) => {
+    await loadTaskAccess(tx, actor, taskId);
+    if (watching) await addWatchersInTx(tx, actor, taskId, [actor.userId]);
+    else {
+      await tx
+        .delete(taskWatchers)
+        .where(and(eq(taskWatchers.taskId, taskId), eq(taskWatchers.userId, actor.userId)));
+    }
   });
 }

@@ -33,6 +33,20 @@ const schema = z.object({
         .map((h) => h.trim().toLowerCase())
         .filter(Boolean),
     ),
+  /** File storage: "local" folder (development, tests) or any S3-compatible service (Supabase Storage). */
+  STORAGE_DRIVER: z.enum(["local", "s3"]).optional(),
+  STORAGE_LOCAL_DIR: z.string().default("storage"),
+  S3_ENDPOINT: z.preprocess((v) => (v === "" ? undefined : v), z.url().optional()),
+  S3_REGION: z.string().default("us-east-1"),
+  S3_BUCKET: z.string().optional(),
+  S3_ACCESS_KEY_ID: z.string().optional(),
+  S3_SECRET_ACCESS_KEY: z.string().optional(),
+  /** Largest accepted upload. Netlify functions accept ~6 MB per request, so keep this below that. */
+  MAX_UPLOAD_BYTES: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(4 * 1024 * 1024),
   /** Lets a production build write mail to MAIL_OUTBOX_DIR. Only for the local E2E server. */
   EIGHTCORE_ALLOW_FILE_MAIL: z.enum(["0", "1"]).default("0"),
 });
