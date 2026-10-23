@@ -293,3 +293,31 @@ test("the calendar schedules and reschedules tasks by dragging", async ({ page }
   await page.keyboard.press("Space");
   await expect(page.getByRole("gridcell", { name: /, today: 0 tasks/ })).toBeVisible();
 });
+
+test("Ctrl+K finds tasks and jumps anywhere", async ({ page }) => {
+  await signIn(page, owner);
+  await expect(page).toHaveURL(/\/w\//);
+  await page.goto(`/w/${workspaceSlug}`);
+
+  await page.keyboard.press("Control+k");
+  const palette = page.getByRole("dialog", { name: "Search or jump to" });
+  await expect(palette).toBeVisible();
+  await palette.getByRole("combobox").fill("logo");
+  await expect(palette.getByRole("option", { name: /BRD-1\s*New logo/ })).toBeVisible();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/t\/BRD-1$/);
+
+  // By ID, then pages and commands by name.
+  await page.goto(`/w/${workspaceSlug}`);
+  await page.getByRole("button", { name: /Search or jump to/ }).click();
+  await palette.getByRole("combobox").fill("brd-1");
+  await expect(palette.getByRole("option", { name: /BRD-1\s*New logo/ })).toBeVisible();
+  await palette.getByRole("combobox").fill("dashboard");
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/dashboard$/);
+
+  await page.keyboard.press("Control+k");
+  await palette.getByRole("combobox").fill("dark theme");
+  await page.keyboard.press("Enter");
+  await expect(page.locator("html")).toHaveClass(/dark/);
+});

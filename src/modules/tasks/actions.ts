@@ -6,6 +6,9 @@ import { resolveActor } from "@/server/authz/actor";
 import { formString, runAction } from "@/server/action";
 import type { ActionState } from "@/lib/action-state";
 import { ValidationError } from "@/server/errors";
+import { viewerToday } from "@/server/today";
+import { EMPTY_FILTER } from "./filters";
+import { searchTasks } from "./search";
 import {
   createTask,
   deleteTask,
@@ -176,4 +179,27 @@ export async function moveTaskAction(
     await moveTask(await actorFor(workspaceSlug), taskId, version, move);
     revalidatePath(`/w/${workspaceSlug}`, "layout");
   });
+}
+
+/** Ctrl+K: tasks matching what was typed (title or KEY-number), most recently updated first. */
+export async function quickFindTasksAction(workspaceSlug: string, query: string) {
+  const q = query.trim().slice(0, 100);
+  if (!q) return [];
+  const actor = await actorFor(workspaceSlug);
+  const { tasks } = await searchTasks(
+    actor,
+    { ...EMPTY_FILTER, q },
+    { today: await viewerToday(), limit: 8, order: "recent" },
+  );
+  const exact = q.toUpperCase();
+  return tasks
+    .map((t) => ({
+      ref: t.ref,
+      title: t.title,
+      where: `${t.projectName} › ${t.listName}`,
+      statusName: t.statusName,
+      statusColor: t.statusColor,
+      closed: t.closed,
+    }))
+    .sort((a, b) => Number(b.ref === exact) - Number(a.ref === exact));
 }

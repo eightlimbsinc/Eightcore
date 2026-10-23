@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, eq, ilike, inArray, isNull, notInArray, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, isNull, notInArray, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/server/db";
 import { listStatuses, projectMembers, projects, taskLists, tasks } from "@/server/db/schema";
 import type { ActorContext } from "@/server/authz/policy";
@@ -78,7 +78,7 @@ function filterConditions(filter: TaskFilter, ctx: { userId: string; today: stri
 export async function searchTasks(
   actor: ActorContext,
   filter: TaskFilter,
-  options: { today: string; projectId?: string },
+  options: { today: string; projectId?: string; limit?: number; order?: "due" | "recent" },
 ) {
   if (options.projectId) assertId(options.projectId, "Project not found");
   const where = and(
@@ -121,12 +121,16 @@ export async function searchTasks(
     )
     .where(where)
     .orderBy(
-      sql`${tasks.dueDate} asc nulls last`,
-      sql`array_position(array['urgent','high','normal','low','none']::text[], ${tasks.priority}::text)`,
-      asc(projects.key),
-      asc(tasks.number),
+      ...(options.order === "recent"
+        ? [desc(tasks.updatedAt)]
+        : [
+            sql`${tasks.dueDate} asc nulls last`,
+            sql`array_position(array['urgent','high','normal','low','none']::text[], ${tasks.priority}::text)`,
+            asc(projects.key),
+            asc(tasks.number),
+          ]),
     )
-    .limit(SEARCH_LIMIT);
+    .limit(Math.min(options.limit ?? SEARCH_LIMIT, SEARCH_LIMIT));
   const tags = await tagsForTasks(
     db(),
     rows.map((r) => r.id),

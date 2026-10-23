@@ -7,6 +7,7 @@ import { ThemeToggle } from "@/components/app/theme-toggle";
 import { NavLink, ProjectTree } from "@/components/app/sidebar-nav";
 import { LogoMark } from "@/components/brand/logo";
 import { TimeZoneCookie } from "@/components/app/time-zone-cookie";
+import { CommandPalette, OpenPaletteButton } from "@/components/app/command-palette";
 
 export default async function WorkspaceLayout({
   children,
@@ -32,6 +33,9 @@ export default async function WorkspaceLayout({
             current={{ slug: workspace.slug, name: workspace.name, role: actor.workspaceRole }}
             workspaces={workspaces}
           />
+        </div>
+        <div className="px-2 pb-1">
+          <OpenPaletteButton />
         </div>
         <nav className="grid gap-0.5 px-2 pt-1">
           <NavLink href={base} exact>
@@ -93,6 +97,12 @@ export default async function WorkspaceLayout({
         <main className="flex-1">{children}</main>
         {modal}
         <TimeZoneCookie />
+        <CommandPalette
+          workspaceSlug={workspace.slug}
+          projects={projects}
+          canCreateProject={can.createProject}
+          canViewMembers={can.viewMembers}
+        />
         <footer className="text-muted-foreground flex items-center gap-1.5 px-8 py-4 text-[11px]">
           <LogoMark className="size-3.5" /> Eightcore
         </footer>
