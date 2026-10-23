@@ -247,6 +247,7 @@ const taskSummaryColumns = {
   dueDate: tasks.dueDate,
   position: tasks.position,
   completedAt: tasks.completedAt,
+  version: tasks.version,
   // Correlated subquery: the outer table must be named explicitly ("tasks"."id"); an
   // interpolated column renders unqualified and would bind to the inner alias.
   subtaskCount: sql<number>`(select count(*)::int from ${tasks} c where c.parent_task_id = "tasks"."id" and c.archived_at is null)`,

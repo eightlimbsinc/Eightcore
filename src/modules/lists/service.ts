@@ -226,6 +226,7 @@ export async function getList(actor: ActorContext, listId: string) {
     can: {
       manage: canProject(role, "list.manage"),
       createTask: canProject(role, "task.create"),
+      updateTask: canProject(role, "task.update"),
     },
   };
 }

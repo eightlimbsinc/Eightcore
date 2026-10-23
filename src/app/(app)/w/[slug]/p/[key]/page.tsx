@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArchiveProjectButton, ProjectDetailsForm, ProjectMembers } from "@/components/app/project-settings";
+import { ProjectLists } from "@/components/lists/project-lists";
 
 export async function generateMetadata({ params }: { params: Promise<{ key: string }> }): Promise<Metadata> {
   return { title: (await params).key.toUpperCase() };
@@ -12,7 +13,7 @@ export async function generateMetadata({ params }: { params: Promise<{ key: stri
 
 export default async function ProjectPage({ params }: { params: Promise<{ slug: string; key: string }> }) {
   const { slug, key } = await params;
-  const { actor, project, members, workspaceMembers } = await getProjectPage(slug, key);
+  const { actor, project, members, workspaceMembers, tree } = await getProjectPage(slug, key);
   return (
     <>
       <PageHeader
@@ -34,14 +35,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
       />
       <div className="grid gap-6 px-8 py-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]">
         <div className="grid content-start gap-6">
-          <Card>
-            <CardHeader className="border-b-0">
-              <CardTitle>Tasks</CardTitle>
-              <CardDescription>
-                Lists, tasks and boards for this project are part of the next milestone (Phase 3).
-              </CardDescription>
-            </CardHeader>
-          </Card>
+          <ProjectLists workspaceSlug={slug} projectId={project.id} tree={tree} />
           {project.can.update ? (
             <Card>
               <CardHeader>

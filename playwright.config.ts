@@ -45,7 +45,7 @@ export default defineConfig({
       BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET ?? "e2e-secret-e2e-secret-e2e-secret-0123456",
       SMTP_URL: "",
       // Production defaults to invite-only sign-up; these two may sign up without an invitation.
-      SIGNUP_ALLOWED_EMAILS: "olivia@e2e.example.test,sam@e2e.example.test",
+      SIGNUP_ALLOWED_EMAILS: "olivia@e2e.example.test,sam@e2e.example.test,tess@e2e.example.test",
       MAIL_OUTBOX_DIR: ".mail/e2e",
       // Production mode refuses to drop mail on disk; allow it only for this local test server.
       EIGHTCORE_ALLOW_FILE_MAIL: "1",

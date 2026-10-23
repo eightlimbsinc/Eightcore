@@ -83,6 +83,9 @@ Types are abbreviated: `ws` = `workspace_id uuid not null` + composite FK where 
 
 ### 4.3 Workflows
 
+> **As built (Phase 3a):** statuses belong to a **list** (`list_statuses`), not to a shared workflow, so every list's statuses can be customised independently. A new list copies its statuses from a template (`src/modules/lists/templates.ts`: *Agency delivery*, *Simple*). `tasks.status_id` references `(id, list_id)` of `list_statuses`, so a task can only use its own list's statuses. Transition rules (below) arrive in Phase 5 and will be keyed on list statuses. Task dates are calendar dates (`start_date`, `due_date` as `date`), so deadlines never shift across time zones.
+
+
 | Table | Columns | Constraints |
 |---|---|---|
 | `workflows` | id, ws, name, is_template, created_by | |
