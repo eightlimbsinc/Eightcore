@@ -2,7 +2,7 @@
   "name": "eightcore",
   "version": "0.1.0",
   "private": true,
-  "description": "Eightcore — the operating system for modern agency operations.",
+  "description": "Eightcore \u2014 the operating system for modern agency operations.",
   "license": "UNLICENSED",
   "type": "module",
   "engines": {
@@ -30,7 +30,9 @@
     "ci": "npm run format:check && npm run lint && npm run typecheck && npm run licenses:check && npm test && npm run build && npm run secrets:scan && npm run test:e2e",
     "db:test:create": "tsx scripts/db/create-test-db.ts",
     "db:supabase:setup": "tsx scripts/db/supabase-setup.ts",
-    "db:migrate:supabase": "tsx --env-file=.env.supabase-admin scripts/db/migrate.ts"
+    "db:migrate:supabase": "tsx --env-file=.env.supabase-admin scripts/db/migrate.ts",
+    "import:clickup": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/import/clickup-csv.ts",
+    "import:clickup:supabase": "tsx --env-file=.env.netlify --conditions=react-server --tsconfig tsconfig.json scripts/import/clickup-csv.ts"
   },
   "dependencies": {
     "aws4fetch": "1.0.20",

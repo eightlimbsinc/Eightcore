@@ -55,6 +55,8 @@ export async function notifyInTx(
     data?: Record<string, unknown>;
   },
 ) {
+  // Bulk imports don't notify anyone (a CSV of 60 tasks would flood people's inboxes).
+  if (actor.actorKind === "import") return [];
   const recipients = [...new Set(input.userIds)].filter((id) => id !== actor.userId && input.allowed.has(id));
   if (!recipients.length) return [];
   await tx.insert(notifications).values(
