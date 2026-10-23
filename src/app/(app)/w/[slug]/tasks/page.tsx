@@ -3,6 +3,7 @@ import Link from "next/link";
 import { SearchX } from "lucide-react";
 import { getTasksPage } from "@/modules/workspaces/queries";
 import { SEARCH_LIMIT } from "@/modules/tasks/search";
+import { filterQuery } from "@/modules/tasks/filters";
 import { PageHeader } from "@/components/app/page-header";
 import { FilterBar } from "@/components/tasks/filter-bar";
 import {
@@ -23,7 +24,10 @@ export default async function TasksPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { slug } = await params;
-  const { filter, today, people, tagNames, tasks, total } = await getTasksPage(slug, await searchParams);
+  const { filter, today, people, tagNames, tasks, total, project } = await getTasksPage(
+    slug,
+    await searchParams,
+  );
   const myWork = filter.assignees.length === 1 && filter.assignees[0] === "me";
 
   // Group by project › list, keeping the due-date order inside each group.
@@ -50,7 +54,27 @@ export default async function TasksPage({
         }
       />
       <div className="grid gap-5 px-8 py-6">
-        <FilterBar path={`/w/${slug}/tasks`} filter={filter} people={people} tags={tagNames} />
+        <FilterBar
+          path={`/w/${slug}/tasks`}
+          filter={filter}
+          people={people}
+          tags={tagNames}
+          extraQuery={project ? `project=${project.key}` : ""}
+        />
+        {project ? (
+          <p className="text-[13px]">
+            In <strong className="font-medium">{project.name}</strong> only ·{" "}
+            <Link
+              href={`/w/${slug}/tasks${(() => {
+                const p = filterQuery(filter).toString();
+                return p ? `?${p}` : "";
+              })()}`}
+              className="text-muted-foreground hover:text-foreground underline underline-offset-4"
+            >
+              all projects
+            </Link>
+          </p>
+        ) : null}
         <p className="text-muted-foreground text-[13px]" role="status">
           {total === 0
             ? "No tasks match."

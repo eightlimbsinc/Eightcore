@@ -11,7 +11,8 @@ import { countUnread, listNotifications } from "@/modules/notifications/service"
 import { readFilter } from "@/modules/tasks/filters";
 import { searchTasks } from "@/modules/tasks/search";
 import { visibleTagNames } from "@/modules/tags/service";
-import { viewerToday } from "@/server/today";
+import { viewerTimeZone, viewerToday } from "@/server/today";
+import { getDashboard } from "@/modules/dashboard/service";
 import {
   getWorkspace,
   listMembers,
@@ -98,8 +99,9 @@ export async function getTasksPage(slug: string, params: Record<string, string |
   const { user, actor } = await getWorkspaceContext(slug);
   const filter = readFilter(params);
   const today = await viewerToday();
+  const project = await focusProject(actor, params.project);
   const [results, people, tagNames] = await Promise.all([
-    searchTasks(actor, filter, { today }),
+    searchTasks(actor, filter, { today, projectId: project?.id }),
     canWorkspace(actor.workspaceRole, "member.view_directory")
       ? listMembers(actor).then((ms) =>
           ms.filter((m) => m.status === "active").map((m) => ({ userId: m.userId, name: m.name })),
@@ -107,7 +109,28 @@ export async function getTasksPage(slug: string, params: Record<string, string |
       : Promise.resolve([]),
     visibleTagNames(actor),
   ]);
-  return { user, actor, filter, today, people, tagNames, ...results };
+  return { user, actor, filter, today, people, tagNames, project, ...results };
+}
+
+/** "?project=KEY" → that project, if the actor can see it. */
+async function focusProject(actor: ActorContext, key: string | string[] | undefined) {
+  if (typeof key !== "string" || !key) return null;
+  const projects = await listVisibleProjects(actor);
+  const p = projects.find((x) => x.key === key.toUpperCase());
+  return p ? { id: p.id, key: p.key, name: p.name } : null;
+}
+
+/** The dashboard, for every visible project or one ("?project=KEY"). */
+export async function getDashboardPage(slug: string, params: Record<string, string | string[] | undefined>) {
+  const { actor } = await getWorkspaceContext(slug);
+  const [today, timeZone, projects] = await Promise.all([
+    viewerToday(),
+    viewerTimeZone(),
+    listVisibleProjects(actor),
+  ]);
+  const project = await focusProject(actor, params.project);
+  const data = await getDashboard(actor, { today, timeZone, projectId: project?.id });
+  return { actor, today, project, projects: projects.map((p) => ({ key: p.key, name: p.name })), ...data };
 }
 
 export { listWorkspacesForUser, previewInvitation };

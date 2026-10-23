@@ -22,6 +22,9 @@
   --success: #2f6b4f;
   --sidebar: #f3f0eb;
   --radius: 0.5rem;
+  /* Charts: one validated series hue (gold reads too gray for marks), recessive grid. */
+  --viz-1: #2a78d6;
+  --viz-grid: #ece7df;
 }
 
 .dark {
@@ -42,9 +45,13 @@
   --destructive-soft: #3a1d1b;
   --success: #6fcf97;
   --sidebar: #17171a;
+  --viz-1: #3987e5;
+  --viz-grid: #2a2a30;
 }
 
 @theme inline {
+  --color-viz-1: var(--viz-1);
+  --color-viz-grid: var(--viz-grid);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-surface: var(--surface);

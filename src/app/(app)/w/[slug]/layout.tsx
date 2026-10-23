@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CircleUserRound, Home, Inbox, ListTodo, Plus, Users } from "lucide-react";
+import { CircleUserRound, Home, Inbox, LayoutDashboard, ListTodo, Plus, Users } from "lucide-react";
 import { getWorkspaceShell } from "@/modules/workspaces/queries";
 import { WorkspaceSwitcher } from "@/components/app/workspace-switcher";
 import { UserMenu } from "@/components/app/user-menu";
@@ -36,6 +36,9 @@ export default async function WorkspaceLayout({
         <nav className="grid gap-0.5 px-2 pt-1">
           <NavLink href={base} exact>
             <Home /> Home
+          </NavLink>
+          <NavLink href={`${base}/dashboard`}>
+            <LayoutDashboard /> Dashboard
           </NavLink>
           <NavLink href={`${base}/tasks?assignee=me&state=open`}>
             <CircleUserRound /> My Work

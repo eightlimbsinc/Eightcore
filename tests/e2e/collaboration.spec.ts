@@ -191,3 +191,29 @@ test("search and filters across the workspace and on a list", async ({ page }) =
   await page.getByRole("button", { name: "Clear filters" }).click();
   await expect(page.getByRole("link", { name: "New logo" })).toBeVisible();
 });
+
+test("the dashboard summarises work and links to the matching tasks", async ({ page }) => {
+  await signIn(page, owner);
+  await expect(page).toHaveURL(/\/w\//);
+  await page.goto(`/w/${workspaceSlug}`);
+  await page.getByRole("link", { name: "Dashboard" }).click();
+  await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
+  // "New logo" is the one open task; it is unassigned and tagged "Client review".
+  await expect(page.getByRole("link", { name: /Open tasks\s*1/ })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Top tags" })).toContainText("Client review");
+
+  await page
+    .getByRole("link", { name: /Unassigned\s*1/ })
+    .first()
+    .click();
+  await expect(page).toHaveURL(/assignee=none/);
+  await expect(page.getByRole("link", { name: "New logo" })).toBeVisible();
+
+  // Focusing on a project keeps the drill-down within it.
+  await page.goto(`/w/${workspaceSlug}/dashboard`);
+  await page.getByRole("navigation", { name: "Dashboard for" }).getByRole("link", { name: "Brand" }).click();
+  await expect(page).toHaveURL(/project=BRD/);
+  await page.getByRole("link", { name: /Open tasks\s*1/ }).click();
+  await expect(page).toHaveURL(/project=BRD/);
+  await expect(page.getByText("only")).toBeVisible();
+});

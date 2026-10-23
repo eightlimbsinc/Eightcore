@@ -8,6 +8,20 @@ export async function viewerToday(now = new Date()): Promise<string> {
   return dateIn(zone, now);
 }
 
+/** The viewer's IANA time zone if it is a real one, else "UTC". */
+export async function viewerTimeZone(): Promise<string> {
+  const zone = (await cookies()).get(TIME_ZONE_COOKIE)?.value;
+  try {
+    if (zone) {
+      new Intl.DateTimeFormat("en", { timeZone: zone });
+      return zone;
+    }
+  } catch {
+    // Not a time zone name.
+  }
+  return "UTC";
+}
+
 export function dateIn(zone: string | undefined, now = new Date()): string {
   try {
     if (zone) {
