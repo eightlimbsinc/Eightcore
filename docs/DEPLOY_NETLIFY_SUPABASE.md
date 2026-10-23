@@ -1,6 +1,6 @@
 # Deploying Eightcore on Netlify + Supabase
 
-Status: test deployment for invited testers. Hosting: **Netlify (free)** runs the app, **Supabase (free)** holds the database, **Google Workspace** sends email, **Cloudflare DNS** serves your domain. Approved 2026-10-23. Production hosting is a separate decision (`COST_AND_LICENSES.md`).
+Status: test deployment for invited testers. Hosting: **Netlify (Personal plan, 1,000 credits/month)** runs the app, **Supabase (free)** holds the database, **Google Workspace** sends email, **Cloudflare DNS** serves your domain. Approved 2026-10-23. Production hosting is a separate decision (`COST_AND_LICENSES.md`).
 
 Keep every password, connection string, and secret out of chat, issues, and git. They go only into the files named below (git-ignored) and into Netlify's environment variables.
 
@@ -85,12 +85,14 @@ The free plan has 300 credits/month, a production deploy costs 15, and if they r
 
 ## Applying future database changes
 
-New releases may include migrations. Apply them **before** deploying the new app version:
+New releases may include migrations. Apply them **before** the new app version goes live (before `release` moves), from the machine that holds `.env.supabase-admin`:
 
 ```bash
-set -a; . ./.env.supabase-admin; set +a
-npm run db:migrate
+git pull
+npm run db:migrate:supabase
 ```
+
+It prints `Migrations applied.` and is safe to re-run: already-applied migrations are skipped. New tables automatically get the app role's data-only access, and none for Supabase's API roles.
 
 ## Free-tier limits to keep in mind
 

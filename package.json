@@ -29,7 +29,8 @@
     "secrets:scan": "node scripts/scan-client-bundle.mjs",
     "ci": "npm run format:check && npm run lint && npm run typecheck && npm run licenses:check && npm test && npm run build && npm run secrets:scan && npm run test:e2e",
     "db:test:create": "tsx scripts/db/create-test-db.ts",
-    "db:supabase:setup": "tsx scripts/db/supabase-setup.ts"
+    "db:supabase:setup": "tsx scripts/db/supabase-setup.ts",
+    "db:migrate:supabase": "tsx --env-file=.env.supabase-admin scripts/db/migrate.ts"
   },
   "dependencies": {
     "better-auth": "1.7.7",
