@@ -6,6 +6,7 @@ import { resolveActorCached } from "@/server/authz/actor";
 import { canWorkspace, type ActorContext } from "@/server/authz/policy";
 import { NotFoundError } from "@/server/errors";
 import { listVisibleProjects } from "@/modules/projects/service";
+import { getSidebarTree } from "@/modules/lists/service";
 import {
   getWorkspace,
   listMembers,
@@ -35,12 +36,16 @@ export const getWorkspaceShell = cache(async (slug: string) => {
     listWorkspacesForUser(user.id),
     listVisibleProjects(actor),
   ]);
+  const tree = await getSidebarTree(
+    actor,
+    projects.map((p) => p.id),
+  );
   return {
     user,
     actor,
     workspace,
     workspaces,
-    projects,
+    projects: projects.map((p) => ({ ...p, ...(tree.get(p.id) ?? { folders: [], rootLists: [] }) })),
     can: {
       createProject: canWorkspace(actor.workspaceRole, "project.create"),
       viewMembers: canWorkspace(actor.workspaceRole, "member.view_directory"),

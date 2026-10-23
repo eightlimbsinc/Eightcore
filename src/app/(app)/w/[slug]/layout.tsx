@@ -4,7 +4,7 @@ import { getWorkspaceShell } from "@/modules/workspaces/queries";
 import { WorkspaceSwitcher } from "@/components/app/workspace-switcher";
 import { UserMenu } from "@/components/app/user-menu";
 import { ThemeToggle } from "@/components/app/theme-toggle";
-import { NavLink, ProjectNavLink } from "@/components/app/sidebar-nav";
+import { NavLink, ProjectTree } from "@/components/app/sidebar-nav";
 import { LogoMark } from "@/components/brand/logo";
 
 export default async function WorkspaceLayout({
@@ -57,15 +57,7 @@ export default async function WorkspaceLayout({
           {projects.length === 0 ? (
             <p className="text-muted-foreground px-2 py-1 text-[13px]">No projects yet.</p>
           ) : (
-            projects.map((p) => (
-              <ProjectNavLink
-                key={p.id}
-                href={`${base}/p/${p.key}`}
-                name={p.name}
-                projectKey={p.key}
-                isPrivate={p.visibility === "private"}
-              />
-            ))
+            <ProjectTree base={base} projects={projects} />
           )}
         </nav>
         <div className="flex items-center gap-1 border-t p-2">

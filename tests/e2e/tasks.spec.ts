@@ -32,6 +32,14 @@ test("an owner organises work into lists and tasks", async ({ page }) => {
   await page.getByRole("button", { name: "Create list" }).click();
   await expect(page.getByRole("heading", { name: "Build" })).toBeVisible();
 
+  // The side navigation shows the project's folder and list.
+  const sidebar = page.getByRole("navigation", { name: "Projects" });
+  await expect(sidebar.getByText("Phase 1")).toBeVisible();
+  await expect(sidebar.getByRole("link", { name: "Build" })).toHaveAttribute("aria-current", "page");
+  await sidebar.getByRole("button", { name: "Collapse Website" }).click();
+  await expect(sidebar.getByRole("link", { name: "Build" })).toBeHidden();
+  await sidebar.getByRole("button", { name: "Expand Website" }).click();
+
   // Add a task; it gets the project's first number.
   await page.getByLabel("New task title").fill("Homepage hero");
   await page.getByLabel("Status", { exact: true }).selectOption({ label: "To Do" });

@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { generateKeyBetween, generateNKeysBetween } from "fractional-indexing";
 import { db, type DbOrTx } from "@/server/db";
 import { folders, listStatuses, taskLists, tasks } from "@/server/db/schema";
@@ -78,6 +78,58 @@ export async function getProjectTree(actor: ActorContext, projectId: string) {
     rootLists: listRows.filter((l) => l.folderId === null),
     can: { manage: canProject(role, "list.manage") },
   };
+}
+
+/**
+ * Folders and lists for the sidebar, for projects the caller has *already* been shown
+ * (the ids come from listVisibleProjects, which applies visibility). Two queries in total.
+ */
+export async function getSidebarTree(actor: ActorContext, projectIds: string[]) {
+  const tree = new Map<
+    string,
+    {
+      folders: { id: string; name: string; lists: { id: string; name: string }[] }[];
+      rootLists: { id: string; name: string }[];
+    }
+  >();
+  if (projectIds.length === 0) return tree;
+  const scope = (table: typeof folders | typeof taskLists) =>
+    and(
+      eq(table.workspaceId, actor.workspaceId),
+      inArray(table.projectId, projectIds),
+      isNull(table.archivedAt),
+    );
+  const [folderRows, listRows] = await Promise.all([
+    db()
+      .select({ id: folders.id, projectId: folders.projectId, name: folders.name })
+      .from(folders)
+      .where(scope(folders))
+      .orderBy(asc(folders.position)),
+    db()
+      .select({
+        id: taskLists.id,
+        projectId: taskLists.projectId,
+        folderId: taskLists.folderId,
+        name: taskLists.name,
+      })
+      .from(taskLists)
+      .where(scope(taskLists))
+      .orderBy(asc(taskLists.position)),
+  ]);
+  for (const id of projectIds) {
+    const lists = listRows.filter((l) => l.projectId === id);
+    tree.set(id, {
+      folders: folderRows
+        .filter((f) => f.projectId === id)
+        .map((f) => ({
+          id: f.id,
+          name: f.name,
+          lists: lists.filter((l) => l.folderId === f.id).map(({ id, name }) => ({ id, name })),
+        })),
+      rootLists: lists.filter((l) => l.folderId === null).map(({ id, name }) => ({ id, name })),
+    });
+  }
+  return tree;
 }
 
 // ── Folders ───────────────────────────────────────────────────────────────────────────────
