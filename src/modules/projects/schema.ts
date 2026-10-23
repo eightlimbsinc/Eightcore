@@ -3,6 +3,7 @@ import {
   check,
   foreignKey,
   index,
+  integer,
   pgEnum,
   pgTable,
   primaryKey,
@@ -29,6 +30,8 @@ export const projects = pgTable(
     description: text().notNull().default(""),
     color: text(),
     visibility: projectVisibility().notNull().default("workspace"),
+    /** Next task number for KEY-number task IDs. Incremented under a row lock. */
+    nextTaskNumber: integer().notNull().default(1),
     createdBy: uuid()
       .notNull()
       .references(() => users.id),

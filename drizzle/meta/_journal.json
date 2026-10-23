@@ -15,6 +15,20 @@
       "when": 1791900705452,
       "tag": "0001_invariants_and_privileges",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792756408552,
+      "tag": "0002_lists_and_tasks",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792756419740,
+      "tag": "0003_hierarchy_rules",
+      "breakpoints": true
     }
   ]
 }

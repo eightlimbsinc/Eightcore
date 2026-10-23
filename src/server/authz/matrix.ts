@@ -31,6 +31,13 @@ export const PROJECT_ACTIONS = {
   "project.update": ["manager"],
   "project.archive": ["manager"],
   "project.manage_members": ["manager"],
+  /** Folders and lists, including each list's statuses. */
+  "list.manage": ["manager"],
+  "task.create": ["manager", "editor"],
+  "task.update": ["manager", "editor"],
+  /** Archive any task. Editors may archive tasks they created (task.archive_own). */
+  "task.archive": ["manager"],
+  "task.archive_own": ["manager", "editor"],
 } as const satisfies Record<string, readonly ProjectRole[]>;
 export type ProjectAction = keyof typeof PROJECT_ACTIONS;
 

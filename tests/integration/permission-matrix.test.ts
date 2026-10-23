@@ -31,11 +31,15 @@ import {
   setProjectMember,
   updateProject,
 } from "@/modules/projects/service";
+import { createList } from "@/modules/lists/service";
+import { createTask, setTaskArchived, updateTask } from "@/modules/tasks/service";
 import { actorFor, createUser, createWorkspaceWithRoles } from "../support/factories";
 
 type Fixture = Awaited<ReturnType<typeof createWorkspaceWithRoles>> & {
   target: { id: string };
   privateProject: { id: string; key: string };
+  list: { id: string };
+  ownerTask: { id: string };
 };
 
 async function fixture(): Promise<Fixture> {
@@ -49,7 +53,9 @@ async function fixture(): Promise<Fixture> {
     key: "PRIV",
     visibility: "private",
   });
-  return { ...ctx, target, privateProject };
+  const list = await createList(ctx.actors.owner, privateProject.id, { name: "Build" });
+  const ownerTask = await createTask(ctx.actors.owner, list.id, { title: "Owner's task" });
+  return { ...ctx, target, privateProject, list, ownerTask };
 }
 
 /** Each probe performs the action; it throws ForbiddenError when denied. */
@@ -107,6 +113,14 @@ const projectProbes: Record<ProjectAction, (actor: ActorContext, f: Fixture) => 
   "project.archive": (actor, f) => setProjectArchived(actor, f.privateProject.id, true),
   "project.manage_members": (actor, f) =>
     setProjectMember(actor, f.privateProject.id, { userId: f.users.guest.id, role: "viewer" }),
+  "list.manage": (actor, f) => createList(actor, f.privateProject.id, { name: "Another list" }),
+  "task.create": (actor, f) => createTask(actor, f.list.id, { title: "New task" }),
+  "task.update": (actor, f) => updateTask(actor, f.ownerTask.id, 1, { title: "Edited" }),
+  "task.archive": (actor, f) => setTaskArchived(actor, f.ownerTask.id, true),
+  "task.archive_own": async (actor, f) => {
+    const own = await createTask(actor, f.list.id, { title: "My task" });
+    await setTaskArchived(actor, own.id, true);
+  },
 };
 
 describe("project actions through services", () => {

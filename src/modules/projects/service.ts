@@ -35,8 +35,12 @@ const projectColumns = {
   archivedAt: projects.archivedAt,
 };
 
-/** Loads a project in the actor's workspace with the actor's effective role. Invisible → NotFound. */
-async function loadProjectAccess(tx: DbOrTx, actor: ActorContext, where: { id: string } | { key: string }) {
+/** Loads a project in the actor's workspace with the actor's effective role. Invisible → NotFound. Used by other modules. */
+export async function loadProjectAccess(
+  tx: DbOrTx,
+  actor: ActorContext,
+  where: { id: string } | { key: string },
+) {
   if ("id" in where) assertId(where.id, "Project not found");
   const [row] = await tx
     .select({ ...projectColumns, explicitRole: projectMembers.role })

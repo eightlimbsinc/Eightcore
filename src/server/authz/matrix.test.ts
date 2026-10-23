@@ -39,6 +39,11 @@ const projectExpectations: Record<ProjectAction, Row<ProjectRole>> = {
   "project.update": { manager: Y, editor: N, commenter: N, viewer: N },
   "project.archive": { manager: Y, editor: N, commenter: N, viewer: N },
   "project.manage_members": { manager: Y, editor: N, commenter: N, viewer: N },
+  "list.manage": { manager: Y, editor: N, commenter: N, viewer: N },
+  "task.create": { manager: Y, editor: Y, commenter: N, viewer: N },
+  "task.update": { manager: Y, editor: Y, commenter: N, viewer: N },
+  "task.archive": { manager: Y, editor: N, commenter: N, viewer: N },
+  "task.archive_own": { manager: Y, editor: Y, commenter: N, viewer: N },
 };
 
 describe("workspace permission matrix", () => {
