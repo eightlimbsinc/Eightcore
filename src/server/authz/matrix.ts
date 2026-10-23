@@ -48,6 +48,8 @@ export const PROJECT_ACTIONS = {
   "attachment.upload": ["manager", "editor", "commenter"],
   /** Delete anyone's attachment. */
   "attachment.moderate": ["manager"],
+  /** Create, rename and delete custom fields and their dropdown options (setting values is task.update). */
+  "custom_field.manage": ["manager"],
 } as const satisfies Record<string, readonly ProjectRole[]>;
 export type ProjectAction = keyof typeof PROJECT_ACTIONS;
 

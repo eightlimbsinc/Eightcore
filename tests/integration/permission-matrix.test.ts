@@ -35,6 +35,7 @@ import { createList } from "@/modules/lists/service";
 import { createTask, setTaskArchived, updateTask } from "@/modules/tasks/service";
 import { createComment, deleteComment } from "@/modules/comments/service";
 import { createTag } from "@/modules/tags/service";
+import { createField } from "@/modules/fields/service";
 import { deleteAttachment, uploadTaskAttachments } from "@/modules/attachments/service";
 import { actorFor, createUser, createWorkspaceWithRoles } from "../support/factories";
 
@@ -136,6 +137,8 @@ const projectProbes: Record<ProjectAction, (actor: ActorContext, f: Fixture) => 
   // Commenters attach files to their comments.
   "attachment.upload": (actor, f) => createComment(actor, f.ownerTask.id, { body: "See file" }, [file()]),
   "attachment.moderate": (actor, f) => deleteAttachment(actor, f.ownerFile.id),
+  "custom_field.manage": (actor, f) =>
+    createField(actor, f.privateProject.id, { name: "Budget", type: "number" }),
 };
 
 describe("project actions through services", () => {

@@ -9,6 +9,7 @@ import { NewTaskForm } from "@/components/tasks/new-task-form";
 import { ArchiveTaskButton, AssigneesForm, TaskForm } from "@/components/tasks/task-forms";
 import {
   AssigneeStack,
+  BlockedBadge,
   DueDateLabel,
   PriorityLabel,
   StatusPill,
@@ -16,6 +17,7 @@ import {
 } from "@/components/tasks/task-bits";
 import { AttachmentsPanel, TagsPanel, WatchButton } from "@/components/tasks/task-side-panels";
 import { CommentsSection } from "@/components/comments/comment-thread";
+import { DependenciesPanel, FieldsPanel } from "@/components/tasks/task-relations";
 import { env } from "@/server/env";
 
 export async function generateMetadata({ params }: { params: Promise<{ ref: string }> }): Promise<Metadata> {
@@ -43,7 +45,10 @@ export default async function TaskPage({ params }: { params: Promise<{ slug: str
     attachments,
     projectTags,
     tags,
+    dependencies,
+    fields,
   } = await getTaskPage(slug, ref);
+  const fieldsHref = fields.canManage ? `/w/${slug}/p/${project.key}/fields` : null;
   const mentionable = assignable.map((a) => ({ userId: a.userId, name: a.name }));
   const taskRef = `${project.key}-${task.number}`;
   const status = statuses.find((s) => s.id === task.statusId);
@@ -68,6 +73,7 @@ export default async function TaskPage({ params }: { params: Promise<{ slug: str
         title={task.title}
         actions={
           <span className="flex flex-wrap items-center gap-2">
+            {dependencies.openBlockers > 0 ? <BlockedBadge count={dependencies.openBlockers} /> : null}
             <TagList tags={tags} />
             {status ? <StatusPill name={status.name} color={status.color} /> : null}
           </span>
@@ -86,7 +92,44 @@ export default async function TaskPage({ params }: { params: Promise<{ slug: str
           ) : null}
           <Card>
             <CardContent className="pt-5">
-              <TaskForm workspaceSlug={slug} task={task} statuses={statuses} canEdit={can.update} />
+              <TaskForm
+                workspaceSlug={slug}
+                task={task}
+                statuses={statuses}
+                canEdit={can.update}
+                openBlockers={dependencies.openBlockers}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Fields</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <FieldsPanel
+                workspaceSlug={slug}
+                taskId={task.id}
+                fields={fields.fields}
+                people={mentionable}
+                canEdit={fields.canEdit}
+                manageHref={fieldsHref}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Dependencies</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <DependenciesPanel
+                workspaceSlug={slug}
+                taskId={task.id}
+                blockedBy={dependencies.blockedBy}
+                blocking={dependencies.blocking}
+                canEdit={dependencies.canEdit}
+              />
             </CardContent>
           </Card>
 

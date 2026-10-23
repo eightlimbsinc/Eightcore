@@ -1,4 +1,4 @@
-import { CalendarDays, Flag } from "lucide-react";
+import { Ban, CalendarDays, Flag } from "lucide-react";
 import { PRIORITY_META, dueState, formatDate, type Priority } from "@/lib/task-format";
 import { cn, initials } from "@/lib/utils";
 
@@ -98,6 +98,48 @@ export function TagList({ tags }: { tags: { id: string; name: string; color: str
       {tags.map((t) => (
         <TagChip key={t.id} name={t.name} color={t.color} />
       ))}
+    </span>
+  );
+}
+
+export function BlockedBadge({ count }: { count: number }) {
+  return (
+    <span
+      className="text-destructive bg-destructive-soft inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap"
+      title={`Waiting on ${count} unfinished ${count === 1 ? "task" : "tasks"}`}
+    >
+      <Ban className="size-3" aria-hidden /> Blocked
+    </span>
+  );
+}
+
+/** Up to three filled-in custom fields, compactly. */
+export function FieldChips({
+  fields,
+  max = 3,
+}: {
+  fields: { fieldId: string; name: string; type: string; text: string; color?: string }[];
+  max?: number;
+}) {
+  if (!fields.length) return null;
+  return (
+    <span className="flex flex-wrap items-center gap-1" aria-label="Custom fields">
+      {fields.slice(0, max).map((f) =>
+        f.color ? (
+          <span key={f.fieldId} title={f.name}>
+            <TagChip name={f.text} color={f.color} />
+          </span>
+        ) : (
+          <span
+            key={f.fieldId}
+            className="text-muted-foreground max-w-44 truncate rounded-sm border px-1.5 py-0.5 text-[11px]"
+            title={`${f.name}: ${f.text}`}
+          >
+            <span className="font-medium">{f.name}:</span>{" "}
+            {f.type === "date" ? formatDate(f.text) : f.type === "checkbox" ? "✓" : f.text}
+          </span>
+        ),
+      )}
     </span>
   );
 }

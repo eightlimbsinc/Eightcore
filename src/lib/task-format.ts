@@ -105,6 +105,20 @@ export function describeActivity(
       const files = Array.isArray(event.metadata.names) ? event.metadata.names.map(String) : [];
       return [files.length === 1 ? `attached “${files[0]}”` : `attached ${files.length} files`];
     }
+    case "dependency_added":
+      return [
+        `linked ${String(event.metadata.blocked ?? "")} as blocked by ${String(event.metadata.blocking ?? "")}`,
+      ];
+    case "dependency_removed":
+      return [
+        `unlinked ${String(event.metadata.blocked ?? "")} from ${String(event.metadata.blocking ?? "")}`,
+      ];
+    case "fields_changed": {
+      const fields = Array.isArray(event.metadata.fields)
+        ? event.metadata.fields.map((f) => `“${String(f)}”`)
+        : [];
+      return [`updated ${fields.length === 1 ? "the field" : "the fields"} ${fields.join(", ")}`];
+    }
     case "attachment_removed":
       return [`removed the file “${String(event.metadata.name ?? "")}”`];
     default:

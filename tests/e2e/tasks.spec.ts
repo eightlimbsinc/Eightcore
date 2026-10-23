@@ -119,4 +119,45 @@ test("an owner organises work into lists and tasks", async ({ page }) => {
   await page.getByRole("menuitem", { name: "Delete folder" }).click();
   await expect(sidebar.getByText("Phase 2")).toHaveCount(0);
   await expect(sidebar.getByText("Phase 1")).toBeVisible();
+
+  // Custom fields: a project-wide dropdown, filled in on a task.
+  await page.getByRole("link", { name: "Custom fields" }).click();
+  await page.getByLabel("Field name", { exact: true }).fill("Channel");
+  await page.getByLabel("Type", { exact: true }).selectOption({ label: "Dropdown" });
+  await page.getByLabel("Options", { exact: true }).fill("Social\nEmail");
+  await page.getByRole("button", { name: "Create field" }).click();
+  await expect(page.getByText("Created “Channel”")).toBeVisible();
+  await expect(page.getByRole("list", { name: "Options of Channel" })).toContainText("Email");
+
+  await page.goto(page.url().replace(/\/p\/WEB\/fields$/, "/t/WEB-1"));
+  await page.getByLabel("Channel", { exact: true }).selectOption({ label: "Social" });
+  await page.getByRole("button", { name: "Save fields" }).click();
+  await expect(page.getByText("Fields saved")).toBeVisible();
+  await expect(page.getByText("updated the field “Channel”")).toBeVisible();
+
+  // Dependencies: WEB-1 waits on WEB-2, and closing it asks first.
+  await page.getByLabel("Task reference").fill("WEB-2");
+  await page.getByRole("button", { name: "Link" }).click();
+  await expect(page.getByText("Dependency added")).toBeVisible();
+  await expect(page.getByRole("list", { name: "Blocked by" })).toContainText("Pick hero video");
+  await expect(page.getByText("Blocked", { exact: true }).first()).toBeVisible();
+  await page.getByLabel("Status", { exact: true }).selectOption({ label: "Accepted" });
+  page.once("dialog", (d) => {
+    expect(d.message()).toContain("still blocked");
+    void d.dismiss();
+  });
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await expect(page.getByText("Saved", { exact: true })).toHaveCount(0);
+
+  // The list row shows both.
+  await page.getByRole("link", { name: "Build" }).first().click();
+  const row = page.getByRole("listitem").filter({ hasText: "Homepage hero" });
+  await expect(row.getByText("Blocked")).toBeVisible();
+  await expect(row.getByLabel("Custom fields")).toContainText("Social");
+
+  // The blocker's page shows the other side; unlinking clears the badge.
+  await page.goto(page.url().replace(/\/l\/[^/]+$/, "/t/WEB-2"));
+  await expect(page.getByRole("list", { name: "Blocking" })).toContainText("Homepage hero");
+  await page.getByRole("button", { name: "Remove link to WEB-1" }).click();
+  await expect(page.getByText("No tasks are waiting on this one.")).toBeVisible();
 });

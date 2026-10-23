@@ -132,6 +132,7 @@ export async function getProjectByKey(actor: ActorContext, key: string) {
       update: canProject(role, "project.update"),
       archive: canProject(role, "project.archive"),
       manageMembers: canProject(role, "project.manage_members"),
+      manageFields: canProject(role, "custom_field.manage"),
     },
   };
 }

@@ -1,8 +1,9 @@
 import "server-only";
-import { and, count, desc, eq, inArray, isNotNull, isNull, or } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNull } from "drizzle-orm";
 import { db, type DbOrTx } from "@/server/db";
 import { notifications, projectMembers, projects, tasks, taskWatchers, users } from "@/server/db/schema";
 import type { ActorContext } from "@/server/authz/policy";
+import { visibleProjectCondition } from "@/modules/projects/visibility";
 import { assertId } from "@/server/errors";
 
 export type NotificationType = (typeof notifications.$inferInsert)["type"];
@@ -133,19 +134,6 @@ export async function countUnread(actor: ActorContext): Promise<number> {
       ),
     );
   return row?.n ?? 0;
-}
-
-/** SQL twin of effectiveProjectRole() !== null, for the joined project/project_members rows. */
-function visibleProjectCondition(actor: ActorContext) {
-  switch (actor.workspaceRole) {
-    case "owner":
-    case "admin":
-      return undefined;
-    case "member":
-      return or(isNotNull(projectMembers.userId), eq(projects.visibility, "workspace"));
-    case "guest":
-      return isNotNull(projectMembers.userId);
-  }
 }
 
 /** Marks notifications read. With no ids, marks everything in this workspace. */

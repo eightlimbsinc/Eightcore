@@ -6,7 +6,15 @@ import { PageHeader } from "@/components/app/page-header";
 import { Button } from "@/components/ui/button";
 import { NewTaskForm } from "@/components/tasks/new-task-form";
 import { StatusSelect } from "@/components/tasks/status-select";
-import { AssigneeStack, DueDateLabel, PriorityLabel, StatusDot, TagList } from "@/components/tasks/task-bits";
+import {
+  AssigneeStack,
+  BlockedBadge,
+  DueDateLabel,
+  FieldChips,
+  PriorityLabel,
+  StatusDot,
+  TagList,
+} from "@/components/tasks/task-bits";
 
 export const metadata: Metadata = { title: "List" };
 
@@ -92,6 +100,8 @@ export default async function ListPage({ params }: { params: Promise<{ slug: str
                               {task.subtaskCount} {task.subtaskCount === 1 ? "subtask" : "subtasks"}
                             </span>
                           ) : null}
+                          {task.openBlockers > 0 ? <BlockedBadge count={task.openBlockers} /> : null}
+                          <FieldChips fields={task.fields} />
                           <TagList tags={task.tags} />
                           <PriorityLabel priority={task.priority} />
                           <DueDateLabel dueDate={task.dueDate} completed={Boolean(task.completedAt)} />
@@ -104,6 +114,7 @@ export default async function ListPage({ params }: { params: Promise<{ slug: str
                               statusId={task.statusId}
                               statuses={statuses}
                               label={`Status of ${ref}`}
+                              openBlockers={task.openBlockers}
                             />
                           ) : null}
                         </li>

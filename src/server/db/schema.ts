@@ -9,3 +9,5 @@ export * from "@/modules/tags/schema";
 export * from "@/modules/comments/schema";
 export * from "@/modules/notifications/schema";
 export * from "@/modules/attachments/schema";
+export * from "@/modules/dependencies/schema";
+export * from "@/modules/fields/schema";

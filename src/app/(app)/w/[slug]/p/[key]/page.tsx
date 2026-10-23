@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
-import { Lock } from "lucide-react";
+import Link from "next/link";
+import { Lock, SlidersHorizontal } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { getProjectPage } from "@/modules/projects/queries";
 import { PageHeader } from "@/components/app/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,9 +30,18 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
         }
         description={project.description || undefined}
         actions={
-          <Badge>
-            Your role: <span className="capitalize">{project.role}</span>
-          </Badge>
+          <>
+            {project.can.manageFields ? (
+              <Button asChild variant="outline">
+                <Link href={`/w/${slug}/p/${project.key}/fields`}>
+                  <SlidersHorizontal /> Custom fields
+                </Link>
+              </Button>
+            ) : null}
+            <Badge>
+              Your role: <span className="capitalize">{project.role}</span>
+            </Badge>
+          </>
         }
       />
       <div className="grid gap-6 px-8 py-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]">

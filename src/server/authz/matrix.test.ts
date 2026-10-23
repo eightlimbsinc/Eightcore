@@ -49,6 +49,7 @@ const projectExpectations: Record<ProjectAction, Row<ProjectRole>> = {
   "tag.manage": { manager: Y, editor: Y, commenter: N, viewer: N },
   "attachment.upload": { manager: Y, editor: Y, commenter: Y, viewer: N },
   "attachment.moderate": { manager: Y, editor: N, commenter: N, viewer: N },
+  "custom_field.manage": { manager: Y, editor: N, commenter: N, viewer: N },
 };
 
 describe("workspace permission matrix", () => {
