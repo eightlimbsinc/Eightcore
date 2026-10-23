@@ -9,11 +9,39 @@ const schema = z.object({
   SMTP_URL: z.preprocess((v) => (v === "" ? undefined : v), z.url({ protocol: /^smtps?$/ }).optional()),
   MAIL_FROM: z.string().min(3).default("Eightcore <no-reply@eightcore.local>"),
   MAIL_OUTBOX_DIR: z.string().default(".mail"),
+  /**
+   * Who may create an account. "invite-only" allows emails in SIGNUP_ALLOWED_EMAILS and
+   * emails with a pending workspace invitation. Defaults: invite-only in production, open otherwise.
+   */
+  SIGNUP_MODE: z.enum(["open", "invite-only"]).optional(),
+  SIGNUP_ALLOWED_EMAILS: z
+    .string()
+    .default("")
+    .transform((v) =>
+      v
+        .split(",")
+        .map((e) => e.trim().toLowerCase())
+        .filter(Boolean),
+    ),
+  /** Request headers holding the visitor's IP, in priority order (e.g. Netlify: x-nf-client-connection-ip). */
+  AUTH_IP_HEADERS: z
+    .string()
+    .default("")
+    .transform((v) =>
+      v
+        .split(",")
+        .map((h) => h.trim().toLowerCase())
+        .filter(Boolean),
+    ),
   /** Lets a production build write mail to MAIL_OUTBOX_DIR. Only for the local E2E server. */
   EIGHTCORE_ALLOW_FILE_MAIL: z.enum(["0", "1"]).default("0"),
 });
 
 export type Env = z.infer<typeof schema>;
+
+export function signupMode(e: Env): "open" | "invite-only" {
+  return e.SIGNUP_MODE ?? (e.NODE_ENV === "production" ? "invite-only" : "open");
+}
 
 let cached: Env | undefined;
 

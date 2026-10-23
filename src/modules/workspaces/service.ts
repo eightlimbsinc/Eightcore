@@ -298,6 +298,23 @@ export async function revokeInvitation(actor: ActorContext, invitationId: string
   });
 }
 
+/** Whether someone has been invited (pending, unexpired) to any workspace. Used by invite-only sign-up. */
+export async function hasPendingInvitation(email: string): Promise<boolean> {
+  const [row] = await db()
+    .select({ id: workspaceInvitations.id })
+    .from(workspaceInvitations)
+    .where(
+      and(
+        eq(sql`lower(${workspaceInvitations.email})`, email.trim().toLowerCase()),
+        isNull(workspaceInvitations.acceptedAt),
+        isNull(workspaceInvitations.revokedAt),
+        gt(workspaceInvitations.expiresAt, new Date()),
+      ),
+    )
+    .limit(1);
+  return Boolean(row);
+}
+
 export type InvitationPreview =
   { status: "valid"; workspaceName: string; email: string; role: WorkspaceRole } | { status: "invalid" };
 

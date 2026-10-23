@@ -2,10 +2,12 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { Pool } from "pg";
+import { poolConfig } from "../../src/server/db/connection";
+import { scriptConnectionOptions } from "./connection-env";
 import { isMainModule, loadEnvFiles } from "../load-env";
 
 export async function runMigrations(connectionString: string): Promise<void> {
-  const pool = new Pool({ connectionString, max: 1 });
+  const pool = new Pool(poolConfig(connectionString, { ...scriptConnectionOptions(), max: 1 }));
   try {
     await migrate(drizzle(pool), { migrationsFolder: "drizzle" });
   } finally {

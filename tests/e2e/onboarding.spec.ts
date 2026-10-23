@@ -5,7 +5,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { linkFromLatestMail } from "./mail";
 
 const run = randomUUID().slice(0, 6);
-const owner = { name: "Olivia Owner", email: `olivia-${run}@example.test`, password: "olivia passphrase 1" };
+const owner = { name: "Olivia Owner", email: "olivia@e2e.example.test", password: "olivia passphrase 1" };
 const invitee = { name: "Max Member", email: `max-${run}@example.test`, password: "max passphrase 1234" };
 const workspaceName = `Acme Studio ${run}`;
 const workspaceSlug = `acme-studio-${run}`;
@@ -31,6 +31,15 @@ test("health endpoint reports the database", async ({ request }) => {
   const res = await request.get("/api/health");
   expect(res.ok()).toBe(true);
   expect(await res.json()).toEqual({ ok: true, database: "up" });
+});
+
+test("sign-up is invite-only: an uninvited email is turned away", async ({ page }) => {
+  await page.goto("/sign-up");
+  await page.getByLabel("Full name").fill("Uninvited Person");
+  await page.getByLabel("Work email").fill(`uninvited-${run}@example.test`);
+  await page.getByLabel("Password").fill("uninvited passphrase 1");
+  await page.getByRole("button", { name: "Create account" }).click();
+  await expect(page.getByText("Eightcore is invite-only")).toBeVisible();
 });
 
 test("owner signs up, verifies, creates a workspace, invites a member and a project", async ({ page }) => {
@@ -108,7 +117,7 @@ test("a stranger gets a 404 for the workspace, and sign out everywhere ends the 
 }) => {
   const stranger = {
     name: "Sam Stranger",
-    email: `sam-${run}@example.test`,
+    email: "sam@e2e.example.test",
     password: "sam passphrase 12345",
   };
   await page.goto("/sign-up");

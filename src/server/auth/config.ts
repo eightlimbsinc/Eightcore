@@ -5,10 +5,21 @@ import { createAuthMiddleware, APIError } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
 import { db } from "@/server/db";
 import * as schema from "@/server/db/schema";
-import { env } from "@/server/env";
+import { env, signupMode } from "@/server/env";
 import { actionEmail, sendMail } from "@/server/mail";
 import { recordAudit } from "@/modules/activity/service";
+import { hasPendingInvitation } from "@/modules/workspaces/service";
 import { MIN_PASSWORD_LENGTH } from "@/lib/auth-policy";
+
+/** Invite-only sign-up rule (docs/RUNBOOK.md). Throws a FORBIDDEN APIError when not allowed. */
+async function assertSignupAllowed(rawEmail: unknown): Promise<void> {
+  const current = env();
+  if (signupMode(current) === "open" || typeof rawEmail !== "string") return;
+  const email = rawEmail.trim().toLowerCase();
+  if (current.SIGNUP_ALLOWED_EMAILS.includes(email) || (await hasPendingInvitation(email))) return;
+  await recordAudit(db(), { event: "auth.signup_blocked", metadata: { email } });
+  throw new APIError("FORBIDDEN", { code: "SIGNUP_INVITE_ONLY", message: "Sign-up is by invitation only" });
+}
 
 function createAuth() {
   const e = env();
@@ -47,6 +58,8 @@ function createAuth() {
       database: { generateId: "uuid" },
       useSecureCookies: e.NODE_ENV === "production",
       cookiePrefix: "eightcore",
+      // Behind a host's proxy, the visitor's IP is in a host-specific header (rate limiting uses it).
+      ...(e.AUTH_IP_HEADERS.length ? { ipAddress: { ipAddressHeaders: e.AUTH_IP_HEADERS } } : {}),
       // Better Auth skips origin checks under NODE_ENV=test by default; keep them on so
       // tests exercise the same protection as the running app.
       disableOriginCheck: false,
@@ -120,6 +133,11 @@ function createAuth() {
       },
       user: {
         create: {
+          // Backstop for every sign-up path. Better Auth turns errors here into a generic
+          // success response (anti-enumeration), so the clear message comes from hooks.before.
+          before: async (user) => {
+            await assertSignupAllowed(user.email);
+          },
           after: async (user) => {
             await recordAudit(db(), { event: "auth.user_created", actorId: user.id });
           },
@@ -127,6 +145,10 @@ function createAuth() {
       },
     },
     hooks: {
+      before: createAuthMiddleware(async (ctx) => {
+        if (ctx.path === "/sign-up/email")
+          await assertSignupAllowed((ctx.body as { email?: unknown })?.email);
+      }),
       after: createAuthMiddleware(async (ctx) => {
         if (ctx.path === "/sign-in/email" && ctx.context.returned instanceof APIError) {
           await recordAudit(db(), {

@@ -15,3 +15,6 @@ storage/
 .env
 .env.*
 !.env.example
+
+# certificates downloaded for database TLS
+*.crt

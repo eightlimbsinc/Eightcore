@@ -13,14 +13,14 @@ Licences and versions below were checked against the npm registry and project si
 | Local infrastructure | **$0** | Docker Engine (Apache-2.0) or native Postgres. Docker Desktop may require a paid subscription for larger companies (see §4) |
 | Source hosting and CI | **$0** | GitHub Free. Actions minutes are capped for private repos, and a $0 spending limit prevents charges |
 | Integrations | **$0 required** | Slack, Make.com, Figma, and ClickUp are all optional, and their plans are already owned or free tiers |
-| Production hosting | **$0 if self-hosted on owned hardware** | A VPS or cloud host is an optional paid choice (§5) |
+| Hosting | **$0 for the test deployment** (Netlify Free + Supabase Free) | Production hosting will likely need paid plans; decided with a costed comparison before go-live (§5) |
 
 ## 2. Runtime and framework
 
 | Dependency | Version checked | Licence | FOSS | Free-tier restrictions | Optional paid services | Potential recurring cost |
 |---|---|---|---|---|---|---|
 | Node.js (22 LTS / 24 LTS) | 22.22 | MIT | ✅ | — | — | None |
-| Next.js | 16.4.0 | MIT | ✅ | — | Vercel hosting (optional, **not used**) | None |
+| Next.js | 16.4.2 | MIT | ✅ | — | Vercel hosting (optional, **not used**) | None |
 | React / React DOM | 19.3.0 | MIT | ✅ | — | — | None |
 | TypeScript | pin 6.0.x (7.0.2 is latest) | Apache-2.0 | ✅ | — | — | None |
 | Tailwind CSS | 4.3.3 | MIT | ✅ | — | Tailwind Plus (paid UI kit, **must not be used**) | None |
@@ -89,6 +89,8 @@ Licences and versions below were checked against the npm registry and project si
 | GitHub (repo) | No (local git works) | GitHub Free: unlimited private repos | Paid plans for advanced features | **In use (free)** |
 | GitHub Actions (CI) | No (`npm run ci` locally) | Free for public repos. Private repos on Free get a monthly minutes quota (2,000 Linux min at time of writing) | Usage beyond the quota is billed **only if** a spending limit above $0 is set | Keep the spending limit at **$0** |
 | GitHub Codespaces (browser preview / cloud dev environment) | No (local setup works) | Personal GitHub Free accounts include 120 core-hours and 15 GB-month storage per month. The default 2-core machine therefore gives about 60 hours/month. Codespaces from this org repo bill to the creator's personal allowance unless the org opts to pay. GitHub org plans include no free Codespaces quota | Usage beyond the allowance is billed only if the account's Codespaces budget is above $0 (default $0 for personal accounts). If the org opts in, its usage is billed to the org | **Optional.** Keep budgets at **$0** and stop codespaces when idle |
+| **Netlify** (test deployment: runs the app) | No (any Node host works) | Free plan, commercial use allowed: 300 credits/month **hard cap**; a production deploy costs 15 credits; when credits run out every site on the team is paused until the next cycle. No overage billing on Free | Paid plans (per-member pricing; check current rates before go-live) | **Approved for testing 2026-10-23.** Deploy only the `release` branch; deploy previews off (`DEPLOY_NETLIFY_SUPABASE.md`) |
+| **Supabase** (test deployment: Postgres only) | No (any Postgres works) | Free plan: 2 active projects per account, 500 MB database, pauses after 7 days without activity, no backups | Pro from $25/month per organization (includes compute credit for one small project; each further project adds compute cost). Spend cap on by default | **Approved for testing 2026-10-23** (Free). Data API and automatic RLS disabled; access verified by `npm run db:supabase:setup` |
 | Production hosting | No (self-host) | Agency-owned machine + Docker + Caddy | Any VPS/PaaS (Hetzner, DigitalOcean, Render, Vercel, etc.) has a monthly fee or free-tier limits | **Requires approval before use** |
 | Domain name | Only for public HTTPS access | Can use an existing agency domain/subdomain | Domain registration (if a new one is needed) | Probably already owned |
 | Object storage | No (local FS) | Self-hosted SeaweedFS (Apache-2.0) or Garage (AGPL-3.0, separate unmodified service, no impact on our code) | Cloud S3/R2/B2 | Not planned. **MinIO CE is archived upstream (2026) and must not be adopted** |
@@ -123,8 +125,8 @@ Everything else in §2–§4 is **planned** and is added (and re-verified) in th
 
 | Kind | Packages (exact versions in `package.json`) |
 |---|---|
-| Runtime | next 16.4.0, react / react-dom 19.3.0, better-auth 1.7.7, drizzle-orm 0.45.4, pg 8.23.1, zod 4.6.7, nodemailer 10.1.0, radix-ui 1.8.1, lucide-react 1.56.0, next-themes 0.4.6, class-variance-authority 0.7.1, clsx 2.1.1, tailwind-merge 3.7.0, geist 1.7.2, server-only 0.0.1 |
-| Development | typescript 6.0.3, tailwindcss + @tailwindcss/postcss 4.3.3, drizzle-kit 0.31.11, eslint 9.39.5, eslint-config-next 16.4.0, typescript-eslint 8.71.2, prettier 3.9.10, prettier-plugin-tailwindcss 0.8.1 (MIT), vitest 5.0.4, @playwright/test 1.64.0, tsx 4.23.15, @types/* |
+| Runtime | next 16.4.2, react / react-dom 19.3.0, better-auth 1.7.7, drizzle-orm 0.45.4, pg 8.23.1, zod 4.6.7, nodemailer 10.1.0, radix-ui 1.8.1, lucide-react 1.56.0, next-themes 0.4.6, class-variance-authority 0.7.1, clsx 2.1.1, tailwind-merge 3.7.0, geist 1.7.2, server-only 0.0.1 |
+| Development | typescript 6.0.3, tailwindcss + @tailwindcss/postcss 4.3.3, drizzle-kit 0.31.11, eslint 9.39.5, eslint-config-next 16.4.2, typescript-eslint 8.71.2, prettier 3.9.10, prettier-plugin-tailwindcss 0.8.1 (MIT), vitest 5.0.4, @playwright/test 1.64.0, tsx 4.23.15, @types/* |
 
 ### Reviewed non-permissive transitive packages
 

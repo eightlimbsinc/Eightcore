@@ -19,7 +19,8 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
+  // Web-standard APIs only (no Buffer), so this runs on Node.js and edge runtimes alike.
+  const nonce = btoa(crypto.randomUUID());
   const isDev = process.env.NODE_ENV === "development";
   const csp = [
     "default-src 'self'",

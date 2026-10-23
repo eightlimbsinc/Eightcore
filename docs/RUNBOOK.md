@@ -92,6 +92,11 @@ How it works behind GitHub's proxy: `BETTER_AUTH_URL` is set to the public `*.ap
 | `MAIL_FROM` | `Eightcore <no-reply@eightcore.local>` | no | |
 | `MAIL_OUTBOX_DIR` | `.mail` | no | Git-ignored |
 | `EIGHTCORE_ALLOW_FILE_MAIL` | `0` | no | `1` only for the local E2E server (production build without SMTP) |
+| `DATABASE_SSL_CA` / `DATABASE_SSL_CA_FILE` | PEM text / file path | no | CA for verified TLS to a hosted database (Supabase). Unset locally |
+| `DATABASE_POOL_MAX` | `3` | no | Connections per app instance. Keep small on serverless hosts |
+| `SIGNUP_MODE` | `invite-only` | no | Default: `invite-only` in production, `open` otherwise |
+| `SIGNUP_ALLOWED_EMAILS` | `you@yourdomain.com` | no | Emails that may sign up without an invitation (the first owner) |
+| `AUTH_IP_HEADERS` | `x-nf-client-connection-ip` | no | Visitor-IP header(s) behind a host's proxy, for auth rate limiting |
 | `EIGHTCORE_ENCRYPTION_KEY` | *(Phase 6)* | yes | Encrypts integration secrets at rest |
 | `CLICKUP_API_TOKEN` | *(Phase 7, unset)* | yes | Only for an approved import |
 
@@ -149,7 +154,11 @@ pg_restore --no-owner --dbname=eightcore_restore_test /backups/eightcore_YYYY-MM
 # point a local instance at it and run the smoke test: sign in, open a project, open a task, download an attachment
 ```
 
-## 6. Production deployment *(target, Phase 8, zero-hosting-cost path)*
+## 6. Deployments
+
+**Test deployment (current):** Netlify + Supabase. Full steps in [`DEPLOY_NETLIFY_SUPABASE.md`](DEPLOY_NETLIFY_SUPABASE.md).
+
+### Self-hosted alternative *(target, Phase 8, zero-hosting-cost path)*
 
 1. An agency-owned machine (Linux preferred) with Docker Engine, a static LAN IP, or a subdomain pointed at it.
 2. `docker compose -f docker-compose.prod.yml up -d` runs `postgres`, `app` (Next.js standalone build), `worker`, and `caddy` (automatic HTTPS via Let's Encrypt).

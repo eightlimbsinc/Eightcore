@@ -40,9 +40,11 @@ export function SignUpForm() {
       setError(
         error.status === 429
           ? "Too many attempts. Wait a minute and try again."
-          : error.code === "USER_ALREADY_EXISTS" || error.code === "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL"
-            ? "An account with that email already exists. Try signing in."
-            : (error.message ?? "Couldn't create the account."),
+          : error.code === "SIGNUP_INVITE_ONLY"
+            ? "Eightcore is invite-only. Ask your workspace admin for an invitation, then sign up from the link in that email."
+            : error.code === "USER_ALREADY_EXISTS" || error.code === "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL"
+              ? "An account with that email already exists. Try signing in."
+              : (error.message ?? "Couldn't create the account."),
       );
       return;
     }

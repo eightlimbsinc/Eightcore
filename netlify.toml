@@ -1,0 +1,11 @@
+# Netlify build settings. Netlify detects Next.js and uses its OpenNext adapter automatically.
+# Runtime settings (database, auth secret, email) are environment variables in the Netlify UI:
+# see docs/DEPLOY_NETLIFY_SUPABASE.md. None of them belong in this file.
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
+  # The build itself needs no secrets; keep Next.js telemetry off.
+  NEXT_TELEMETRY_DISABLED = "1"
