@@ -18,3 +18,6 @@ next-env.d.ts
 
 # certificates downloaded for database TLS
 *.crt
+
+# Data exports (e.g. ClickUp CSVs for import): never commit
+*.csv
