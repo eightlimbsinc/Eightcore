@@ -7,14 +7,8 @@ import { Button } from "@/components/ui/button";
 import { NewTaskForm } from "@/components/tasks/new-task-form";
 import { QuickAddTask } from "@/components/tasks/quick-add-task";
 import { StatusMenu } from "@/components/tasks/status-menu";
-import {
-  AssigneeStack,
-  BlockedBadge,
-  DueDateLabel,
-  FieldChips,
-  PriorityLabel,
-  TagList,
-} from "@/components/tasks/task-bits";
+import { AssigneePicker } from "@/components/tasks/assignee-picker";
+import { BlockedBadge, DueDateLabel, FieldChips, PriorityLabel, TagList } from "@/components/tasks/task-bits";
 
 export const metadata: Metadata = { title: "List" };
 
@@ -31,7 +25,7 @@ export default async function ListPage({
 }) {
   const { slug, listId } = await params;
   const descending = (await searchParams).order === "desc";
-  const { list, project, folder, statuses, tasks, can } = await getListPage(slug, listId);
+  const { user, list, project, folder, statuses, tasks, people, can } = await getListPage(slug, listId);
   const ordered = descending ? [...statuses].reverse() : statuses;
   const groups = ordered.map((status) => ({ status, tasks: tasks.filter((t) => t.statusId === status.id) }));
   const base = `/w/${slug}/l/${list.id}`;
@@ -158,7 +152,15 @@ export default async function ListPage({
                               {ref}
                             </span>
                             <span className="hidden md:block">
-                              <AssigneeStack people={task.assignees} />
+                              <AssigneePicker
+                                workspaceSlug={slug}
+                                taskId={task.id}
+                                people={people}
+                                assignedIds={task.assignees.map((a) => a.userId)}
+                                currentUserId={user.id}
+                                canEdit={can.updateTask}
+                                label={`Assignees of ${ref}`}
+                              />
                             </span>
                             <span className="hidden md:block">
                               <PriorityLabel priority={task.priority} />

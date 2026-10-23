@@ -73,17 +73,15 @@ export async function setTaskStatusAction(
   });
 }
 
-export async function setAssigneesAction(
+/** Replaces a task's assignees (the person picker saves on every click). */
+export async function setTaskAssigneesAction(
   workspaceSlug: string,
   taskId: string,
-  _prev: ActionState,
-  form: FormData,
+  userIds: string[],
 ): Promise<ActionState> {
   return runAction(async () => {
-    const ids = form.getAll("assignee").filter((v): v is string => typeof v === "string");
-    await setTaskAssignees(await actorFor(workspaceSlug), taskId, ids);
+    await setTaskAssignees(await actorFor(workspaceSlug), taskId, userIds);
     revalidatePath(`/w/${workspaceSlug}`, "layout");
-    return { ok: true, message: "Assignees saved" };
   });
 }
 

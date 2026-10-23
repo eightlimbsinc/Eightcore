@@ -67,9 +67,11 @@ test("an owner organises work into lists and tasks", async ({ page }) => {
   await expect(win.getByText("changed status from To Do to In Development")).toBeVisible();
 
   // Assign it to myself, add a subtask.
-  await page.getByRole("checkbox", { name: /Tess Tasks/ }).check();
-  await page.getByRole("button", { name: "Save assignees" }).click();
-  await expect(win.getByText("Assignees saved")).toBeVisible();
+  await win.getByRole("button", { name: "Assignees: nobody" }).click();
+  await page.getByLabel("Search people").fill("tess");
+  await page.getByRole("option", { name: /Me/ }).click();
+  await expect(win.getByRole("button", { name: "Assignees: Tess Tasks" })).toBeVisible();
+  await page.keyboard.press("Escape");
   await win.getByLabel("New subtask title").fill("Pick hero video");
   await page.getByRole("button", { name: "Add subtask" }).click();
   await expect(page.getByRole("link", { name: "Pick hero video" })).toBeVisible();
@@ -184,6 +186,15 @@ test("an owner organises work into lists and tasks", async ({ page }) => {
   await page.getByRole("link", { name: /Show last to first/ }).click();
   await expect(page).toHaveURL(/order=desc/);
   await expect.poll(groupNames).toEqual([...firstOrder].reverse());
+
+  // Assign from the list row, then unassign.
+  const newRow = page.getByRole("listitem").filter({ hasText: "Cross-browser check" });
+  await newRow.getByRole("button", { name: /^Assignees of .*: nobody$/ }).click();
+  await page.getByRole("option", { name: /Me/ }).click();
+  await expect(newRow.getByRole("button", { name: /^Assignees of .*: Tess Tasks$/ })).toBeVisible();
+  await page.getByRole("option", { name: /Me/ }).click();
+  await expect(newRow.getByRole("button", { name: /^Assignees of .*: nobody$/ })).toBeVisible();
+  await page.keyboard.press("Escape");
 
   // The window can open the full page, and Escape closes it.
   await page.getByRole("link", { name: "Cross-browser check" }).click();

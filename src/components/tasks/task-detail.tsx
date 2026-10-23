@@ -5,7 +5,8 @@ import { describeActivity } from "@/lib/task-format";
 import { PageHeader } from "@/components/app/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NewTaskForm } from "@/components/tasks/new-task-form";
-import { ArchiveTaskButton, AssigneesForm, TaskForm } from "@/components/tasks/task-forms";
+import { ArchiveTaskButton, TaskForm } from "@/components/tasks/task-forms";
+import { AssigneePicker } from "@/components/tasks/assignee-picker";
 import {
   AssigneeStack,
   BlockedBadge,
@@ -38,6 +39,7 @@ export async function TaskDetail({
   variant?: "page" | "modal";
 }) {
   const {
+    user,
     task,
     project,
     list,
@@ -233,12 +235,15 @@ export async function TaskDetail({
               <CardTitle>Assignees</CardTitle>
             </CardHeader>
             <CardContent>
-              <AssigneesForm
+              <AssigneePicker
                 workspaceSlug={slug}
                 taskId={task.id}
-                assignable={assignable}
+                people={assignable}
                 assignedIds={assignees.map((a) => a.userId)}
+                currentUserId={user.id}
                 canEdit={can.update}
+                label="Assignees"
+                variant="field"
               />
             </CardContent>
           </Card>

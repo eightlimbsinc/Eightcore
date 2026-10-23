@@ -1,9 +1,8 @@
 "use client";
 import { useActionState, useState, useTransition } from "react";
 import { Archive } from "lucide-react";
-import { archiveTaskAction, setAssigneesAction, updateTaskAction } from "@/modules/tasks/actions";
+import { archiveTaskAction, updateTaskAction } from "@/modules/tasks/actions";
 import { PRIORITY_META } from "@/lib/task-format";
-import { initials } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input, NativeSelect, Textarea } from "@/components/ui/input";
 import { Field } from "@/components/ui/label";
@@ -103,66 +102,6 @@ export function TaskForm({
           </Button>
         </div>
       ) : null}
-    </form>
-  );
-}
-
-export function AssigneesForm({
-  workspaceSlug,
-  taskId,
-  assignable,
-  assignedIds,
-  canEdit,
-}: {
-  workspaceSlug: string;
-  taskId: string;
-  assignable: { userId: string; name: string; email: string }[];
-  assignedIds: string[];
-  canEdit: boolean;
-}) {
-  const [state, action, pending] = useActionState(
-    setAssigneesAction.bind(null, workspaceSlug, taskId),
-    undefined,
-  );
-  if (!canEdit) {
-    const names = assignable.filter((a) => assignedIds.includes(a.userId)).map((a) => a.name);
-    return <p className="text-muted-foreground">{names.length ? names.join(", ") : "Nobody assigned"}</p>;
-  }
-  return (
-    <form action={action} className="grid gap-3">
-      <ul className="grid max-h-64 gap-1 overflow-y-auto">
-        {assignable.map((person) => (
-          <li key={person.userId}>
-            <label className="hover:bg-surface-muted flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5">
-              <input
-                suppressHydrationWarning
-                type="checkbox"
-                name="assignee"
-                value={person.userId}
-                defaultChecked={assignedIds.includes(person.userId)}
-                className="accent-[var(--accent)]"
-              />
-              <span className="bg-accent-soft text-accent-foreground grid size-6 place-items-center rounded-full text-[10px] font-semibold">
-                {initials(person.name)}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-[13px] font-medium">{person.name}</span>
-                <span className="text-muted-foreground block truncate text-[11px]">{person.email}</span>
-              </span>
-            </label>
-          </li>
-        ))}
-      </ul>
-      <div className="flex items-center gap-2">
-        <Button type="submit" variant="outline" size="sm" disabled={pending}>
-          {pending ? "Saving…" : "Save assignees"}
-        </Button>
-        {state ? (
-          <span className={state.ok ? "text-success text-[12px]" : "text-destructive text-[12px]"}>
-            {state.message}
-          </span>
-        ) : null}
-      </div>
     </form>
   );
 }
