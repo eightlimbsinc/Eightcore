@@ -9,9 +9,12 @@ import { LogoMark } from "@/components/brand/logo";
 
 export default async function WorkspaceLayout({
   children,
+  modal,
   params,
 }: {
   children: React.ReactNode;
+  /** A task opened in a window (see @modal). */
+  modal: React.ReactNode;
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
@@ -78,6 +81,7 @@ export default async function WorkspaceLayout({
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
         <main className="flex-1">{children}</main>
+        {modal}
         <footer className="text-muted-foreground flex items-center gap-1.5 px-8 py-4 text-[11px]">
           <LogoMark className="size-3.5" /> Eightcore
         </footer>

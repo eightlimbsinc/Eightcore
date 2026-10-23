@@ -3,8 +3,6 @@ import { useActionState, useState, useTransition } from "react";
 import { Archive } from "lucide-react";
 import { archiveTaskAction, setAssigneesAction, updateTaskAction } from "@/modules/tasks/actions";
 import { PRIORITY_META } from "@/lib/task-format";
-import type { StatusCategory } from "@/modules/lists/templates";
-import { confirmCloseWhileBlocked } from "./status-select";
 import { initials } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input, NativeSelect, Textarea } from "@/components/ui/input";
@@ -25,15 +23,11 @@ interface TaskFields {
 export function TaskForm({
   workspaceSlug,
   task,
-  statuses,
   canEdit,
-  openBlockers = 0,
 }: {
   workspaceSlug: string;
   task: TaskFields;
-  statuses: { id: string; name: string; category: StatusCategory }[];
   canEdit: boolean;
-  openBlockers?: number;
 }) {
   const [state, action, pending] = useActionState(
     updateTaskAction.bind(null, workspaceSlug, task.id),
@@ -41,19 +35,7 @@ export function TaskForm({
   );
   const errors = state && !state.ok ? state.fieldErrors : undefined;
   return (
-    <form
-      action={action}
-      onSubmit={(e) => {
-        const next = new FormData(e.currentTarget).get("statusId");
-        const ok = confirmCloseWhileBlocked(
-          openBlockers,
-          statuses.find((s) => s.id === next),
-          statuses.find((s) => s.id === task.statusId),
-        );
-        if (!ok) e.preventDefault();
-      }}
-      className="grid gap-4"
-    >
+    <form action={action} className="grid gap-4">
       <input type="hidden" name="version" value={task.version} />
       {state ? (
         <Alert variant={state.ok ? "success" : "destructive"}>{state.message ?? "Saved"}</Alert>
@@ -69,22 +51,7 @@ export function TaskForm({
           className="text-[15px] font-medium"
         />
       </Field>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Field label="Status" htmlFor="task-status">
-          <NativeSelect
-            id="task-status"
-            name="statusId"
-            defaultValue={task.statusId}
-            disabled={!canEdit}
-            className="w-full"
-          >
-            {statuses.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </NativeSelect>
-        </Field>
+      <div className="grid gap-3 sm:grid-cols-3">
         <Field label="Priority" htmlFor="task-priority">
           <NativeSelect
             id="task-priority"

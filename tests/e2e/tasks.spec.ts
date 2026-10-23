@@ -51,27 +51,31 @@ test("an owner organises work into lists and tasks", async ({ page }) => {
     page.getByRole("region", { name: /To Do/ }).getByRole("link", { name: "Homepage hero" }),
   ).toBeVisible();
 
-  // Open it and edit fields.
+  // Opening it from the list shows it in a window; the address is the task's own link.
   await page.getByRole("link", { name: "Homepage hero" }).click();
   await expect(page).toHaveURL(/\/t\/WEB-1$/);
-  await page.getByLabel("Status", { exact: true }).selectOption({ label: "In Development" });
-  await page.getByLabel("Priority").selectOption({ label: "High" });
-  await page.getByLabel("Due date", { exact: true }).fill("2030-01-15");
-  await page.getByLabel("Description").fill("Hero with video background.");
+  const win = page.getByRole("dialog", { name: "Task WEB-1" });
+  await expect(win).toBeVisible();
+  await page.getByRole("button", { name: "Status: To Do" }).click();
+  await page.getByRole("menuitem", { name: "In Development" }).click();
+  await expect(page.getByRole("button", { name: "Status: In Development" })).toBeVisible();
+  await win.getByLabel("Priority").selectOption({ label: "High" });
+  await win.getByLabel("Due date", { exact: true }).fill("2030-01-15");
+  await win.getByLabel("Description").fill("Hero with video background.");
   await page.getByRole("button", { name: "Save changes" }).click();
-  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
-  await expect(page.getByText("changed status from To Do to In Development")).toBeVisible();
+  await expect(win.getByText("Saved", { exact: true })).toBeVisible();
+  await expect(win.getByText("changed status from To Do to In Development")).toBeVisible();
 
   // Assign it to myself, add a subtask.
   await page.getByRole("checkbox", { name: /Tess Tasks/ }).check();
   await page.getByRole("button", { name: "Save assignees" }).click();
-  await expect(page.getByText("Assignees saved")).toBeVisible();
-  await page.getByLabel("New subtask title").fill("Pick hero video");
+  await expect(win.getByText("Assignees saved")).toBeVisible();
+  await win.getByLabel("New subtask title").fill("Pick hero video");
   await page.getByRole("button", { name: "Add subtask" }).click();
   await expect(page.getByRole("link", { name: "Pick hero video" })).toBeVisible();
   await page.getByRole("link", { name: "Pick hero video" }).click();
   await expect(page).toHaveURL(/\/t\/WEB-2$/);
-  await expect(page.getByText("Subtask of")).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Task WEB-2" }).getByText("Subtask of")).toBeVisible();
 
   // Customise this list's statuses: rename "To Do" to "Queued".
   await page.getByRole("link", { name: "Build" }).first().click();
@@ -141,13 +145,13 @@ test("an owner organises work into lists and tasks", async ({ page }) => {
   await expect(page.getByText("Dependency added")).toBeVisible();
   await expect(page.getByRole("list", { name: "Blocked by" })).toContainText("Pick hero video");
   await expect(page.getByText("Blocked", { exact: true }).first()).toBeVisible();
-  await page.getByLabel("Status", { exact: true }).selectOption({ label: "Accepted" });
   page.once("dialog", (d) => {
     expect(d.message()).toContain("still blocked");
     void d.dismiss();
   });
-  await page.getByRole("button", { name: "Save changes" }).click();
-  await expect(page.getByText("Saved", { exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Status: In Development" }).click();
+  await page.getByRole("menuitem", { name: "Accepted" }).click();
+  await expect(page.getByRole("button", { name: "Status: In Development" })).toBeVisible();
 
   // The list row shows both.
   await page.getByRole("link", { name: "Build" }).first().click();
@@ -160,4 +164,35 @@ test("an owner organises work into lists and tasks", async ({ page }) => {
   await expect(page.getByRole("list", { name: "Blocking" })).toContainText("Homepage hero");
   await page.getByRole("button", { name: "Remove link to WEB-1" }).click();
   await expect(page.getByText("No tasks are waiting on this one.")).toBeVisible();
+
+  // List view: change status from the row's icon, add a task under a group, flip the group order.
+  await page.getByRole("navigation", { name: "Projects" }).getByRole("link", { name: "Build" }).click();
+  await expect(page.getByRole("heading", { name: "Build" })).toBeVisible();
+  await page.getByRole("button", { name: /^Status of WEB-1:/ }).click();
+  await page.getByRole("menuitem", { name: "Ready to Test" }).click();
+  await expect(
+    page.getByRole("region", { name: /Ready to Test/ }).getByRole("link", { name: "Homepage hero" }),
+  ).toBeVisible();
+  const readyToTest = page.getByRole("region", { name: /Ready to Test/ });
+  await readyToTest.getByRole("button", { name: "Add Task" }).click();
+  await page.getByLabel("New task in Ready to Test").fill("Cross-browser check");
+  await page.getByLabel("New task in Ready to Test").press("Enter");
+  await expect(readyToTest.getByRole("link", { name: "Cross-browser check" })).toBeVisible();
+
+  const groupNames = () => page.getByRole("region").locator("h2").allInnerTexts();
+  const firstOrder = await groupNames();
+  await page.getByRole("link", { name: /Show last to first/ }).click();
+  await expect(page).toHaveURL(/order=desc/);
+  await expect.poll(groupNames).toEqual([...firstOrder].reverse());
+
+  // The window can open the full page, and Escape closes it.
+  await page.getByRole("link", { name: "Cross-browser check" }).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page).toHaveURL(/\/l\/.+order=desc/);
+  await page.getByRole("link", { name: "Cross-browser check" }).click();
+  await page.getByRole("link", { name: "Open full page" }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Cross-browser check" })).toBeVisible();
 });
