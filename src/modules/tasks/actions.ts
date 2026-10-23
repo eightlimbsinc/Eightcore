@@ -9,6 +9,7 @@ import { ValidationError } from "@/server/errors";
 import { viewerToday } from "@/server/today";
 import { EMPTY_FILTER } from "./filters";
 import { searchTasks } from "./search";
+import { bulkUpdateTasks, type BulkOperation } from "./bulk";
 import {
   createTask,
   deleteTask,
@@ -202,4 +203,26 @@ export async function quickFindTasksAction(workspaceSlug: string, query: string)
       closed: t.closed,
     }))
     .sort((a, b) => Number(b.ref === exact) - Number(a.ref === exact));
+}
+
+/** List bulk actions: one change to every selected task. The message says what happened. */
+export async function bulkTaskAction(
+  workspaceSlug: string,
+  listId: string,
+  taskIds: string[],
+  op: BulkOperation,
+): Promise<ActionState> {
+  return runAction(async () => {
+    const { done, skipped, reason } = await bulkUpdateTasks(await actorFor(workspaceSlug), listId, taskIds, op);
+    revalidatePath(`/w/${workspaceSlug}`, "layout");
+    const tasksWord = (n: number) => `${n} ${n === 1 ? "task" : "tasks"}`;
+    if (done === 0) return { ok: false, message: reason ?? "Nothing was changed" };
+    const verb = op.kind === "delete" ? "Deleted" : op.kind === "archive" ? "Archived" : "Updated";
+    return {
+      ok: true,
+      message: skipped
+        ? `${verb} ${tasksWord(done)}. Skipped ${tasksWord(skipped)}: ${reason}`
+        : `${verb} ${tasksWord(done)}`,
+    };
+  });
 }

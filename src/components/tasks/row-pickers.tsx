@@ -152,17 +152,10 @@ export function DueDatePicker({
   );
   if (!canEdit) return shown ? <span className={triggerClass}>{face}</span> : null;
 
-  const today = todayIso();
   const pick = (value: string | null) => {
     setOpen(false);
     if (value !== shown) save({ dueDate: value }, () => setShown(value));
   };
-  const quick: [string, string][] = [
-    ["Today", today],
-    ["Tomorrow", addDays(today, 1)],
-    ["Next week", nextMonday(today)],
-    ["In 2 weeks", addDays(today, 14)],
-  ];
   return (
     <span className="inline-flex flex-col">
       <Popover.Root open={open} onOpenChange={setOpen}>
@@ -179,47 +172,72 @@ export function DueDatePicker({
             sideOffset={6}
             className="bg-surface text-foreground z-50 w-60 rounded-lg border p-2 shadow-lg"
           >
-            <ul className="grid gap-0.5">
-              {quick.map(([name, value]) => (
-                <li key={name}>
-                  <button
-                    type="button"
-                    onClick={() => pick(value)}
-                    className="hover:bg-surface-muted flex w-full items-center justify-between rounded-md px-2 py-1.5 text-[13px]"
-                  >
-                    {name}
-                    <span className="text-muted-foreground text-[11px]">{formatDate(value)}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-            <label className="mt-2 grid gap-1 border-t px-1 pt-2 text-[11px] font-medium">
-              Pick a date
-              <input
-                type="date"
-                defaultValue={shown ?? ""}
-                aria-label="Due date"
-                // Typing a year fills it digit by digit (0002, 0020...); only act on a full, plausible date.
-                onChange={(e) => {
-                  const value = e.target.value;
-                  if (/^\d{4}-\d{2}-\d{2}$/.test(value) && Number(value.slice(0, 4)) >= 1970) pick(value);
-                }}
-                className="border-input bg-surface h-8 rounded-md border px-2 text-[13px]"
-              />
-            </label>
-            {shown ? (
-              <button
-                type="button"
-                onClick={() => pick(null)}
-                className="text-muted-foreground hover:text-destructive mt-2 flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-[13px]"
-              >
-                <X className="size-3.5" /> Clear due date
-              </button>
-            ) : null}
+            <DueDateChoices current={shown} onPick={pick} />
           </Popover.Content>
         </Popover.Portal>
       </Popover.Root>
       <ErrorNote error={error} />
     </span>
+  );
+}
+
+/** Quick picks, any date, or clear: the due date popover's body (also used by bulk edit). */
+export function DueDateChoices({
+  current,
+  onPick,
+  clearable = Boolean(current),
+}: {
+  current: string | null;
+  onPick: (value: string | null) => void;
+  /** Offer "Clear due date" (default: when there is one). */
+  clearable?: boolean;
+}) {
+  const today = todayIso();
+  const quick: [string, string][] = [
+    ["Today", today],
+    ["Tomorrow", addDays(today, 1)],
+    ["Next week", nextMonday(today)],
+    ["In 2 weeks", addDays(today, 14)],
+  ];
+  return (
+    <>
+      <ul className="grid gap-0.5">
+        {quick.map(([name, value]) => (
+          <li key={name}>
+            <button
+              type="button"
+              onClick={() => onPick(value)}
+              className="hover:bg-surface-muted flex w-full items-center justify-between rounded-md px-2 py-1.5 text-[13px]"
+            >
+              {name}
+              <span className="text-muted-foreground text-[11px]">{formatDate(value)}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+      <label className="mt-2 grid gap-1 border-t px-1 pt-2 text-[11px] font-medium">
+        Pick a date
+        <input
+          type="date"
+          defaultValue={current ?? ""}
+          aria-label="Due date"
+          // Typing a year fills it digit by digit (0002, 0020...); only act on a full, plausible date.
+          onChange={(e) => {
+            const value = e.target.value;
+            if (/^\d{4}-\d{2}-\d{2}$/.test(value) && Number(value.slice(0, 4)) >= 1970) onPick(value);
+          }}
+          className="border-input bg-surface h-8 rounded-md border px-2 text-[13px]"
+        />
+      </label>
+      {clearable ? (
+        <button
+          type="button"
+          onClick={() => onPick(null)}
+          className="text-muted-foreground hover:text-destructive mt-2 flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-[13px]"
+        >
+          <X className="size-3.5" /> Clear due date
+        </button>
+      ) : null}
+    </>
   );
 }

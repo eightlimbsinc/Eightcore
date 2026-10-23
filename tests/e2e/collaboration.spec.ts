@@ -285,11 +285,16 @@ test("the calendar schedules and reschedules tasks by dragging", async ({ page }
   // Keyboard: one day later (in week view, so tomorrow is always on screen).
   await page.getByRole("navigation", { name: "Calendar range" }).getByRole("link", { name: "Week" }).click();
   await expect(page).toHaveURL(/cal=week/);
+  const todayName = await page.getByRole("gridcell", { name: /, today:/ }).getAttribute("aria-label");
+  const todayDate = todayName!.split(",")[0]!; // e.g. "Oct 23"
   await chip.focus();
   await page.keyboard.press("Space");
-  await expect(page.getByText(/Picked up New logo|New logo is over/)).toBeAttached();
+  await expect(page.getByText(`New logo is over ${todayDate}.`)).toBeAttached();
   await page.keyboard.press("ArrowRight");
-  await expect(page.getByText(/New logo is over (?!.*today)/)).toBeAttached();
+  // Wait until it is over another day before dropping.
+  await expect(
+    page.getByText(new RegExp(`New logo is over (?!${todayDate}\\.)\\w{3} \\d+\\.`)),
+  ).toBeAttached();
   await page.keyboard.press("Space");
   await expect(page.getByRole("gridcell", { name: /, today: 0 tasks/ })).toBeVisible();
 });
@@ -320,4 +325,35 @@ test("Ctrl+K finds tasks and jumps anywhere", async ({ page }) => {
   await palette.getByRole("combobox").fill("dark theme");
   await page.keyboard.press("Enter");
   await expect(page.locator("html")).toHaveClass(/dark/);
+});
+
+test("bulk actions change and archive many tasks at once", async ({ page }) => {
+  await signIn(page, owner);
+  await expect(page).toHaveURL(/\/w\//);
+  await page.goto(`/w/${workspaceSlug}`);
+  const projectsNav = page.getByRole("navigation", { name: "Projects" });
+  await projectsNav.getByRole("button", { name: "Expand Brand" }).click();
+  await projectsNav.getByRole("link", { name: "Design" }).click();
+  for (const title of ["Bulk one", "Bulk two", "Bulk three"]) {
+    await page.getByLabel("New task title").fill(title);
+    await page.getByLabel("New task title").press("Enter");
+    await expect(page.getByRole("link", { name: title })).toBeVisible();
+  }
+
+  // Click the first, Shift+click the last: all three are selected.
+  await page.getByRole("checkbox", { name: /^Select BRD-\d+ Bulk one$/ }).click();
+  await page.getByRole("checkbox", { name: /^Select BRD-\d+ Bulk three$/ }).click({ modifiers: ["Shift"] });
+  const bar = page.getByRole("toolbar", { name: "Bulk actions" });
+  await expect(bar.getByText("3 tasks selected")).toBeVisible();
+
+  await bar.getByRole("button", { name: "Priority" }).click();
+  await page.getByRole("menuitem", { name: "High" }).click();
+  await expect(bar.getByRole("status")).toHaveText("Updated 3 tasks");
+  await expect(page.getByRole("button", { name: /Priority of BRD-\d+: High/ })).toHaveCount(3);
+
+  page.once("dialog", (d) => void d.accept());
+  await bar.getByRole("button", { name: "Archive" }).click();
+  await expect(bar.getByRole("status")).toHaveText("Archived 3 tasks");
+  await expect(page.getByRole("link", { name: "Bulk two" })).toHaveCount(0);
+  await expect(page.getByText("tasks selected")).toHaveCount(0);
 });

@@ -10,13 +10,14 @@ import { StatusMenu } from "@/components/tasks/status-menu";
 import { AssigneePicker } from "@/components/tasks/assignee-picker";
 import { ExpandableTask } from "@/components/tasks/expandable-task";
 import { DueDatePicker, PriorityPicker } from "@/components/tasks/row-pickers";
+import { BulkSelection, GroupCheckbox, RowCheckbox } from "@/components/tasks/bulk-select";
 import { BlockedBadge, FieldChips, TagList } from "@/components/tasks/task-bits";
 
 export const metadata: Metadata = { title: "List" };
 
-/** Columns: status, name, ID, assignee, priority, due date. Below md only status and name. */
+/** Columns: select, expand, status, name, ID, assignee, priority, due date. Below md select to name. */
 const ROW_GRID =
-  "grid grid-cols-[1.25rem_1.75rem_minmax(0,1fr)] md:grid-cols-[1.25rem_1.75rem_minmax(0,1fr)_6.5rem_7rem_7rem_6.5rem]";
+  "grid grid-cols-[0.875rem_1.25rem_1.75rem_minmax(0,1fr)] md:grid-cols-[0.875rem_1.25rem_1.75rem_minmax(0,1fr)_6.5rem_7rem_7rem_6.5rem]";
 
 export default async function ListPage({
   params,
@@ -52,6 +53,12 @@ export default async function ListPage({
     if (t.parentTaskId && shown.has(t.id))
       childrenOf.set(t.parentTaskId, [...(childrenOf.get(t.parentTaskId) ?? []), t]);
   }
+  const bulk = {
+    update: can.updateTask,
+    archive: canProject(role, "task.archive") || canProject(role, "task.archive_own"),
+    delete: canProject(role, "task.delete") || canProject(role, "task.delete_own"),
+  };
+  const selectable = bulk.update || bulk.archive || bulk.delete;
   const renderTask = (task: (typeof tasks)[number], depth: number): React.ReactNode => {
     const ref = `${project.key}-${task.number}`;
     const subtasks = childrenOf.get(task.id) ?? [];
@@ -65,6 +72,7 @@ export default async function ListPage({
         name={`${ref} ${task.title}`}
         subtaskCount={subtasks.length}
         depth={depth}
+        leading={selectable ? <RowCheckbox id={task.id} label={`${ref} ${task.title}`} /> : <span />}
         menu={{
           workspaceSlug: slug,
           taskId: task.id,
@@ -181,48 +189,69 @@ export default async function ListPage({
             No tasks match these filters.
           </p>
         ) : (
-          <div className="grid gap-6">
-            {groups
-              .filter((g) => g.tasks.length > 0)
-              .map(({ status, tasks: groupTasks }) => (
-                <section key={status.id} aria-labelledby={`status-${status.id}`} className="grid gap-1">
-                  <h2 id={`status-${status.id}`} className="flex items-center gap-2 text-[12px]">
-                    <span
-                      className="inline-flex h-6 items-center rounded-md px-2 font-semibold tracking-wide text-white uppercase"
-                      style={{ background: status.color }}
-                    >
-                      {status.name}
-                    </span>
-                    <span className="text-muted-foreground tabular-nums">{groupTasks.length}</span>
-                  </h2>
-                  <div className="bg-surface overflow-hidden rounded-lg border">
-                    <div
-                      className={`${ROW_GRID} text-muted-foreground items-center gap-x-2 border-b px-2 py-1.5 text-[11px] font-medium`}
-                      aria-hidden
-                    >
-                      <span />
-                      <span />
-                      <span>Name</span>
-                      <span className="hidden md:block">ID</span>
-                      <span className="hidden md:block">Assignee</span>
-                      <span className="hidden md:block">Priority</span>
-                      <span className="hidden md:block">Due date</span>
-                    </div>
-                    <ul className="divide-y">{groupTasks.map((task) => renderTask(task, 0))}</ul>
-                    {can.createTask ? (
-                      <div className="border-t">
-                        <QuickAddTask
-                          workspaceSlug={slug}
-                          listId={list.id}
-                          statusId={status.id}
-                          statusName={status.name}
-                        />
+          <BulkSelection
+            workspaceSlug={slug}
+            listId={list.id}
+            taskIds={tasks.filter((t) => shown.has(t.id)).map((t) => t.id)}
+            statuses={statuses}
+            people={people.map((p) => ({ userId: p.userId, name: p.name }))}
+            can={bulk}
+          >
+            <div className="grid gap-6">
+              {groups
+                .filter((g) => g.tasks.length > 0)
+                .map(({ status, tasks: groupTasks }) => (
+                  <section key={status.id} aria-labelledby={`status-${status.id}`} className="grid gap-1">
+                    <h2 id={`status-${status.id}`} className="flex items-center gap-2 text-[12px]">
+                      <span
+                        className="inline-flex h-6 items-center rounded-md px-2 font-semibold tracking-wide text-white uppercase"
+                        style={{ background: status.color }}
+                      >
+                        {status.name}
+                      </span>
+                      <span className="text-muted-foreground tabular-nums">{groupTasks.length}</span>
+                    </h2>
+                    <div className="bg-surface overflow-hidden rounded-lg border">
+                      <div
+                        className={`${ROW_GRID} group text-muted-foreground items-center gap-x-2 border-b py-1.5 pr-9 pl-2 text-[11px] font-medium`}
+                      >
+                        {selectable ? (
+                          <GroupCheckbox ids={groupTasks.map((t) => t.id)} label={status.name} />
+                        ) : (
+                          <span />
+                        )}
+                        <span aria-hidden />
+                        <span aria-hidden />
+                        <span aria-hidden>Name</span>
+                        <span aria-hidden className="hidden md:block">
+                          ID
+                        </span>
+                        <span aria-hidden className="hidden md:block">
+                          Assignee
+                        </span>
+                        <span aria-hidden className="hidden md:block">
+                          Priority
+                        </span>
+                        <span aria-hidden className="hidden md:block">
+                          Due date
+                        </span>
                       </div>
-                    ) : null}
-                  </div>
-                </section>
-              ))}
-          </div>
+                      <ul className="divide-y">{groupTasks.map((task) => renderTask(task, 0))}</ul>
+                      {can.createTask ? (
+                        <div className="border-t">
+                          <QuickAddTask
+                            workspaceSlug={slug}
+                            listId={list.id}
+                            statusId={status.id}
+                            statusName={status.name}
+                          />
+                        </div>
+                      ) : null}
+                    </div>
+                  </section>
+                ))}
+            </div>
+          </BulkSelection>
         )}
       </div>
     </>

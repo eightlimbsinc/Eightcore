@@ -15,6 +15,7 @@ export function ExpandableTask({
   depth = 0,
   defaultOpen = false,
   menu,
+  leading,
   cells,
   children,
 }: {
@@ -28,6 +29,8 @@ export function ExpandableTask({
   defaultOpen?: boolean;
   /** Right-click / "⋯" task actions. */
   menu: TaskMenuTarget;
+  /** Before the arrow: the bulk selection checkbox. */
+  leading?: React.ReactNode;
   cells: React.ReactNode;
   children?: React.ReactNode;
 }) {
@@ -43,6 +46,7 @@ export function ExpandableTask({
           )}
           style={depth ? { paddingLeft: `${0.5 + depth * 1.5}rem` } : undefined}
         >
+          {leading}
           {expandable ? (
             <button
               type="button"
