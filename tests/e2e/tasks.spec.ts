@@ -85,4 +85,38 @@ test("an owner organises work into lists and tasks", async ({ page }) => {
     page.getByRole("region", { name: /In Development/ }).getByRole("link", { name: "Homepage hero" }),
   ).toBeVisible();
   await expect(page.getByLabel("Status", { exact: true })).toContainText("Queued");
+
+  // Manage folders and lists from the side navigation.
+  await sidebar.getByRole("button", { name: "Add to Website" }).click();
+  await page.getByRole("menuitem", { name: "New folder" }).click();
+  await sidebar.getByLabel("New folder name").fill("Phase 2");
+  await sidebar.getByLabel("New folder name").press("Enter");
+  await expect(sidebar.getByText("Phase 2")).toBeVisible();
+  // An empty folder shows no placeholder rows.
+  await expect(sidebar.getByText("Empty")).toHaveCount(0);
+
+  await sidebar.getByRole("button", { name: "Folder options for Phase 2" }).click();
+  await page.getByRole("menuitem", { name: "New list in folder" }).click();
+  await sidebar.getByLabel("New list name").fill("QA");
+  await sidebar.getByLabel("New list name").press("Enter");
+  await expect(page.getByRole("heading", { name: "QA" })).toBeVisible();
+  await expect(sidebar.getByRole("link", { name: "QA" })).toHaveAttribute("aria-current", "page");
+
+  await sidebar.getByRole("button", { name: "List options for QA" }).click();
+  await page.getByRole("menuitem", { name: "Rename list" }).click();
+  await sidebar.getByLabel("List name").fill("Quality checks");
+  await sidebar.getByLabel("List name").press("Enter");
+  await expect(sidebar.getByRole("link", { name: "Quality checks" })).toBeVisible();
+
+  page.once("dialog", (d) => void d.accept());
+  await sidebar.getByRole("button", { name: "List options for Quality checks" }).click();
+  await page.getByRole("menuitem", { name: "Delete list" }).click();
+  await expect(sidebar.getByRole("link", { name: "Quality checks" })).toHaveCount(0);
+  await expect(page).toHaveURL(/\/p\/WEB$/);
+
+  page.once("dialog", (d) => void d.accept());
+  await sidebar.getByRole("button", { name: "Folder options for Phase 2" }).click();
+  await page.getByRole("menuitem", { name: "Delete folder" }).click();
+  await expect(sidebar.getByText("Phase 2")).toHaveCount(0);
+  await expect(sidebar.getByText("Phase 1")).toBeVisible();
 });

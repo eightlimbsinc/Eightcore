@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 import { requireUser } from "@/server/auth/session";
 import { resolveActorCached } from "@/server/authz/actor";
-import { canWorkspace, type ActorContext } from "@/server/authz/policy";
+import { canProject, canWorkspace, type ActorContext } from "@/server/authz/policy";
 import { NotFoundError } from "@/server/errors";
 import { listVisibleProjects } from "@/modules/projects/service";
 import { getSidebarTree } from "@/modules/lists/service";
@@ -47,7 +47,11 @@ export const getWorkspaceShell = cache(async (slug: string) => {
     actor,
     workspace,
     workspaces,
-    projects: projects.map((p) => ({ ...p, ...(tree.get(p.id) ?? { folders: [], rootLists: [] }) })),
+    projects: projects.map((p) => ({
+      ...p,
+      ...(tree.get(p.id) ?? { folders: [], rootLists: [] }),
+      canManageLists: canProject(p.role, "list.manage"),
+    })),
     unread,
     can: {
       createProject: canWorkspace(actor.workspaceRole, "project.create"),

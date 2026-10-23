@@ -12,6 +12,7 @@ import {
   deleteFolder,
   deleteStatus,
   moveStatus,
+  renameFolder,
   setListArchived,
   updateList,
   updateStatus,
@@ -47,6 +48,27 @@ export async function createFolderAction(
 export async function deleteFolderAction(workspaceSlug: string, folderId: string): Promise<ActionState> {
   return runAction(async () => {
     await deleteFolder(await actorFor(workspaceSlug), folderId);
+    revalidatePath(`/w/${workspaceSlug}`, "layout");
+  });
+}
+
+export async function renameFolderAction(
+  workspaceSlug: string,
+  folderId: string,
+  _prev: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  return runAction(async () => {
+    await renameFolder(await actorFor(workspaceSlug), folderId, { name: formString(form, "name") });
+    revalidatePath(`/w/${workspaceSlug}`, "layout");
+    return { ok: true, message: "Saved" };
+  });
+}
+
+/** Removes a list from view (archived: its tasks and history are kept and can be restored). */
+export async function deleteListAction(workspaceSlug: string, listId: string): Promise<ActionState> {
+  return runAction(async () => {
+    await setListArchived(await actorFor(workspaceSlug), listId, true);
     revalidatePath(`/w/${workspaceSlug}`, "layout");
   });
 }
