@@ -183,7 +183,9 @@ test("an owner organises work into lists and tasks", async ({ page }) => {
 
   const groupNames = () => page.getByRole("region").locator("h2").allInnerTexts();
   const firstOrder = await groupNames();
-  await page.getByRole("link", { name: /Show last to first/ }).click();
+  await page.getByRole("button", { name: /^View options/ }).click();
+  await page.getByRole("link", { name: "Last status first" }).click();
+  await page.keyboard.press("Escape");
   await expect(page).toHaveURL(/order=desc/);
   await expect.poll(groupNames).toEqual([...firstOrder].reverse());
 
@@ -228,4 +230,35 @@ test("an owner organises work into lists and tasks", async ({ page }) => {
   await page.getByRole("link", { name: "Open full page" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Cross-browser check" })).toBeVisible();
+
+  // Save a view for everyone, then protect it.
+  await page.getByRole("navigation", { name: "Projects" }).getByRole("link", { name: "Build" }).click();
+  await page.getByRole("button", { name: /^View options/ }).click();
+  await page.getByRole("group", { name: "Subtasks" }).getByRole("link", { name: "Expanded" }).click();
+  await expect(page).toHaveURL(/subtasks=expanded/);
+  await page.getByRole("button", { name: "Save view for everyone" }).click();
+  await expect(page).toHaveURL(/\/l\/[^?]+$/);
+  await expect(page.getByRole("link", { name: "Pick hero video" })).toBeVisible();
+  await page.getByRole("button", { name: /^View options/ }).click();
+  await page.getByRole("button", { name: /Protect view/ }).click();
+  await expect(page.getByRole("button", { name: /^View options.*\(protected\)/ })).toBeVisible();
+  await page.keyboard.press("Escape");
+
+  // Right-click a row to archive it; the "⋯" button opens the same menu.
+  page.once("dialog", (d) => void d.accept());
+  await page
+    .getByRole("listitem")
+    .filter({ hasText: "Cross-browser check" })
+    .locator("div")
+    .first()
+    .click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Archive" }).click();
+  await expect(page.getByRole("link", { name: "Cross-browser check" })).toHaveCount(0);
+  page.once("dialog", (d) => {
+    expect(d.message()).toContain("permanently");
+    void d.accept();
+  });
+  await page.getByRole("button", { name: "Task actions for WEB-2" }).click();
+  await page.getByRole("menuitem", { name: "Delete" }).click();
+  await expect(page.getByRole("link", { name: "Pick hero video" })).toHaveCount(0);
 });

@@ -15,6 +15,7 @@ import {
 } from "@/server/errors";
 import { enqueueOutbox, recordActivity } from "@/modules/activity/service";
 import { loadProjectAccess } from "@/modules/projects/service";
+import { readViewSettings } from "./view-settings";
 import { STATUS_TEMPLATES } from "./templates";
 import {
   createFolderInput,
@@ -275,10 +276,13 @@ export async function getList(actor: ActorContext, listId: string) {
     folder: folder ?? null,
     statuses,
     role,
+    view: readViewSettings(list.viewSettings),
     can: {
       manage: canProject(role, "list.manage"),
       createTask: canProject(role, "task.create"),
       updateTask: canProject(role, "task.update"),
+      saveView: canSaveView(role, list.viewProtected),
+      protectView: canProject(role, "view.protect"),
     },
   };
 }
@@ -469,6 +473,43 @@ export async function deleteStatus(actor: ActorContext, statusId: string, replac
       entityId: status.listId,
       action: "status_deleted",
       metadata: { name: status.name, movedTo: replacement.name, tasksMoved: moved.length },
+    });
+  });
+}
+
+// ── Saved view ────────────────────────────────────────────────────────────────────────────
+
+function canSaveView(role: ProjectRole, isProtected: boolean) {
+  return canProject(role, "view.save") && (!isProtected || canProject(role, "view.protect"));
+}
+
+/** Makes `raw` the list's saved view: what everyone sees by default. */
+export async function saveListView(actor: ActorContext, listId: string, raw: unknown) {
+  const view = readViewSettings(raw);
+  await db().transaction(async (tx) => {
+    const { list, role } = await loadListAccess(tx, actor, listId);
+    if (!canSaveView(role, list.viewProtected)) throw new ForbiddenError();
+    await tx.update(taskLists).set({ viewSettings: view }).where(eq(taskLists.id, listId));
+    await recordActivity(tx, actor, {
+      entityType: "list",
+      entityId: listId,
+      action: "view_saved",
+      metadata: view,
+    });
+  });
+}
+
+/** Protected views can only be saved by managers. */
+export async function setListViewProtected(actor: ActorContext, listId: string, isProtected: boolean) {
+  await db().transaction(async (tx) => {
+    const { list, role } = await loadListAccess(tx, actor, listId);
+    if (!canProject(role, "view.protect")) throw new ForbiddenError();
+    if (list.viewProtected === isProtected) return;
+    await tx.update(taskLists).set({ viewProtected: isProtected }).where(eq(taskLists.id, listId));
+    await recordActivity(tx, actor, {
+      entityType: "list",
+      entityId: listId,
+      action: isProtected ? "view_protected" : "view_unprotected",
     });
   });
 }

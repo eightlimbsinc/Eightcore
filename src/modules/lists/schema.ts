@@ -1,9 +1,11 @@
 // Folders, lists, and each list's own statuses (docs/DATA_MODEL.md §4.2-4.3).
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   check,
   foreignKey,
   index,
+  jsonb,
   pgEnum,
   pgTable,
   text,
@@ -67,6 +69,10 @@ export const taskLists = pgTable(
     name: text().notNull(),
     description: text().notNull().default(""),
     position: text().notNull(),
+    /** The list's saved view (group order, subtasks, closed tasks): everyone's default. */
+    viewSettings: jsonb().$type<Record<string, unknown>>().notNull().default({}),
+    /** A protected view can only be changed by managers. */
+    viewProtected: boolean().notNull().default(false),
     createdBy: uuid()
       .notNull()
       .references(() => users.id),

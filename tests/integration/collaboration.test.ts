@@ -9,7 +9,14 @@ import { attachments, workspaceMembers } from "@/server/db/schema";
 import { eq } from "drizzle-orm";
 import { createProject, setProjectMember, updateProject } from "@/modules/projects/service";
 import { createList, listStatusesFor } from "@/modules/lists/service";
-import { createTask, setTaskAssignees, setWatching, updateTask, getTaskByRef } from "@/modules/tasks/service";
+import {
+  createTask,
+  deleteTask,
+  getTaskByRef,
+  setTaskAssignees,
+  setWatching,
+  updateTask,
+} from "@/modules/tasks/service";
 import { createComment, deleteComment, listComments, updateComment } from "@/modules/comments/service";
 import {
   countUnread,
@@ -293,5 +300,30 @@ describe("attachments", () => {
     await deleteComment(actors.member, c.id);
     expect(await count("attachments")).toBe(0);
     expect(existsSync(storedPath(key))).toBe(false);
+  });
+});
+
+describe("deleting a task", () => {
+  it("removes it with its subtasks, comments and stored files; editors only their own", async () => {
+    const { actors, list, task } = await setup();
+    const child = await createTask(actors.owner, list.id, { title: "Child", parentTaskId: task.id });
+    const [file] = await uploadTaskAttachments(actors.owner, child.id, [{ name: "a.png", bytes: PNG }]);
+    await createComment(actors.member, task.id, { body: "Hi" });
+    const key = await storageKeyOf(file!.id);
+    expect(existsSync(storedPath(key))).toBe(true);
+
+    // The member (editor) didn't create it.
+    await expect(deleteTask(actors.member, task.id)).rejects.toBeInstanceOf(ForbiddenError);
+    await deleteTask(actors.owner, task.id);
+    expect(await count("tasks")).toBe(0);
+    expect(await count("comments")).toBe(0);
+    expect(await count("attachments")).toBe(0);
+    expect(existsSync(storedPath(key))).toBe(false);
+    await expect(getTaskByRef(actors.owner, task.ref)).rejects.toBeInstanceOf(NotFoundError);
+    // History is kept.
+    expect(await count("activity_events", "action = 'deleted'")).toBe(1);
+
+    const own = await createTask(actors.member, list.id, { title: "Mine" });
+    await deleteTask(actors.member, own.id);
   });
 });

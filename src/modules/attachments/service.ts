@@ -7,7 +7,7 @@ import { attachments, users } from "@/server/db/schema";
 import { canProject, type ActorContext } from "@/server/authz/policy";
 import { ForbiddenError, NotFoundError, ValidationError, assertId } from "@/server/errors";
 import { env } from "@/server/env";
-import { storage } from "@/server/storage";
+import { discardStored, storage } from "@/server/storage";
 import { recordActivity } from "@/modules/activity/service";
 import { loadTaskAccess } from "@/modules/tasks/service";
 
@@ -111,15 +111,7 @@ export async function storeUploads(actor: ActorContext, files: IncomingFile[]): 
 }
 
 /** Removes stored bytes whose database rows were never written (or were deleted). */
-export async function discardUploads(uploads: { storageKey: string }[]) {
-  await Promise.all(
-    uploads.map((u) =>
-      storage()
-        .delete(u.storageKey)
-        .catch((error: unknown) => console.error("[storage] could not delete", u.storageKey, error)),
-    ),
-  );
-}
+export const discardUploads = discardStored;
 
 /** Records stored uploads against a task (and optionally a comment), inside the caller's transaction. */
 export async function insertAttachmentsInTx(

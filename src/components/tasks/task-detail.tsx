@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NewTaskForm } from "@/components/tasks/new-task-form";
 import { ArchiveTaskButton, TaskForm } from "@/components/tasks/task-forms";
 import { AssigneePicker } from "@/components/tasks/assignee-picker";
+import { DeleteTaskButton } from "@/components/tasks/task-row-menu";
 import {
   AssigneeStack,
   BlockedBadge,
@@ -308,13 +309,20 @@ export async function TaskDetail({
             </CardContent>
           </Card>
 
-          {can.archive ? (
+          {can.archive || can.delete ? (
             <Card>
               <CardHeader>
-                <CardTitle>Archive</CardTitle>
+                <CardTitle>Archive or delete</CardTitle>
               </CardHeader>
               <CardContent>
-                <ArchiveTaskButton workspaceSlug={slug} taskId={task.id} listId={list.id} />
+                <div className="flex flex-wrap gap-2">
+                  {can.archive ? (
+                    <ArchiveTaskButton workspaceSlug={slug} taskId={task.id} listId={list.id} />
+                  ) : null}
+                  {can.delete ? (
+                    <DeleteTaskButton workspaceSlug={slug} taskId={task.id} taskRef={taskRef} />
+                  ) : null}
+                </div>
               </CardContent>
             </Card>
           ) : null}

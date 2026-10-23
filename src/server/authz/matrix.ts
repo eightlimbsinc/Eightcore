@@ -33,11 +33,18 @@ export const PROJECT_ACTIONS = {
   "project.manage_members": ["manager"],
   /** Folders and lists, including each list's statuses. */
   "list.manage": ["manager"],
+  /** Save a list's view (its default for everyone), unless the view is protected. */
+  "view.save": ["manager", "editor"],
+  /** Protect or unprotect a list's view, and save a protected one. */
+  "view.protect": ["manager"],
   "task.create": ["manager", "editor"],
   "task.update": ["manager", "editor"],
   /** Archive any task. Editors may archive tasks they created (task.archive_own). */
   "task.archive": ["manager"],
   "task.archive_own": ["manager", "editor"],
+  /** Permanently delete any task (with its subtasks, comments and files). Editors: their own (task.delete_own). */
+  "task.delete": ["manager"],
+  "task.delete_own": ["manager", "editor"],
   /** Post comments and replies; edit or delete your own. */
   "comment.create": ["manager", "editor", "commenter"],
   /** Delete anyone's comment. */

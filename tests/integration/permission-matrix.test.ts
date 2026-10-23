@@ -31,8 +31,8 @@ import {
   setProjectMember,
   updateProject,
 } from "@/modules/projects/service";
-import { createList } from "@/modules/lists/service";
-import { createTask, setTaskArchived, updateTask } from "@/modules/tasks/service";
+import { createList, saveListView, setListViewProtected } from "@/modules/lists/service";
+import { createTask, deleteTask, setTaskArchived, updateTask } from "@/modules/tasks/service";
 import { createComment, deleteComment } from "@/modules/comments/service";
 import { createTag } from "@/modules/tags/service";
 import { createField } from "@/modules/fields/service";
@@ -124,12 +124,19 @@ const projectProbes: Record<ProjectAction, (actor: ActorContext, f: Fixture) => 
   "project.manage_members": (actor, f) =>
     setProjectMember(actor, f.privateProject.id, { userId: f.users.guest.id, role: "viewer" }),
   "list.manage": (actor, f) => createList(actor, f.privateProject.id, { name: "Another list" }),
+  "view.save": (actor, f) => saveListView(actor, f.list.id, { order: "desc" }),
+  "view.protect": (actor, f) => setListViewProtected(actor, f.list.id, true),
   "task.create": (actor, f) => createTask(actor, f.list.id, { title: "New task" }),
   "task.update": (actor, f) => updateTask(actor, f.ownerTask.id, 1, { title: "Edited" }),
   "task.archive": (actor, f) => setTaskArchived(actor, f.ownerTask.id, true),
   "task.archive_own": async (actor, f) => {
     const own = await createTask(actor, f.list.id, { title: "My task" });
     await setTaskArchived(actor, own.id, true);
+  },
+  "task.delete": (actor, f) => deleteTask(actor, f.ownerTask.id),
+  "task.delete_own": async (actor, f) => {
+    const own = await createTask(actor, f.list.id, { title: "Mine to delete" });
+    await deleteTask(actor, own.id);
   },
   "comment.create": (actor, f) => createComment(actor, f.ownerTask.id, { body: "Hello" }),
   "comment.moderate": (actor, f) => deleteComment(actor, f.ownerComment.id),

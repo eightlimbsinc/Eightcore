@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowDownWideNarrow, ArrowUpNarrowWide, ChevronRight, ListChecks, Settings2 } from "lucide-react";
+import { ChevronRight, ListChecks, Settings2 } from "lucide-react";
 import { getListPage } from "@/modules/lists/queries";
+import { canProject } from "@/server/authz/policy";
+import { effectiveView } from "@/modules/lists/view-settings";
+import { isClosedCategory } from "@/modules/lists/templates";
+import { ViewMenu } from "@/components/lists/view-menu";
 import { PageHeader } from "@/components/app/page-header";
 import { Button } from "@/components/ui/button";
 import { NewTaskForm } from "@/components/tasks/new-task-form";
@@ -23,12 +27,26 @@ export default async function ListPage({
   searchParams,
 }: {
   params: Promise<{ slug: string; listId: string }>;
-  searchParams: Promise<{ order?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { slug, listId } = await params;
-  const descending = (await searchParams).order === "desc";
-  const { user, list, project, folder, statuses, tasks, people, can } = await getListPage(slug, listId);
-  const ordered = descending ? [...statuses].reverse() : statuses;
+  const {
+    user,
+    list,
+    project,
+    folder,
+    statuses,
+    tasks,
+    people,
+    role,
+    can,
+    view: savedView,
+  } = await getListPage(slug, listId);
+  // The saved view, with any changes from the address bar on top.
+  const view = effectiveView(savedView, await searchParams);
+  const visibleStatuses =
+    view.closed === "hide" ? statuses.filter((s) => !isClosedCategory(s.category)) : statuses;
+  const ordered = view.order === "desc" ? [...visibleStatuses].reverse() : visibleStatuses;
   // Groups hold top-level tasks; subtasks appear under their parent when it is expanded.
   const topLevel = tasks.filter((t) => t.parentTaskId === null);
   const groups = ordered.map((status) => ({
@@ -46,11 +64,25 @@ export default async function ListPage({
     const subtasks = childrenOf.get(task.id) ?? [];
     return (
       <ExpandableTask
-        key={task.id}
+        // Remount when the view's subtask setting changes, so rows pick up the new default.
+        key={`${task.id}:${view.subtasks}`}
+        defaultOpen={view.subtasks === "expanded"}
         gridClass={ROW_GRID}
         name={`${ref} ${task.title}`}
         subtaskCount={subtasks.length}
         depth={depth}
+        menu={{
+          workspaceSlug: slug,
+          taskId: task.id,
+          taskRef: ref,
+          title: task.title,
+          canArchive:
+            canProject(role, "task.archive") ||
+            (task.createdBy === user.id && canProject(role, "task.archive_own")),
+          canDelete:
+            canProject(role, "task.delete") ||
+            (task.createdBy === user.id && canProject(role, "task.delete_own")),
+        }}
         cells={
           <>
             <StatusMenu
@@ -140,20 +172,15 @@ export default async function ListPage({
         description={`${topLevel.length} ${topLevel.length === 1 ? "task" : "tasks"}`}
         actions={
           <>
-            <Button asChild variant="outline">
-              <Link
-                href={descending ? base : `${base}?order=desc`}
-                title="Change the order of the status groups"
-                aria-label={
-                  descending
-                    ? "Statuses: last to first. Show first to last"
-                    : "Statuses: first to last. Show last to first"
-                }
-              >
-                {descending ? <ArrowUpNarrowWide /> : <ArrowDownWideNarrow />}
-                {descending ? "Last status first" : "First status first"}
-              </Link>
-            </Button>
+            <ViewMenu
+              workspaceSlug={slug}
+              listId={list.id}
+              view={view}
+              saved={savedView}
+              isProtected={list.viewProtected}
+              canSave={can.saveView}
+              canProtect={can.protectView}
+            />
             {can.manage ? (
               <Button asChild variant="outline">
                 <Link href={`${base}/statuses`}>

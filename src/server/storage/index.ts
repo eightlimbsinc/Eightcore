@@ -49,3 +49,14 @@ export function storage(): StorageAdapter {
   cached = { signature, adapter };
   return adapter;
 }
+
+/** Best-effort removal of stored files (after their rows are gone). Failures are logged, not thrown. */
+export async function discardStored(items: { storageKey: string }[]) {
+  await Promise.all(
+    items.map((item) =>
+      storage()
+        .delete(item.storageKey)
+        .catch((error: unknown) => console.error("[storage] could not delete", item.storageKey, error)),
+    ),
+  );
+}

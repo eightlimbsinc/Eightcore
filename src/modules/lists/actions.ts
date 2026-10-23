@@ -13,7 +13,9 @@ import {
   deleteStatus,
   moveStatus,
   renameFolder,
+  saveListView,
   setListArchived,
+  setListViewProtected,
   updateList,
   updateStatus,
 } from "./service";
@@ -172,5 +174,29 @@ export async function deleteStatusAction(
   return runAction(async () => {
     await deleteStatus(await actorFor(workspaceSlug), statusId, replacementStatusId);
     revalidatePath(`/w/${workspaceSlug}/l/${listId}`, "layout");
+  });
+}
+
+export async function saveListViewAction(
+  workspaceSlug: string,
+  listId: string,
+  view: { order: string; subtasks: string; closed: string },
+): Promise<ActionState> {
+  return runAction(async () => {
+    await saveListView(await actorFor(workspaceSlug), listId, view);
+    revalidatePath(`/w/${workspaceSlug}`, "layout");
+    // Back to the plain list address: it now shows the saved view.
+    redirect(`/w/${workspaceSlug}/l/${listId}`);
+  });
+}
+
+export async function setListViewProtectedAction(
+  workspaceSlug: string,
+  listId: string,
+  isProtected: boolean,
+): Promise<ActionState> {
+  return runAction(async () => {
+    await setListViewProtected(await actorFor(workspaceSlug), listId, isProtected);
+    revalidatePath(`/w/${workspaceSlug}`, "layout");
   });
 }

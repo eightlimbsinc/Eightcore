@@ -4,6 +4,7 @@ import { generateKeyBetween } from "fractional-indexing";
 import { db, type DbOrTx } from "@/server/db";
 import {
   activityEvents,
+  attachments,
   projectMembers,
   taskWatchers,
   projects,
@@ -26,6 +27,7 @@ import { enqueueOutbox, recordActivity } from "@/modules/activity/service";
 import { loadProjectAccess } from "@/modules/projects/service";
 import { listStatusesFor, loadListAccess } from "@/modules/lists/service";
 import { isClosedCategory } from "@/modules/lists/templates";
+import { discardStored } from "@/server/storage";
 import { addWatchersInTx, listWatchers, notifyInTx, watcherIds } from "@/modules/notifications/service";
 import {
   createTaskInput,
@@ -263,6 +265,7 @@ const taskSummaryColumns = {
   version: tasks.version,
   // Correlated subquery: the outer table must be named explicitly ("tasks"."id"); an
   // interpolated column renders unqualified and would bind to the inner alias.
+  createdBy: tasks.createdBy,
   subtaskCount: sql<number>`(select count(*)::int from ${tasks} c where c.parent_task_id = "tasks"."id" and c.archived_at is null)`,
 };
 
@@ -349,6 +352,7 @@ export async function getTaskByRef(actor: ActorContext, ref: string) {
       attach: canProject(role, "attachment.upload") && canProject(role, "task.update"),
       createSubtask: canProject(role, "task.create"),
       archive: canProject(role, "task.archive") || (isCreator && canProject(role, "task.archive_own")),
+      delete: canDeleteTask(role, actor, task),
     },
   };
 }
@@ -504,4 +508,47 @@ export async function setWatching(actor: ActorContext, taskId: string, watching:
         .where(and(eq(taskWatchers.taskId, taskId), eq(taskWatchers.userId, actor.userId)));
     }
   });
+}
+
+/** Who may delete a task: managers any, editors the ones they created. */
+export function canDeleteTask(role: ProjectRole, actor: ActorContext, task: { createdBy: string }) {
+  return (
+    canProject(role, "task.delete") ||
+    (task.createdBy === actor.userId && canProject(role, "task.delete_own"))
+  );
+}
+
+/**
+ * Permanently deletes a task with its subtasks, comments, attachments, links and field
+ * values. Stored files are removed after the database change commits. History in the
+ * activity log is kept (it is append-only).
+ */
+export async function deleteTask(actor: ActorContext, taskId: string) {
+  const { keys, listId } = await db().transaction(async (tx) => {
+    const { task, project, role } = await loadTaskAccess(tx, actor, taskId);
+    if (!canDeleteTask(role, actor, task)) throw new ForbiddenError();
+    const subtree = await tx.execute<{ id: string }>(sql`
+      with recursive subtree(id) as (
+        select ${task.id}::uuid
+        union all
+        select t.id from ${tasks} t join subtree s on t.parent_task_id = s.id
+      )
+      select id from subtree`);
+    const ids = subtree.rows.map((r) => r.id);
+    const files = await tx
+      .select({ storageKey: attachments.storageKey })
+      .from(attachments)
+      .where(inArray(attachments.taskId, ids));
+    await tx.delete(tasks).where(eq(tasks.id, taskId));
+    await recordActivity(tx, actor, {
+      entityType: "task",
+      entityId: taskId,
+      action: "deleted",
+      metadata: { ref: `${project.key}-${task.number}`, title: task.title, subtasks: ids.length - 1 },
+    });
+    await enqueueOutbox(tx, actor.workspaceId, "task.deleted", { taskId, listId: task.listId });
+    return { keys: files, listId: task.listId };
+  });
+  await discardStored(keys);
+  return { listId };
 }

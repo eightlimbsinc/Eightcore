@@ -11,6 +11,8 @@ import {
   getProjectTree,
   listStatusesFor,
   moveStatus,
+  saveListView,
+  setListViewProtected,
   updateStatus,
 } from "@/modules/lists/service";
 import { createTask, getTaskByRef } from "@/modules/tasks/service";
@@ -151,5 +153,32 @@ describe("list permissions", () => {
     const other = await createWorkspaceWithRoles();
     await expect(getList(other.actors.owner, list.id)).rejects.toBeInstanceOf(NotFoundError);
     await expect(getList(other.actors.owner, "not-a-uuid")).rejects.toBeInstanceOf(NotFoundError);
+  });
+});
+
+describe("saved list views", () => {
+  it("saves a view for everyone; once protected, only managers can change it", async () => {
+    const { actors, project } = await setup();
+    const list = await createList(actors.owner, project.id, { name: "Build" });
+    // The member is an editor on this workspace-visible project.
+    await saveListView(actors.member, list.id, { order: "desc", subtasks: "expanded", junk: 1 });
+    expect((await getList(actors.owner, list.id)).view).toEqual({
+      order: "desc",
+      subtasks: "expanded",
+      closed: "show",
+    });
+
+    await expect(setListViewProtected(actors.member, list.id, true)).rejects.toBeInstanceOf(ForbiddenError);
+    await setListViewProtected(actors.owner, list.id, true);
+    await expect(saveListView(actors.member, list.id, { order: "asc" })).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
+    expect((await getList(actors.member, list.id)).can.saveView).toBe(false);
+    await saveListView(actors.owner, list.id, { closed: "hide" });
+    expect((await getList(actors.member, list.id)).view).toEqual({
+      order: "asc",
+      subtasks: "collapsed",
+      closed: "hide",
+    });
   });
 });

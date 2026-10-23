@@ -6,7 +6,14 @@ import { resolveActor } from "@/server/authz/actor";
 import { formString, runAction } from "@/server/action";
 import type { ActionState } from "@/lib/action-state";
 import { ValidationError } from "@/server/errors";
-import { createTask, setTaskArchived, setTaskAssignees, setWatching, updateTask } from "./service";
+import {
+  createTask,
+  deleteTask,
+  setTaskArchived,
+  setTaskAssignees,
+  setWatching,
+  updateTask,
+} from "./service";
 import { TASK_PRIORITIES, type TaskPriority } from "./validators";
 
 async function actorFor(workspaceSlug: string) {
@@ -130,4 +137,29 @@ export async function setWatchingAction(
     await setWatching(await actorFor(workspaceSlug), taskId, watching);
     revalidatePath(`/w/${workspaceSlug}`, "layout");
   });
+}
+
+/** Archive from a list row's menu (stays on the list). */
+export async function archiveTaskFromListAction(workspaceSlug: string, taskId: string): Promise<ActionState> {
+  return runAction(async () => {
+    await setTaskArchived(await actorFor(workspaceSlug), taskId, true);
+    revalidatePath(`/w/${workspaceSlug}`, "layout");
+  });
+}
+
+/** Permanent delete. From the task page (`returnToList`), goes back to the list afterwards. */
+export async function deleteTaskAction(
+  workspaceSlug: string,
+  taskId: string,
+  returnToList: boolean,
+): Promise<ActionState> {
+  let listId = "";
+  const result = await runAction(async () => {
+    ({ listId } = await deleteTask(await actorFor(workspaceSlug), taskId));
+  });
+  if (result?.ok) {
+    revalidatePath(`/w/${workspaceSlug}`, "layout");
+    if (returnToList) redirect(`/w/${workspaceSlug}/l/${listId}`);
+  }
+  return result;
 }
