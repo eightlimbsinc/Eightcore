@@ -217,3 +217,38 @@ test("the dashboard summarises work and links to the matching tasks", async ({ p
   await expect(page).toHaveURL(/project=BRD/);
   await expect(page.getByText("only")).toBeVisible();
 });
+
+test("the board moves tasks between statuses, also by keyboard", async ({ page }) => {
+  await signIn(page, owner);
+  await expect(page).toHaveURL(/\/w\//);
+  await page.goto(`/w/${workspaceSlug}`);
+  const projectsNav = page.getByRole("navigation", { name: "Projects" });
+  await projectsNav.getByRole("button", { name: "Expand Brand" }).click();
+  await projectsNav.getByRole("link", { name: "Design" }).click();
+  await page.getByRole("navigation", { name: "Layout" }).getByRole("link", { name: "Board" }).click();
+  await expect(page).toHaveURL(/\/board/);
+
+  const columns = page.getByRole("list", { name: "Board columns" });
+  const card = page.getByRole("button", { name: "BRD-1 New logo" });
+  await expect(columns.getByRole("listitem", { name: /^Backlog, 1 task/ })).toBeVisible();
+
+  // Keyboard drag: focus the card, Space to lift, Right arrow to the next column, Space to drop.
+  await card.focus();
+  await page.keyboard.press("Space");
+  await expect(page.getByText(/New logo is over Backlog/)).toBeAttached();
+  await page.keyboard.press("ArrowRight");
+  await expect(page.getByText(/New logo is over To Do/)).toBeAttached();
+  await page.keyboard.press("Space");
+  await expect(columns.getByRole("listitem", { name: /^To Do, 1 task/ })).toBeVisible();
+  await page.reload();
+  await expect(columns.getByRole("listitem", { name: /^To Do, 1 task/ })).toContainText("New logo");
+
+  // Right-click works on cards too.
+  await card.click({ button: "right" });
+  await expect(page.getByRole("menuitem", { name: /Copy ID/ })).toBeVisible();
+  await page.keyboard.press("Escape");
+
+  // The task's history shows the status change.
+  await page.getByRole("link", { name: "New logo" }).click();
+  await expect(page.getByRole("dialog").getByText("changed status from Backlog to To Do")).toBeVisible();
+});

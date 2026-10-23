@@ -48,6 +48,7 @@ export function ViewMenu({
   canProtect,
   filters,
   filterChanges,
+  layout = "list",
 }: {
   workspaceSlug: string;
   listId: string;
@@ -57,12 +58,14 @@ export function ViewMenu({
   filters: string;
   /** The filters that differ from the saved ones (kept when switching view options). */
   filterChanges: string;
+  /** Which page the menu is on, so its links stay there. */
+  layout?: "list" | "board";
   isProtected: boolean;
   canSave: boolean;
   canProtect: boolean;
 }) {
   const [pending, startTransition] = useTransition();
-  const base = `/w/${workspaceSlug}/l/${listId}`;
+  const base = `/w/${workspaceSlug}/l/${listId}${layout === "board" ? "/board" : ""}`;
   const dirty = !sameView(view, saved) || filters !== saved.filters;
   const run = (fn: () => Promise<unknown>) =>
     startTransition(async () => {
@@ -117,7 +120,9 @@ export function ViewMenu({
                   <button
                     type="button"
                     disabled={pending}
-                    onClick={() => run(() => saveListViewAction(workspaceSlug, listId, { ...view, filters }))}
+                    onClick={() =>
+                      run(() => saveListViewAction(workspaceSlug, listId, { ...view, filters }, layout))
+                    }
                     className="bg-primary text-primary-foreground hover:bg-primary/90 flex items-center justify-center gap-2 rounded-md px-3 py-1.5 text-[13px] font-medium disabled:opacity-60"
                   >
                     <Save className="size-4" /> {pending ? "Saving…" : "Save view for everyone"}

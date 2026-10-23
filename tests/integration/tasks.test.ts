@@ -8,6 +8,7 @@ import {
   getTaskByRef,
   listAssignableMembers,
   listTasks,
+  moveTask,
   setTaskArchived,
   setTaskAssignees,
   updateTask,
@@ -219,5 +220,50 @@ describe("task permissions", () => {
     const other = await createWorkspaceWithRoles();
     await expect(getTaskByRef(other.actors.owner, task.ref)).rejects.toBeInstanceOf(NotFoundError);
     await expect(getTaskByRef(actors.owner, "garbage")).rejects.toBeInstanceOf(NotFoundError);
+  });
+});
+
+describe("moving tasks on the board", () => {
+  it("reorders within a column and changes status across columns", async () => {
+    const { actors, list, statuses } = await setup();
+    const a = await createTask(actors.member, list.id, { title: "A" });
+    const b = await createTask(actors.member, list.id, { title: "B" });
+    const c = await createTask(actors.member, list.id, { title: "C" });
+    const order = async () => (await listTasks(actors.member, list.id)).map((t) => t.title);
+
+    // C between A and B.
+    await moveTask(actors.member, c.id, 1, { afterTaskId: a.id, beforeTaskId: b.id });
+    expect(await order()).toEqual(["A", "C", "B"]);
+
+    // A to the done column (top of it): status changes, completion is recorded.
+    const done = statuses.find((s) => s.category === "done")!;
+    await moveTask(actors.member, a.id, 1, { statusId: done.id });
+    const moved = (await listTasks(actors.member, list.id)).find((t) => t.title === "A")!;
+    expect(moved.statusId).toBe(done.id);
+    expect(moved.completedAt).not.toBeNull();
+
+    // Stale version, wrong neighbours, viewers: refused.
+    await expect(moveTask(actors.member, a.id, 1, { statusId: statuses[0]!.id })).rejects.toBeInstanceOf(
+      ConflictError,
+    );
+    const { task: latestB } = await getTaskByRef(actors.member, b.ref);
+    await expect(
+      // "After C, before C" can't both hold.
+      moveTask(actors.member, b.id, latestB.version, { afterTaskId: c.id, beforeTaskId: c.id }),
+    ).rejects.toBeInstanceOf(ConflictError);
+  });
+
+  it("refuses neighbours from another list and moves by people who can't edit", async () => {
+    const { actors, users, project, list } = await setup();
+    const a = await createTask(actors.member, list.id, { title: "A" });
+    const other = await createList(actors.owner, project.id, { name: "Other" });
+    const x = await createTask(actors.member, other.id, { title: "X" });
+    await expect(moveTask(actors.member, a.id, 1, { afterTaskId: x.id })).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
+    await setProjectMember(actors.owner, project.id, { userId: users.guest.id, role: "viewer" });
+    await expect(moveTask(actors.guest, a.id, 1, { afterTaskId: null })).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
   });
 });

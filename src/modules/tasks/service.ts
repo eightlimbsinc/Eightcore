@@ -381,6 +381,24 @@ export async function listTaskActivity(tx: DbOrTx, actor: ActorContext, taskId: 
     .limit(100);
 }
 
+/** Status change on `set`/`changes`, keeping completedAt in step with closed statuses. */
+function applyStatusChange(
+  statuses: { id: string; name: string; category: Parameters<typeof isClosedCategory>[0] }[],
+  task: { statusId: string },
+  toStatusId: string,
+  set: Partial<typeof tasks.$inferInsert>,
+  changes: Record<string, [unknown, unknown]>,
+) {
+  const from = statuses.find((s) => s.id === task.statusId);
+  const to = statuses.find((s) => s.id === toStatusId);
+  if (!to) throw new NotFoundError("Status not found in this list");
+  changes.status = [from?.name ?? null, to.name];
+  set.statusId = to.id;
+  const wasClosed = from ? isClosedCategory(from.category) : false;
+  if (isClosedCategory(to.category) && !wasClosed) set.completedAt = new Date();
+  if (!isClosedCategory(to.category)) set.completedAt = null;
+}
+
 // ── Update ────────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -415,14 +433,7 @@ export async function updateTask(
         }
       }
       if (input.statusId !== undefined && input.statusId !== task.statusId) {
-        const from = statuses.find((s) => s.id === task.statusId);
-        const to = statuses.find((s) => s.id === input.statusId);
-        if (!to) throw new NotFoundError("Status not found in this list");
-        changes.status = [from?.name ?? null, to.name];
-        set.statusId = to.id;
-        const wasClosed = from ? isClosedCategory(from.category) : false;
-        if (isClosedCategory(to.category) && !wasClosed) set.completedAt = new Date();
-        if (!isClosedCategory(to.category)) set.completedAt = null;
+        applyStatusChange(statuses, task, input.statusId, set, changes);
       }
       if (Object.keys(changes).length === 0) return { version: task.version };
 
@@ -551,4 +562,79 @@ export async function deleteTask(actor: ActorContext, taskId: string) {
   });
   await discardStored(keys);
   return { listId };
+}
+
+/**
+ * Board drag and drop: puts a top-level task between two neighbours of its (new) status
+ * column, changing its status when the column differs. Neighbours are ids of top-level
+ * tasks in the same list, in board order: `afterTaskId` above it, `beforeTaskId` below.
+ */
+export async function moveTask(
+  actor: ActorContext,
+  taskId: string,
+  expectedVersion: number,
+  move: { statusId?: string; afterTaskId?: string | null; beforeTaskId?: string | null },
+) {
+  for (const id of [move.statusId, move.afterTaskId, move.beforeTaskId])
+    if (id) assertId(id, "Task not found");
+  return db().transaction(async (tx) => {
+    const { task, list, project, role } = await loadTaskAccess(tx, actor, taskId);
+    assertProject(role, "task.update");
+    if (task.parentTaskId) throw new ValidationError("Subtasks move with their parent");
+    if (task.version !== expectedVersion) {
+      throw new ConflictError("Someone else changed this task. Reload to see their changes, then try again.");
+    }
+    const neighbourIds = [
+      ...new Set([move.afterTaskId, move.beforeTaskId].filter((id): id is string => Boolean(id))),
+    ];
+    const neighbours = neighbourIds.length
+      ? await tx
+          .select({ id: tasks.id, position: tasks.position })
+          .from(tasks)
+          .where(
+            and(
+              inArray(tasks.id, neighbourIds),
+              eq(tasks.listId, list.id),
+              isNull(tasks.parentTaskId),
+              isNull(tasks.archivedAt),
+            ),
+          )
+      : [];
+    if (neighbours.length !== neighbourIds.length) throw new NotFoundError("Task not found in this list");
+    const after = neighbours.find((n) => n.id === move.afterTaskId)?.position ?? null;
+    const before = neighbours.find((n) => n.id === move.beforeTaskId)?.position ?? null;
+    if (after !== null && before !== null && after >= before) {
+      throw new ConflictError("The list changed while you were dragging. Reload and try again.");
+    }
+
+    const set: Partial<typeof tasks.$inferInsert> = {};
+    const changes: Record<string, [unknown, unknown]> = {};
+    if (neighbourIds.length) set.position = generateKeyBetween(after, before);
+    if (move.statusId && move.statusId !== task.statusId) {
+      applyStatusChange(await listStatusesFor(tx, list.id), task, move.statusId, set, changes);
+    }
+    if (!set.position && !changes.status) return { version: task.version };
+
+    const [updated] = await tx
+      .update(tasks)
+      .set({ ...set, version: sql`${tasks.version} + 1` })
+      .where(and(eq(tasks.id, taskId), eq(tasks.version, expectedVersion)))
+      .returning({ version: tasks.version });
+    if (!updated) {
+      throw new ConflictError("Someone else changed this task. Reload to see their changes, then try again.");
+    }
+    // Reordering alone isn't worth a history line; a status change is.
+    if (changes.status) {
+      await recordActivity(tx, actor, { entityType: "task", entityId: taskId, action: "updated", changes });
+      await notifyInTx(tx, actor, {
+        taskId,
+        type: "status_changed",
+        userIds: await watcherIds(tx, taskId),
+        allowed: await assignableUserIds(tx, actor, task.projectId, project.visibility),
+        data: { from: changes.status[0], to: changes.status[1] },
+      });
+      await enqueueOutbox(tx, actor.workspaceId, "task.updated", { taskId, fields: ["status"] });
+    }
+    return { version: updated.version };
+  });
 }

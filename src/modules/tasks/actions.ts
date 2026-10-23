@@ -9,6 +9,7 @@ import { ValidationError } from "@/server/errors";
 import {
   createTask,
   deleteTask,
+  moveTask,
   setTaskArchived,
   setTaskAssignees,
   setWatching,
@@ -162,4 +163,17 @@ export async function deleteTaskAction(
     if (returnToList) redirect(`/w/${workspaceSlug}/l/${listId}`);
   }
   return result;
+}
+
+/** Board drag and drop. */
+export async function moveTaskAction(
+  workspaceSlug: string,
+  taskId: string,
+  version: number,
+  move: { statusId?: string; afterTaskId?: string | null; beforeTaskId?: string | null },
+): Promise<ActionState> {
+  return runAction(async () => {
+    await moveTask(await actorFor(workspaceSlug), taskId, version, move);
+    revalidatePath(`/w/${workspaceSlug}`, "layout");
+  });
 }

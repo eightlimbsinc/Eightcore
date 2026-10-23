@@ -1,16 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ChevronRight, ListChecks, Settings2 } from "lucide-react";
-import { getListPage } from "@/modules/lists/queries";
+import { ListChecks } from "lucide-react";
+import { getListView } from "@/modules/lists/queries";
 import { canProject } from "@/server/authz/policy";
-import { effectiveView, viewQuery } from "@/modules/lists/view-settings";
-import { filterQuery, isFiltering, matchesFilter, readFilter } from "@/modules/tasks/filters";
-import { viewerToday } from "@/server/today";
-import { FilterBar } from "@/components/tasks/filter-bar";
-import { isClosedCategory } from "@/modules/lists/templates";
-import { ViewMenu } from "@/components/lists/view-menu";
-import { PageHeader } from "@/components/app/page-header";
-import { Button } from "@/components/ui/button";
+import { ListHeader } from "@/components/lists/list-header";
 import { NewTaskForm } from "@/components/tasks/new-task-form";
 import { QuickAddTask } from "@/components/tasks/quick-add-task";
 import { StatusMenu } from "@/components/tasks/status-menu";
@@ -43,56 +36,16 @@ export default async function ListPage({
     people,
     role,
     can,
-    view: savedView,
-  } = await getListPage(slug, listId);
-  // The saved view, with any changes from the address bar on top.
-  const query = await searchParams;
-  const view = effectiveView(savedView, query);
-  const savedFilter = readFilter(Object.fromEntries(new URLSearchParams(savedView.filters)));
-  const filter = readFilter(query, savedFilter);
-  const filtering = isFiltering(filter);
-  const today = await viewerToday();
-  const closedStatus = new Set(statuses.filter((s) => isClosedCategory(s.category)).map((s) => s.id));
-
-  // A task shows when it matches, or when one of its subtasks does (so the match has a parent).
-  const kids = new Map<string, typeof tasks>();
-  for (const t of tasks)
-    if (t.parentTaskId) kids.set(t.parentTaskId, [...(kids.get(t.parentTaskId) ?? []), t]);
-  const matches = (t: (typeof tasks)[number]) =>
-    matchesFilter(
-      {
-        title: t.title,
-        ref: `${project.key}-${t.number}`,
-        priority: t.priority,
-        dueDate: t.dueDate,
-        completed: Boolean(t.completedAt),
-        closed: closedStatus.has(t.statusId),
-        assigneeIds: t.assignees.map((a) => a.userId),
-        tagNames: t.tags.map((g) => g.name),
-        openBlockers: t.openBlockers,
-      },
-      filter,
-      { userId: user.id, today },
-    );
-  const shown = new Set<string>();
-  const markShown = (t: (typeof tasks)[number]): boolean => {
-    const childShown = (kids.get(t.id) ?? []).map(markShown).some(Boolean);
-    const show = !filtering || matches(t) || childShown;
-    if (show) shown.add(t.id);
-    return show;
-  };
-  tasks.filter((t) => t.parentTaskId === null).forEach(markShown);
-  const visibleStatuses =
-    view.closed === "hide" ? statuses.filter((s) => !isClosedCategory(s.category)) : statuses;
-  const ordered = view.order === "desc" ? [...visibleStatuses].reverse() : visibleStatuses;
-  // Groups hold top-level tasks; subtasks appear under their parent when it is expanded.
-  const allTopLevel = tasks.filter((t) => t.parentTaskId === null);
-  const topLevel = allTopLevel.filter((t) => shown.has(t.id));
-  const groups = ordered.map((status) => ({
-    status,
-    tasks: topLevel.filter((t) => t.statusId === status.id),
-  }));
-  const base = `/w/${slug}/l/${list.id}`;
+    view,
+    savedView,
+    savedFilter,
+    filter,
+    filtering,
+    allTopLevel,
+    topLevel,
+    groups,
+    shown,
+  } = await getListView(slug, listId, await searchParams);
 
   const childrenOf = new Map<string, typeof tasks>();
   for (const t of tasks) {
@@ -196,58 +149,24 @@ export default async function ListPage({
 
   return (
     <>
-      <PageHeader
-        eyebrow={
-          <span className="flex items-center gap-1">
-            <Link href={`/w/${slug}/p/${project.key}`} className="hover:text-foreground">
-              {project.name}
-            </Link>
-            {folder ? (
-              <>
-                <ChevronRight className="size-3" aria-hidden /> {folder.name}
-              </>
-            ) : null}
-          </span>
-        }
-        title={list.name}
-        description={
-          filtering
-            ? `${topLevel.length} of ${allTopLevel.length} tasks match`
-            : `${topLevel.length} ${topLevel.length === 1 ? "task" : "tasks"}`
-        }
-        actions={
-          <>
-            <ViewMenu
-              workspaceSlug={slug}
-              listId={list.id}
-              view={view}
-              saved={savedView}
-              isProtected={list.viewProtected}
-              canSave={can.saveView}
-              canProtect={can.protectView}
-              filters={filterQuery(filter).toString()}
-              filterChanges={filterQuery(filter, savedFilter).toString()}
-            />
-            {can.manage ? (
-              <Button asChild variant="outline">
-                <Link href={`${base}/statuses`}>
-                  <Settings2 /> List settings & statuses
-                </Link>
-              </Button>
-            ) : null}
-          </>
-        }
+      <ListHeader
+        slug={slug}
+        layout="list"
+        list={list}
+        project={project}
+        folder={folder}
+        counts={{ shown: topLevel.length, total: allTopLevel.length }}
+        view={view}
+        savedView={savedView}
+        filter={filter}
+        savedFilter={savedFilter}
+        filtering={filtering}
+        can={can}
+        people={people.map((p) => ({ userId: p.userId, name: p.name }))}
+        tagNames={[...new Set(tasks.flatMap((t) => t.tags.map((g) => g.name)))].sort()}
       />
       <div className="grid gap-6 px-8 py-6">
         {can.createTask ? <NewTaskForm workspaceSlug={slug} listId={list.id} statuses={statuses} /> : null}
-        <FilterBar
-          path={base}
-          filter={filter}
-          defaults={savedFilter}
-          extraQuery={viewQuery(view, savedView).replace(/^\?/, "")}
-          people={people.map((p) => ({ userId: p.userId, name: p.name }))}
-          tags={[...new Set(tasks.flatMap((t) => t.tags.map((g) => g.name)))].sort()}
-        />
 
         {tasks.length === 0 ? (
           <div className="grid place-items-center rounded-lg border border-dashed px-6 py-12 text-center">

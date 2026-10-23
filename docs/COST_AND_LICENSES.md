@@ -62,6 +62,7 @@ Licences and versions below were checked against the npm registry and project si
 | pino / pino-pretty (logging) | 10.4.0 / 13.2.0 | MIT | ✅ | — | Hosted log services (optional, not used) | None |
 | nodemailer (SMTP) | 10.1.0 | MIT-0 | ✅ | — | Production SMTP relay (optional) | Possibly, if a paid SMTP relay is chosen later |
 | file-type (MIME sniffing, **in use since Phase 3b**) | 22.2.0 | MIT | ✅ | — | — | None |
+| @dnd-kit/core, @dnd-kit/sortable, @dnd-kit/utilities (board drag and drop, with keyboard support, **in use since Phase 4**) | 6.3.1 / 10.0.0 / 3.2.2 | MIT | ✅ | — | — | None |
 | aws4fetch (S3 request signing for file storage, **in use since Phase 3b**) | 1.0.20 | MIT | ✅ | — | Talks to any S3-compatible store; the test deployment uses Supabase Storage (Free plan, below) | None on the free tier |
 | server-only | 0.0.1 | MIT | ✅ | — | — | None |
 | @slack/web-api (optional integration) | 8.2.0 | MIT | ✅ | — | — | None (see §6) |
@@ -125,7 +126,7 @@ Everything else in §2–§4 is **planned** and is added (and re-verified) in th
 
 | Kind | Packages (exact versions in `package.json`) |
 |---|---|
-| Runtime | next 16.4.2, react / react-dom 19.3.0, better-auth 1.7.7, drizzle-orm 0.45.4, pg 8.23.1, zod 4.6.7, nodemailer 10.1.0, radix-ui 1.8.1, lucide-react 1.56.0, next-themes 0.4.6, class-variance-authority 0.7.1, clsx 2.1.1, tailwind-merge 3.7.0, geist 1.7.2, server-only 0.0.1, fractional-indexing 4.0.0 (CC0-1.0), aws4fetch 1.0.20, file-type 22.2.0 |
+| Runtime | next 16.4.2, react / react-dom 19.3.0, better-auth 1.7.7, drizzle-orm 0.45.4, pg 8.23.1, zod 4.6.7, nodemailer 10.1.0, radix-ui 1.8.1, lucide-react 1.56.0, next-themes 0.4.6, class-variance-authority 0.7.1, clsx 2.1.1, tailwind-merge 3.7.0, geist 1.7.2, server-only 0.0.1, fractional-indexing 4.0.0 (CC0-1.0), aws4fetch 1.0.20, file-type 22.2.0, @dnd-kit/core 6.3.1, @dnd-kit/sortable 10.0.0, @dnd-kit/utilities 3.2.2 |
 | Development | typescript 6.0.3, tailwindcss + @tailwindcss/postcss 4.3.3, drizzle-kit 0.31.11, eslint 9.39.5, eslint-config-next 16.4.2, typescript-eslint 8.71.2, prettier 3.9.10, prettier-plugin-tailwindcss 0.8.1 (MIT), vitest 5.0.4, @playwright/test 1.64.0, tsx 4.23.15, @types/* |
 
 ### Reviewed non-permissive transitive packages
