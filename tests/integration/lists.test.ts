@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/server/errors";
-import { createProject, setProjectMember } from "@/modules/projects/service";
+import { createProject, getProjectByKey, setProjectMember } from "@/modules/projects/service";
 import {
   addStatus,
   createFolder,
@@ -9,9 +9,11 @@ import {
   deleteStatus,
   getList,
   getProjectTree,
+  getSidebarTree,
   listStatusesFor,
   moveStatus,
   saveListView,
+  setItemAppearance,
   setListViewProtected,
   updateStatus,
 } from "@/modules/lists/service";
@@ -182,5 +184,45 @@ describe("saved list views", () => {
       closed: "hide",
       filters: "",
     });
+  });
+});
+
+describe("icons and colours", () => {
+  it("saves a project's, folder's and list's icon and colour, and resets them", async () => {
+    const { actors, project } = await setup();
+    const folder = await createFolder(actors.owner, project.id, { name: "Phase 1" });
+    const list = await createList(actors.owner, project.id, { name: "Build", folderId: folder.id });
+    await setItemAppearance(actors.owner, "project", project.id, { icon: "Rocket", color: "blue" });
+    await setItemAppearance(actors.owner, "folder", folder.id, { icon: "Palette", color: "pink" });
+    await setItemAppearance(actors.owner, "list", list.id, { icon: "Bug", color: null });
+    expect(await getProjectByKey(actors.member, "WEB")).toMatchObject({ icon: "Rocket", color: "blue" });
+    const tree = (await getSidebarTree(actors.member, [project.id])).get(project.id)!;
+    expect(tree.folders[0]).toMatchObject({ icon: "Palette", color: "pink" });
+    expect(tree.folders[0]!.lists[0]).toMatchObject({ icon: "Bug", color: null });
+
+    await setItemAppearance(actors.owner, "project", project.id, { icon: null, color: null });
+    expect(await getProjectByKey(actors.member, "WEB")).toMatchObject({ icon: null, color: null });
+  });
+
+  it("refuses names outside the catalogue and people who can't manage the project", async () => {
+    const { actors, project } = await setup();
+    const list = await createList(actors.owner, project.id, { name: "Build" });
+    await expect(
+      setItemAppearance(actors.owner, "list", list.id, { icon: "<script>", color: null }),
+    ).rejects.toBeInstanceOf(ValidationError);
+    await expect(
+      setItemAppearance(actors.owner, "list", list.id, { icon: null, color: "#ff0000" }),
+    ).rejects.toBeInstanceOf(ValidationError);
+    // Workspace members are editors of workspace-visible projects, not managers.
+    await expect(
+      setItemAppearance(actors.member, "list", list.id, { icon: "Bug", color: null }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(
+      setItemAppearance(actors.member, "project", project.id, { icon: "Bug", color: null }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    const other = await createWorkspaceWithRoles();
+    await expect(
+      setItemAppearance(other.actors.owner, "list", list.id, { icon: "Bug", color: null }),
+    ).rejects.toBeInstanceOf(NotFoundError);
   });
 });

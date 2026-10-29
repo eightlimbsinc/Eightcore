@@ -3,6 +3,7 @@ import { CalendarDays, ChevronRight, Columns3, List, Settings2 } from "lucide-re
 import { viewQuery, type ViewSettings } from "@/modules/lists/view-settings";
 import { filterQuery, type TaskFilter } from "@/modules/tasks/filters";
 import { PageHeader } from "@/components/app/page-header";
+import { AppearancePicker } from "@/components/app/appearance-picker";
 import { Button } from "@/components/ui/button";
 import { FilterBar } from "@/components/tasks/filter-bar";
 import { ViewMenu } from "@/components/lists/view-menu";
@@ -27,7 +28,7 @@ export function ListHeader({
 }: {
   slug: string;
   layout: "list" | "board" | "calendar";
-  list: { id: string; name: string; viewProtected: boolean };
+  list: { id: string; name: string; viewProtected: boolean; icon: string | null; color: string | null };
   project: { key: string; name: string };
   folder: { name: string } | null;
   counts: { shown: number; total: number };
@@ -64,7 +65,20 @@ export function ListHeader({
             ) : null}
           </span>
         }
-        title={list.name}
+        title={
+          <span className="flex items-center gap-2.5">
+            <AppearancePicker
+              workspaceSlug={slug}
+              kind="list"
+              id={list.id}
+              name={list.name}
+              appearance={list}
+              canEdit={can.manage}
+              size="md"
+            />
+            {list.name}
+          </span>
+        }
         description={
           filtering
             ? `${counts.shown} of ${counts.total} tasks match`

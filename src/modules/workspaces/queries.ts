@@ -56,6 +56,7 @@ export const getWorkspaceShell = cache(async (slug: string) => {
       ...p,
       ...(tree.get(p.id) ?? { folders: [], rootLists: [] }),
       canManageLists: canProject(p.role, "list.manage"),
+      canEditProject: canProject(p.role, "project.update"),
     })),
     unread,
     can: {

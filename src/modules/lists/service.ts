@@ -2,7 +2,7 @@ import "server-only";
 import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { generateKeyBetween, generateNKeysBetween } from "fractional-indexing";
 import { db, type DbOrTx } from "@/server/db";
-import { folders, listStatuses, taskLists, tasks } from "@/server/db/schema";
+import { folders, listStatuses, projects, taskLists, tasks } from "@/server/db/schema";
 import { canProject, type ActorContext } from "@/server/authz/policy";
 import type { ProjectAction, ProjectRole } from "@/server/authz/matrix";
 import {
@@ -15,6 +15,7 @@ import {
 } from "@/server/errors";
 import { enqueueOutbox, recordActivity } from "@/modules/activity/service";
 import { loadProjectAccess } from "@/modules/projects/service";
+import { isItemColor, isItemIcon, type ItemAppearance, type ItemKind } from "@/lib/appearance";
 import { readViewSettings } from "./view-settings";
 import { STATUS_TEMPLATES } from "./templates";
 import {
@@ -55,7 +56,13 @@ export async function getProjectTree(actor: ActorContext, projectId: string) {
   const { role } = await loadProjectAccess(db(), actor, { id: projectId });
   const [folderRows, listRows] = await Promise.all([
     db()
-      .select({ id: folders.id, name: folders.name, position: folders.position })
+      .select({
+        id: folders.id,
+        name: folders.name,
+        icon: folders.icon,
+        color: folders.color,
+        position: folders.position,
+      })
       .from(folders)
       .where(and(eq(folders.projectId, projectId), isNull(folders.archivedAt)))
       .orderBy(asc(folders.position)),
@@ -63,6 +70,8 @@ export async function getProjectTree(actor: ActorContext, projectId: string) {
       .select({
         id: taskLists.id,
         name: taskLists.name,
+        icon: taskLists.icon,
+        color: taskLists.color,
         folderId: taskLists.folderId,
         position: taskLists.position,
         openTasks: sql<number>`(select count(*)::int from ${tasks} t
@@ -86,13 +95,8 @@ export async function getProjectTree(actor: ActorContext, projectId: string) {
  * (the ids come from listVisibleProjects, which applies visibility). Two queries in total.
  */
 export async function getSidebarTree(actor: ActorContext, projectIds: string[]) {
-  const tree = new Map<
-    string,
-    {
-      folders: { id: string; name: string; lists: { id: string; name: string }[] }[];
-      rootLists: { id: string; name: string }[];
-    }
-  >();
+  type Item = { id: string; name: string } & ItemAppearance;
+  const tree = new Map<string, { folders: (Item & { lists: Item[] })[]; rootLists: Item[] }>();
   if (projectIds.length === 0) return tree;
   const scope = (table: typeof folders | typeof taskLists) =>
     and(
@@ -102,7 +106,13 @@ export async function getSidebarTree(actor: ActorContext, projectIds: string[]) 
     );
   const [folderRows, listRows] = await Promise.all([
     db()
-      .select({ id: folders.id, projectId: folders.projectId, name: folders.name })
+      .select({
+        id: folders.id,
+        projectId: folders.projectId,
+        name: folders.name,
+        icon: folders.icon,
+        color: folders.color,
+      })
       .from(folders)
       .where(scope(folders))
       .orderBy(asc(folders.position)),
@@ -112,22 +122,24 @@ export async function getSidebarTree(actor: ActorContext, projectIds: string[]) 
         projectId: taskLists.projectId,
         folderId: taskLists.folderId,
         name: taskLists.name,
+        icon: taskLists.icon,
+        color: taskLists.color,
       })
       .from(taskLists)
       .where(scope(taskLists))
       .orderBy(asc(taskLists.position)),
   ]);
+  const item = ({ id, name, icon, color }: Item) => ({ id, name, icon, color });
   for (const id of projectIds) {
     const lists = listRows.filter((l) => l.projectId === id);
     tree.set(id, {
       folders: folderRows
         .filter((f) => f.projectId === id)
-        .map((f) => ({
-          id: f.id,
-          name: f.name,
-          lists: lists.filter((l) => l.folderId === f.id).map(({ id, name }) => ({ id, name })),
+        .map(({ projectId: _p, ...f }) => ({
+          ...f,
+          lists: lists.filter((l) => l.folderId === f.id).map(item),
         })),
-      rootLists: lists.filter((l) => l.folderId === null).map(({ id, name }) => ({ id, name })),
+      rootLists: lists.filter((l) => l.folderId === null).map(item),
     });
   }
   return tree;
@@ -511,5 +523,53 @@ export async function setListViewProtected(actor: ActorContext, listId: string, 
       entityId: listId,
       action: isProtected ? "view_protected" : "view_unprotected",
     });
+  });
+}
+
+// ── Icons and colours ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Sets the sidebar icon and colour of a project (project managers) or a folder or list
+ * (list managers). Null resets to the default; names outside the catalogue are refused.
+ */
+export async function setItemAppearance(
+  actor: ActorContext,
+  kind: ItemKind,
+  id: string,
+  raw: ItemAppearance,
+) {
+  if (raw.icon !== null && !isItemIcon(raw.icon)) throw new ValidationError("Pick an icon from the list");
+  if (raw.color !== null && !isItemColor(raw.color)) throw new ValidationError("Pick a colour from the list");
+  const next = { icon: raw.icon, color: raw.color };
+  await db().transaction(async (tx) => {
+    let before: ItemAppearance;
+    if (kind === "project") {
+      assertId(id, "Project not found");
+      const { project, role } = await loadProjectAccess(tx, actor, { id });
+      assertProject(role, "project.update");
+      before = { icon: project.icon, color: project.color };
+      await tx
+        .update(projects)
+        .set(next)
+        .where(and(eq(projects.id, id), eq(projects.workspaceId, actor.workspaceId)));
+    } else if (kind === "folder") {
+      const { folder, role } = await loadFolder(tx, actor, id);
+      assertProject(role, "list.manage");
+      before = { icon: folder.icon, color: folder.color };
+      await tx.update(folders).set(next).where(eq(folders.id, id));
+    } else if (kind === "list") {
+      const { list, role } = await loadListAccess(tx, actor, id);
+      assertProject(role, "list.manage");
+      before = { icon: list.icon, color: list.color };
+      await tx.update(taskLists).set(next).where(eq(taskLists.id, id));
+    } else {
+      throw new ValidationError("Unknown item");
+    }
+    const changes: Record<string, [unknown, unknown]> = {};
+    if (before.icon !== next.icon) changes.icon = [before.icon, next.icon];
+    if (before.color !== next.color) changes.color = [before.color, next.color];
+    if (Object.keys(changes).length) {
+      await recordActivity(tx, actor, { entityType: kind, entityId: id, action: "updated", changes });
+    }
   });
 }

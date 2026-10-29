@@ -17,14 +17,17 @@ import {
   Users,
 } from "lucide-react";
 import { quickFindTasksAction } from "@/modules/tasks/actions";
+import type { ItemAppearance } from "@/lib/appearance";
 import { cn } from "@/lib/utils";
+import { ItemIcon } from "./item-icon";
 
-interface PaletteProject {
+interface PaletteProject extends ItemAppearance {
   key: string;
   name: string;
-  folders: { name: string; lists: { id: string; name: string }[] }[];
-  rootLists: { id: string; name: string }[];
+  folders: { name: string; lists: PaletteList[] }[];
+  rootLists: PaletteList[];
 }
+type PaletteList = ItemAppearance & { id: string; name: string };
 
 type FoundTask = Awaited<ReturnType<typeof quickFindTasksAction>>[number];
 
@@ -210,8 +213,9 @@ export function CommandPalette({
                     onSelect={() => go(`${base}/p/${p.key}`)}
                     className={itemClass}
                   >
-                    <span className="text-accent-foreground w-9 shrink-0 font-mono text-[10px]">{p.key}</span>
-                    {p.name}
+                    <ItemIcon kind="project" appearance={p} name={p.name} />
+                    <span className="flex-1">{p.name}</span>
+                    <span className="text-muted-foreground font-mono text-[10px]">{p.key}</span>
                   </Command.Item>,
                   ...[...p.rootLists, ...p.folders.flatMap((f) => f.lists)].map((l) => (
                     <Command.Item
@@ -220,7 +224,7 @@ export function CommandPalette({
                       onSelect={() => go(`${base}/l/${l.id}`)}
                       className={itemClass}
                     >
-                      <ListTodo />
+                      <ItemIcon kind="list" appearance={l} name={l.name} />
                       <span className="text-muted-foreground">{p.name} ›</span> {l.name}
                     </Command.Item>
                   )),

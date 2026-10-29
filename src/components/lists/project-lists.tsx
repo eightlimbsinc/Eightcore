@@ -1,16 +1,17 @@
 import Link from "next/link";
-import { Folder, ListTodo } from "lucide-react";
+import type { ItemAppearance } from "@/lib/appearance";
+import { ItemIcon } from "@/components/app/item-icon";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DeleteFolderButton, NewFolderForm, NewListForm } from "./list-forms";
 
-interface ListRow {
+interface ListRow extends ItemAppearance {
   id: string;
   name: string;
   openTasks: number;
 }
 
 interface Tree {
-  folders: { id: string; name: string; lists: ListRow[] }[];
+  folders: (ItemAppearance & { id: string; name: string; lists: ListRow[] })[];
   rootLists: ListRow[];
   can: { manage: boolean };
 }
@@ -22,7 +23,7 @@ function ListLink({ workspaceSlug, list }: { workspaceSlug: string; list: ListRo
         href={`/w/${workspaceSlug}/l/${list.id}`}
         className="hover:bg-surface-muted flex items-center gap-2.5 rounded-md px-2 py-1.5"
       >
-        <ListTodo className="text-muted-foreground size-4" aria-hidden />
+        <ItemIcon kind="list" appearance={list} name={list.name} />
         <span className="flex-1 truncate font-medium">{list.name}</span>
         <span className="text-muted-foreground text-[12px] tabular-nums">{list.openTasks} open</span>
       </Link>
@@ -58,7 +59,7 @@ export function ProjectLists({
             {tree.folders.map((folder) => (
               <section key={folder.id} className="grid gap-1">
                 <div className="flex items-center gap-2 px-2">
-                  <Folder className="text-accent size-4" aria-hidden />
+                  <ItemIcon kind="folder" appearance={folder} name={folder.name} />
                   <h3 className="flex-1 text-[13px] font-semibold">{folder.name}</h3>
                   {tree.can.manage ? (
                     <DeleteFolderButton

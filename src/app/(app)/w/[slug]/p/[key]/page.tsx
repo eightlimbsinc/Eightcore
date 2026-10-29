@@ -4,6 +4,7 @@ import { Lock, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getProjectPage } from "@/modules/projects/queries";
 import { PageHeader } from "@/components/app/page-header";
+import { AppearancePicker } from "@/components/app/appearance-picker";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArchiveProjectButton, ProjectDetailsForm, ProjectMembers } from "@/components/app/project-settings";
@@ -21,7 +22,16 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
       <PageHeader
         eyebrow={<span className="text-accent-foreground font-mono tracking-wide">{project.key}</span>}
         title={
-          <span className="flex items-center gap-2">
+          <span className="flex items-center gap-2.5">
+            <AppearancePicker
+              workspaceSlug={slug}
+              kind="project"
+              id={project.id}
+              name={project.name}
+              appearance={project}
+              canEdit={project.can.update}
+              size="md"
+            />
             {project.name}
             {project.visibility === "private" ? (
               <Lock className="text-muted-foreground size-4" aria-label="Private" />

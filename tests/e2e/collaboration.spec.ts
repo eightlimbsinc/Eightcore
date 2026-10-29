@@ -357,3 +357,32 @@ test("bulk actions change and archive many tasks at once", async ({ page }) => {
   await expect(page.getByRole("link", { name: "Bulk two" })).toHaveCount(0);
   await expect(page.getByText("tasks selected")).toHaveCount(0);
 });
+
+test("projects, folders and lists get their own icon and colour", async ({ page }) => {
+  await signIn(page, owner);
+  await expect(page).toHaveURL(/\/w\//);
+  await page.goto(`/w/${workspaceSlug}`);
+  const projectsNav = page.getByRole("navigation", { name: "Projects" });
+  await projectsNav.getByRole("button", { name: "Expand Brand" }).click();
+
+  await projectsNav.getByRole("button", { name: "Change icon and colour of project Brand" }).click();
+  const picker = page.getByRole("dialog", { name: "Icon and colour for Brand" });
+  await picker.getByRole("radio", { name: "Blue" }).click();
+  await picker.getByRole("radio", { name: "Rocket" }).click();
+  await expect(picker.getByRole("radio", { name: "Rocket" })).toHaveAttribute("aria-checked", "true");
+  await page.keyboard.press("Escape");
+
+  await projectsNav.getByRole("button", { name: "Change icon and colour of list Design" }).click();
+  await page
+    .getByRole("dialog", { name: "Icon and colour for Design" })
+    .getByRole("radio", { name: "Palette" })
+    .click();
+  await page.keyboard.press("Escape");
+
+  // Saved: still chosen after a reload.
+  await page.reload();
+  await projectsNav.getByRole("button", { name: "Change icon and colour of project Brand" }).click();
+  await expect(picker.getByRole("radio", { name: "Rocket" })).toHaveAttribute("aria-checked", "true");
+  await expect(picker.getByRole("radio", { name: "Blue" })).toHaveAttribute("aria-checked", "true");
+  await page.keyboard.press("Escape");
+});

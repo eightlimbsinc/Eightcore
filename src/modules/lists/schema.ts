@@ -37,6 +37,9 @@ export const folders = pgTable(
       .references(() => workspaces.id, { onDelete: "cascade" }),
     projectId: uuid().notNull(),
     name: text().notNull(),
+    /** Sidebar icon and colour by name (see src/lib/appearance.ts); null = default. */
+    icon: text(),
+    color: text(),
     position: text().notNull(),
     createdBy: uuid()
       .notNull()
@@ -68,6 +71,9 @@ export const taskLists = pgTable(
     folderId: uuid(),
     name: text().notNull(),
     description: text().notNull().default(""),
+    /** Sidebar icon and colour by name (see src/lib/appearance.ts); null = default. */
+    icon: text(),
+    color: text(),
     position: text().notNull(),
     /** The list's saved view (group order, subtasks, closed tasks): everyone's default. */
     viewSettings: jsonb().$type<Record<string, unknown>>().notNull().default({}),

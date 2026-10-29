@@ -28,7 +28,9 @@ export const projects = pgTable(
     name: text().notNull(),
     key: text().notNull(),
     description: text().notNull().default(""),
+    /** Sidebar icon and colour by name (see src/lib/appearance.ts); null = default. */
     color: text(),
+    icon: text(),
     visibility: projectVisibility().notNull().default("workspace"),
     /** Next task number for KEY-number task IDs. Incremented under a row lock. */
     nextTaskNumber: integer().notNull().default(1),

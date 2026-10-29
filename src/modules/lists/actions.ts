@@ -14,11 +14,13 @@ import {
   moveStatus,
   renameFolder,
   saveListView,
+  setItemAppearance,
   setListArchived,
   setListViewProtected,
   updateList,
   updateStatus,
 } from "./service";
+import type { ItemAppearance, ItemKind } from "@/lib/appearance";
 import { statusInput } from "./validators";
 
 async function actorFor(workspaceSlug: string) {
@@ -198,6 +200,22 @@ export async function setListViewProtectedAction(
 ): Promise<ActionState> {
   return runAction(async () => {
     await setListViewProtected(await actorFor(workspaceSlug), listId, isProtected);
+    revalidatePath(`/w/${workspaceSlug}`, "layout");
+  });
+}
+
+/** Icon and colour picker in the sidebar (null resets to the default). */
+export async function setItemAppearanceAction(
+  workspaceSlug: string,
+  kind: ItemKind,
+  id: string,
+  appearance: ItemAppearance,
+): Promise<ActionState> {
+  return runAction(async () => {
+    await setItemAppearance(await actorFor(workspaceSlug), kind, id, {
+      icon: appearance.icon ?? null,
+      color: appearance.color ?? null,
+    });
     revalidatePath(`/w/${workspaceSlug}`, "layout");
   });
 }

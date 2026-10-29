@@ -31,6 +31,8 @@ const projectColumns = {
   key: projects.key,
   description: projects.description,
   visibility: projects.visibility,
+  icon: projects.icon,
+  color: projects.color,
   createdAt: projects.createdAt,
   archivedAt: projects.archivedAt,
 };
