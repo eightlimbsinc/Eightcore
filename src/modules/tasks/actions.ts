@@ -213,7 +213,12 @@ export async function bulkTaskAction(
   op: BulkOperation,
 ): Promise<ActionState> {
   return runAction(async () => {
-    const { done, skipped, reason } = await bulkUpdateTasks(await actorFor(workspaceSlug), listId, taskIds, op);
+    const { done, skipped, reason } = await bulkUpdateTasks(
+      await actorFor(workspaceSlug),
+      listId,
+      taskIds,
+      op,
+    );
     revalidatePath(`/w/${workspaceSlug}`, "layout");
     const tasksWord = (n: number) => `${n} ${n === 1 ? "task" : "tasks"}`;
     if (done === 0) return { ok: false, message: reason ?? "Nothing was changed" };

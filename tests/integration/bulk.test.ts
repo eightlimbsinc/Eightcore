@@ -22,10 +22,12 @@ describe("bulk task actions", () => {
     const { actors, users, list, statuses, a, b } = await setup();
     const done = statuses.at(-1)!;
     const ids = [a.id, b.id];
-    expect(await bulkUpdateTasks(actors.member, list.id, ids, { kind: "status", statusId: done.id })).toEqual({
-      done: 2,
-      skipped: 0,
-    });
+    expect(await bulkUpdateTasks(actors.member, list.id, ids, { kind: "status", statusId: done.id })).toEqual(
+      {
+        done: 2,
+        skipped: 0,
+      },
+    );
     await bulkUpdateTasks(actors.member, list.id, ids, { kind: "priority", priority: "high" });
     await bulkUpdateTasks(actors.member, list.id, ids, { kind: "dueDate", dueDate: "2026-11-02" });
     await bulkUpdateTasks(actors.member, list.id, ids, { kind: "assign", userId: users.member.id });
@@ -84,7 +86,10 @@ describe("bulk task actions", () => {
   it("refuses viewers, empty and oversized selections", async () => {
     const { actors, list, a } = await setup();
     // Guests can't see the (workspace-visible) project's tasks to change them.
-    const asGuest = await bulkUpdateTasks(actors.guest, list.id, [a.id], { kind: "priority", priority: "low" });
+    const asGuest = await bulkUpdateTasks(actors.guest, list.id, [a.id], {
+      kind: "priority",
+      priority: "low",
+    });
     expect(asGuest.done).toBe(0);
     await expect(bulkUpdateTasks(actors.owner, list.id, [], { kind: "archive" })).rejects.toBeInstanceOf(
       ValidationError,
