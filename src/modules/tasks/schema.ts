@@ -39,6 +39,8 @@ export const tasks = pgTable(
     /** Calendar dates (no time of day), so deadlines don't shift across time zones. */
     startDate: date({ mode: "string" }),
     dueDate: date({ mode: "string" }),
+    /** Planned effort ("Time estimate"), in minutes. */
+    timeEstimateMinutes: integer(),
     position: text().notNull(),
     /** Optimistic concurrency: every update must name the version it read. */
     version: integer().notNull().default(1),

@@ -426,7 +426,14 @@ export async function updateTask(
       const changes: Record<string, [unknown, unknown]> = {};
       const set: Partial<typeof tasks.$inferInsert> = {};
 
-      for (const field of ["title", "description", "priority", "startDate", "dueDate"] as const) {
+      for (const field of [
+        "title",
+        "description",
+        "priority",
+        "startDate",
+        "dueDate",
+        "timeEstimateMinutes",
+      ] as const) {
         const next = input[field];
         if (next !== undefined && next !== task[field]) {
           changes[field] = [task[field], next];

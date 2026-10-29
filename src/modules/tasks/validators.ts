@@ -30,6 +30,8 @@ export const updateTaskInput = z
     priority: z.enum(TASK_PRIORITIES).optional(),
     startDate: optionalDate.optional(),
     dueDate: optionalDate.optional(),
+    /** Planned effort in minutes; null clears it. */
+    timeEstimateMinutes: z.number().int().min(1).max(100_000).nullable().optional(),
   })
   .refine((v) => !v.startDate || !v.dueDate || v.startDate <= v.dueDate, {
     message: "The start date must be on or before the due date",

@@ -37,6 +37,7 @@ import { createComment, deleteComment } from "@/modules/comments/service";
 import { createTag } from "@/modules/tags/service";
 import { createField } from "@/modules/fields/service";
 import { deleteAttachment, uploadTaskAttachments } from "@/modules/attachments/service";
+import { addTimeEntry, deleteTimeEntry } from "@/modules/time/service";
 import { actorFor, createUser, createWorkspaceWithRoles } from "../support/factories";
 
 type Fixture = Awaited<ReturnType<typeof createWorkspaceWithRoles>> & {
@@ -146,6 +147,12 @@ const projectProbes: Record<ProjectAction, (actor: ActorContext, f: Fixture) => 
   "attachment.moderate": (actor, f) => deleteAttachment(actor, f.ownerFile.id),
   "custom_field.manage": (actor, f) =>
     createField(actor, f.privateProject.id, { name: "Budget", type: "number" }),
+  "time.track": (actor, f) => addTimeEntry(actor, f.ownerTask.id, { minutes: 30, date: "2026-10-01" }),
+  // Someone else's entry: only time.manage may delete it.
+  "time.manage": async (actor, f) => {
+    const entry = await addTimeEntry(f.actors.owner, f.ownerTask.id, { minutes: 15, date: "2026-10-01" });
+    await deleteTimeEntry(actor, entry.id);
+  },
 };
 
 describe("project actions through services", () => {

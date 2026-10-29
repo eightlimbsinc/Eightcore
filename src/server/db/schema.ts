@@ -11,3 +11,4 @@ export * from "@/modules/notifications/schema";
 export * from "@/modules/attachments/schema";
 export * from "@/modules/dependencies/schema";
 export * from "@/modules/fields/schema";
+export * from "@/modules/time/schema";

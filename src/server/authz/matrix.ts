@@ -57,6 +57,10 @@ export const PROJECT_ACTIONS = {
   "attachment.moderate": ["manager"],
   /** Create, rename and delete custom fields and their dropdown options (setting values is task.update). */
   "custom_field.manage": ["manager"],
+  /** Track time on tasks (timer or manual entries); edit or delete your own entries. */
+  "time.track": ["manager", "editor"],
+  /** Edit or delete anyone's time entries. */
+  "time.manage": ["manager"],
 } as const satisfies Record<string, readonly ProjectRole[]>;
 export type ProjectAction = keyof typeof PROJECT_ACTIONS;
 
