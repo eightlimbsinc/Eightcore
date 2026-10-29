@@ -33,6 +33,7 @@ export default async function BoardPage({
         savedFilter={data.savedFilter}
         filtering={data.filtering}
         can={can}
+        statuses={data.statuses}
         people={data.people.map((p) => ({ userId: p.userId, name: p.name }))}
         tagNames={[...new Set(tasks.flatMap((t) => t.tags.map((g) => g.name)))].sort()}
       />

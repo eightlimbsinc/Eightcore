@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { AppearancePicker } from "@/components/app/appearance-picker";
 import { Button } from "@/components/ui/button";
 import { FilterBar } from "@/components/tasks/filter-bar";
+import { AddTaskButton } from "@/components/tasks/add-task-button";
 import { ViewMenu } from "@/components/lists/view-menu";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +24,7 @@ export function ListHeader({
   savedFilter,
   filtering,
   can,
+  statuses,
   people,
   tagNames,
 }: {
@@ -37,7 +39,9 @@ export function ListHeader({
   filter: TaskFilter;
   savedFilter: TaskFilter;
   filtering: boolean;
-  can: { manage: boolean; saveView: boolean; protectView: boolean };
+  can: { manage: boolean; saveView: boolean; protectView: boolean; createTask: boolean };
+  /** For "Add task". */
+  statuses: { id: string; name: string }[];
   people: { userId: string; name: string }[];
   tagNames: string[];
 }) {
@@ -126,14 +130,21 @@ export function ListHeader({
             </Link>
           ))}
         </nav>
-        <FilterBar
-          path={layout === "list" ? listPath : `${listPath}/${layout}`}
-          filter={filter}
-          defaults={savedFilter}
-          extraQuery={viewQuery(view, savedView).replace(/^\?/, "")}
-          people={people}
-          tags={tagNames}
-        />
+        <div className="flex flex-wrap items-start gap-2">
+          <div className="min-w-0 flex-1">
+            <FilterBar
+              path={layout === "list" ? listPath : `${listPath}/${layout}`}
+              filter={filter}
+              defaults={savedFilter}
+              extraQuery={viewQuery(view, savedView).replace(/^\?/, "")}
+              people={people}
+              tags={tagNames}
+            />
+          </div>
+          {can.createTask ? (
+            <AddTaskButton workspaceSlug={slug} listId={list.id} listName={list.name} statuses={statuses} />
+          ) : null}
+        </div>
       </div>
     </>
   );

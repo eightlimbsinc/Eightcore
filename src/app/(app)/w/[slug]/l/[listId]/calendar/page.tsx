@@ -72,6 +72,7 @@ export default async function CalendarPage({
         savedFilter={data.savedFilter}
         filtering={data.filtering}
         can={can}
+        statuses={statuses}
         people={data.people.map((p) => ({ userId: p.userId, name: p.name }))}
         tagNames={[...new Set(tasks.flatMap((t) => t.tags.map((g) => g.name)))].sort()}
       />

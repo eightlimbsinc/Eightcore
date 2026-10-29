@@ -41,8 +41,9 @@ test("owner sets up a task and invites a teammate", async ({ page }) => {
   await page.getByRole("button", { name: "Create project" }).click();
   await page.getByLabel("List name").fill("Design");
   await page.getByRole("button", { name: "Create list" }).click();
+  await page.getByRole("button", { name: "Add task", exact: true }).click();
   await page.getByLabel("New task title").fill("New logo");
-  await page.getByRole("button", { name: "Add task" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Add task", exact: true }).click();
   await expect(page.getByText("Created BRD-1")).toBeVisible();
 
   await page.getByRole("link", { name: "Members" }).click();
@@ -335,6 +336,7 @@ test("bulk actions change and archive many tasks at once", async ({ page }) => {
   await projectsNav.getByRole("button", { name: "Expand Brand" }).click();
   await projectsNav.getByRole("link", { name: "Design" }).click();
   for (const title of ["Bulk one", "Bulk two", "Bulk three"]) {
+    await page.getByRole("button", { name: "Add task", exact: true }).click();
     await page.getByLabel("New task title").fill(title);
     await page.getByLabel("New task title").press("Enter");
     await expect(page.getByRole("link", { name: title })).toBeVisible();

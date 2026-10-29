@@ -4,7 +4,6 @@ import { ListChecks } from "lucide-react";
 import { getListView } from "@/modules/lists/queries";
 import { canProject } from "@/server/authz/policy";
 import { ListHeader } from "@/components/lists/list-header";
-import { NewTaskForm } from "@/components/tasks/new-task-form";
 import { QuickAddTask } from "@/components/tasks/quick-add-task";
 import { StatusMenu } from "@/components/tasks/status-menu";
 import { AssigneePicker } from "@/components/tasks/assignee-picker";
@@ -170,18 +169,19 @@ export default async function ListPage({
         savedFilter={savedFilter}
         filtering={filtering}
         can={can}
+        statuses={statuses}
         people={people.map((p) => ({ userId: p.userId, name: p.name }))}
         tagNames={[...new Set(tasks.flatMap((t) => t.tags.map((g) => g.name)))].sort()}
       />
       <div className="grid gap-6 px-8 py-6">
-        {can.createTask ? <NewTaskForm workspaceSlug={slug} listId={list.id} statuses={statuses} /> : null}
-
         {tasks.length === 0 ? (
           <div className="grid place-items-center rounded-lg border border-dashed px-6 py-12 text-center">
             <ListChecks className="text-accent mb-3 size-8" aria-hidden />
             <h2 className="font-semibold">No tasks yet</h2>
             <p className="text-muted-foreground mt-1">
-              {can.createTask ? "Add the first task above." : "Tasks added to this list will appear here."}
+              {can.createTask
+                ? "Use “Add task” above to create the first one."
+                : "Tasks added to this list will appear here."}
             </p>
           </div>
         ) : topLevel.length === 0 ? (

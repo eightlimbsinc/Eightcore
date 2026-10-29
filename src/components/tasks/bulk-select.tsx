@@ -1,5 +1,6 @@
 "use client";
 import { createContext, useContext, useEffect, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Popover } from "radix-ui";
 import { Archive, CalendarPlus, Check, CircleDot, Flag, Trash2, UserMinus, UserPlus, X } from "lucide-react";
 import { bulkTaskAction } from "@/modules/tasks/actions";
@@ -23,6 +24,10 @@ interface Selection {
   toggle: (id: string, range: boolean) => void;
   setMany: (ids: string[], on: boolean) => void;
 }
+
+/** Tasks per request: archive/delete run as one query per batch, edits task by task. */
+const CHUNK_REMOVE = 100;
+const CHUNK_EDIT = 10;
 
 const SelectionContext = createContext<Selection | null>(null);
 
@@ -98,6 +103,7 @@ export function BulkSelection({
   const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [pending, startTransition] = useTransition();
+  const router = useRouter();
   const anchor = useRef<string | null>(null);
   const root = useRef<HTMLDivElement>(null);
 
@@ -147,10 +153,47 @@ export function BulkSelection({
   const run = (op: BulkOperation, confirmText?: string) => {
     if (confirmText && !confirm(confirmText)) return;
     const ids = [...selected];
+    const removing = op.kind === "archive" || op.kind === "delete";
+    // Archive and delete are one quick query per batch; field edits go task by task on the
+    // server, so they are sent in small batches (each request stays well inside time limits).
+    const size = removing ? CHUNK_REMOVE : CHUNK_EDIT;
+    const verb = { archive: "Archiving", delete: "Deleting" }[op.kind as string] ?? "Updating";
     startTransition(async () => {
-      const result = await bulkTaskAction(workspaceSlug, listId, ids, op);
-      setMessage(result ? { ok: result.ok, text: result.message ?? "Done" } : null);
-      if (result?.ok && (op.kind === "archive" || op.kind === "delete")) clear();
+      let done = 0;
+      let skipped = 0;
+      let reason: string | undefined;
+      try {
+        for (let i = 0; i < ids.length; i += size) {
+          if (ids.length > size)
+            setMessage({ ok: true, text: `${verb}… ${Math.min(i, ids.length)} of ${ids.length}` });
+          const result = await bulkTaskAction(workspaceSlug, listId, ids.slice(i, i + size), op);
+          if (result.ok) {
+            done += result.done;
+            skipped += result.skipped;
+            reason ??= result.reason;
+          } else {
+            skipped += Math.min(size, ids.length - i);
+            reason ??= result.message;
+          }
+        }
+      } catch {
+        // Lost connection or a server timeout: show what is actually saved.
+        setMessage({ ok: false, text: "Couldn't finish. The list has been refreshed to show what changed." });
+        clear();
+        router.refresh();
+        return;
+      }
+      const past = { archive: "Archived", delete: "Deleted" }[op.kind as string] ?? "Updated";
+      const word = (n: number) => `${n} ${n === 1 ? "task" : "tasks"}`;
+      setMessage(
+        done === 0
+          ? { ok: false, text: reason ?? "Nothing was changed" }
+          : {
+              ok: true,
+              text: `${past} ${word(done)}${skipped ? `. Skipped ${word(skipped)}: ${reason}` : ""}`,
+            },
+      );
+      if (done > 0 && removing) clear();
     });
   };
 
