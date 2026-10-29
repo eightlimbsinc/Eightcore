@@ -1,11 +1,29 @@
 "use client";
-import { useActionState, useState, useTransition } from "react";
-import { Trash2, X } from "lucide-react";
+import { useActionState, useId, useState, useTransition } from "react";
+import { ChevronDown, ChevronUp, GripVertical, Trash2, X } from "lucide-react";
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import {
   addFieldOptionAction,
   createFieldAction,
   deleteFieldAction,
   deleteFieldOptionAction,
+  moveFieldAction,
   renameFieldAction,
 } from "@/modules/fields/actions";
 import { FIELD_TYPES, FIELD_TYPE_LABELS, type FieldType } from "@/modules/fields/validators";
@@ -14,6 +32,7 @@ import { Input, NativeSelect, Textarea } from "@/components/ui/input";
 import { Field } from "@/components/ui/label";
 import { Alert } from "@/components/ui/alert";
 import { TagChip } from "@/components/tasks/task-bits";
+import { cn } from "@/lib/utils";
 
 interface ManagedField {
   id: string;
@@ -98,17 +117,156 @@ export function NewFieldForm({
   );
 }
 
+/**
+ * The project's fields in order. Reorder by dragging the handle (or focus it, Space, arrows,
+ * Space), or with the up/down arrows. The order is used on every task.
+ */
 export function FieldList({ workspaceSlug, fields }: { workspaceSlug: string; fields: ManagedField[] }) {
+  const dndId = useId();
+  const [order, setOrder] = useState(fields.map((f) => f.id));
+  const [seen, setSeen] = useState(fields);
+  if (seen !== fields) {
+    // Fresh data from the server.
+    setSeen(fields);
+    setOrder(fields.map((f) => f.id));
+  }
+  const [error, setError] = useState<string | null>(null);
+  const [, startTransition] = useTransition();
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
   if (!fields.length)
     return <p className="text-muted-foreground">No custom fields yet. Create one on the right.</p>;
+  const byId = new Map(fields.map((f) => [f.id, f]));
+  const nameOf = (id: string | number) => byId.get(String(id))?.name ?? "field";
+
+  const move = (id: string, to: number) => {
+    const from = order.indexOf(id);
+    if (from === -1 || to < 0 || to >= order.length || to === from) return;
+    const next = arrayMove(order, from, to);
+    setOrder(next);
+    setError(null);
+    startTransition(async () => {
+      const result = await moveFieldAction(workspaceSlug, id, next[to - 1] ?? null, next[to + 1] ?? null);
+      if (result && !result.ok) {
+        setError(result.message);
+        setOrder(fields.map((f) => f.id));
+      }
+    });
+  };
+  const onDragEnd = ({ active, over }: DragEndEvent) => {
+    if (over && active.id !== over.id) move(String(active.id), order.indexOf(String(over.id)));
+  };
+
   return (
-    <ul className="divide-y rounded-md border">
-      {fields.map((f) => (
-        <li key={f.id}>
-          <FieldRow workspaceSlug={workspaceSlug} field={f} />
-        </li>
-      ))}
-    </ul>
+    <div className="grid gap-2">
+      {error ? (
+        <p role="alert" className="text-destructive text-[13px]">
+          {error}
+        </p>
+      ) : null}
+      <DndContext
+        id={dndId}
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={onDragEnd}
+        accessibility={{
+          announcements: {
+            onDragStart: ({ active }) =>
+              `Picked up ${nameOf(active.id)}. Use the arrow keys to move it, Space to drop.`,
+            onDragOver: ({ active, over }) =>
+              over ? `${nameOf(active.id)} is at position ${order.indexOf(String(over.id)) + 1}.` : "",
+            onDragEnd: ({ active, over }) =>
+              over ? `${nameOf(active.id)} dropped at position ${order.indexOf(String(over.id)) + 1}.` : "",
+            onDragCancel: ({ active }) => `Moving ${nameOf(active.id)} was cancelled.`,
+          },
+        }}
+      >
+        <SortableContext items={order} strategy={verticalListSortingStrategy}>
+          <ul className="divide-y rounded-md border" aria-label="Fields in order">
+            {order.map((id, i) => {
+              const f = byId.get(id);
+              return f ? (
+                <SortableField
+                  key={id}
+                  workspaceSlug={workspaceSlug}
+                  field={f}
+                  first={i === 0}
+                  last={i === order.length - 1}
+                  onUp={() => move(id, i - 1)}
+                  onDown={() => move(id, i + 1)}
+                />
+              ) : null;
+            })}
+          </ul>
+        </SortableContext>
+      </DndContext>
+    </div>
+  );
+}
+
+function SortableField({
+  workspaceSlug,
+  field,
+  first,
+  last,
+  onUp,
+  onDown,
+}: {
+  workspaceSlug: string;
+  field: ManagedField;
+  first: boolean;
+  last: boolean;
+  onUp: () => void;
+  onDown: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
+    useSortable({ id: field.id });
+  const arrow =
+    "text-muted-foreground hover:text-foreground hover:bg-surface-muted grid size-6 place-items-center rounded-sm disabled:opacity-30";
+  return (
+    <li
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={cn("bg-surface flex items-start gap-1 pl-1.5", isDragging && "relative z-10 shadow-lg")}
+    >
+      <div className="flex shrink-0 flex-col items-center pt-3">
+        <button
+          type="button"
+          ref={setActivatorNodeRef}
+          {...attributes}
+          {...listeners}
+          aria-label={`Drag to reorder ${field.name}`}
+          className="text-muted-foreground hover:text-foreground grid size-6 cursor-grab place-items-center rounded-sm active:cursor-grabbing"
+        >
+          <GripVertical className="size-4" />
+        </button>
+      </div>
+      <div className="flex shrink-0 flex-col pt-1.5">
+        <button
+          type="button"
+          onClick={onUp}
+          disabled={first}
+          aria-label={`Move ${field.name} up`}
+          className={arrow}
+        >
+          <ChevronUp className="size-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={onDown}
+          disabled={last}
+          aria-label={`Move ${field.name} down`}
+          className={arrow}
+        >
+          <ChevronDown className="size-3.5" />
+        </button>
+      </div>
+      <div className="min-w-0 flex-1">
+        <FieldRow workspaceSlug={workspaceSlug} field={field} />
+      </div>
+    </li>
   );
 }
 

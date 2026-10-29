@@ -19,6 +19,7 @@ import {
   fieldValuesForTasks,
   getTaskFields,
   listProjectFields,
+  moveField,
   setTaskFieldValues,
 } from "@/modules/fields/service";
 import { parseFieldValue } from "@/modules/fields/validators";
@@ -266,5 +267,40 @@ describe("custom fields", () => {
         [workspace.id, project.id, a.id, foreign.id],
       ),
     ).rejects.toMatchObject({ constraint: "task_field_values_field_fk" });
+  });
+});
+
+describe("field order", () => {
+  it("moves fields up and down, and the order shows on tasks", async () => {
+    const { actors, project, a } = await setup();
+    const budget = await createField(actors.owner, project.id, { name: "Budget", type: "number" });
+    const client = await createField(actors.owner, project.id, { name: "Client", type: "text" });
+    const channel = await createField(actors.owner, project.id, { name: "Channel", type: "text" });
+    const names = async () => (await listProjectFields(actors.owner, project.id)).fields.map((f) => f.name);
+    expect(await names()).toEqual(["Budget", "Client", "Channel"]);
+    // Channel to the top, then Budget to the bottom.
+    await moveField(actors.owner, channel.id, { afterFieldId: null, beforeFieldId: budget.id });
+    expect(await names()).toEqual(["Channel", "Budget", "Client"]);
+    await moveField(actors.owner, budget.id, { afterFieldId: client.id, beforeFieldId: null });
+    expect(await names()).toEqual(["Channel", "Client", "Budget"]);
+    expect((await getTaskFields(actors.owner, a.id)).fields.map((f) => f.name)).toEqual([
+      "Channel",
+      "Client",
+      "Budget",
+    ]);
+  });
+
+  it("refuses non-managers and fields from another project", async () => {
+    const { actors, project } = await setup();
+    const one = await createField(actors.owner, project.id, { name: "One", type: "text" });
+    const two = await createField(actors.owner, project.id, { name: "Two", type: "text" });
+    await expect(
+      moveField(actors.member, two.id, { afterFieldId: null, beforeFieldId: one.id }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    const other = await createProject(actors.owner, { name: "Other", key: "OTH" });
+    const foreign = await createField(actors.owner, other.id, { name: "Foreign", type: "text" });
+    await expect(
+      moveField(actors.owner, two.id, { afterFieldId: null, beforeFieldId: foreign.id }),
+    ).rejects.toBeInstanceOf(NotFoundError);
   });
 });

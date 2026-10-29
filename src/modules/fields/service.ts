@@ -178,6 +178,39 @@ export async function renameField(actor: ActorContext, fieldId: string, raw: { n
   }
 }
 
+/**
+ * Moves a field between two others of the same project (ids of the fields that end up
+ * just above and just below it; null at either end). Order shows on the settings page and tasks.
+ */
+export async function moveField(
+  actor: ActorContext,
+  fieldId: string,
+  move: { afterFieldId: string | null; beforeFieldId: string | null },
+) {
+  for (const id of [move.afterFieldId, move.beforeFieldId]) if (id) assertId(id, "Field not found");
+  await db().transaction(async (tx) => {
+    const { field, role } = await loadFieldAccess(tx, actor, fieldId);
+    assertManage(role);
+    const ids = [move.afterFieldId, move.beforeFieldId].filter((id): id is string => Boolean(id));
+    const neighbours = ids.length
+      ? await tx
+          .select({ id: customFields.id, position: customFields.position })
+          .from(customFields)
+          .where(and(inArray(customFields.id, ids), eq(customFields.projectId, field.projectId)))
+      : [];
+    if (neighbours.length !== ids.length) throw new NotFoundError("Field not found in this project");
+    const after = neighbours.find((n) => n.id === move.afterFieldId)?.position ?? null;
+    const before = neighbours.find((n) => n.id === move.beforeFieldId)?.position ?? null;
+    if (after !== null && before !== null && after >= before) {
+      throw new ValidationError("The fields changed meanwhile. Reload and try again.");
+    }
+    await tx
+      .update(customFields)
+      .set({ position: generateKeyBetween(after, before) })
+      .where(eq(customFields.id, fieldId));
+  });
+}
+
 /** Deletes a field and every value stored in it. */
 export async function deleteField(actor: ActorContext, fieldId: string) {
   await db().transaction(async (tx) => {

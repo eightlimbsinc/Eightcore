@@ -11,6 +11,7 @@ import {
   deleteFieldOption,
   renameField,
   setTaskFieldValues,
+  moveField,
 } from "./service";
 import { FIELD_TYPES, splitOptions, type FieldType } from "./validators";
 
@@ -91,5 +92,18 @@ export async function saveTaskFieldsAction(
     await setTaskFieldValues(await actorFor(workspaceSlug), taskId, values);
     revalidatePath(`/w/${workspaceSlug}`, "layout");
     return { ok: true, message: "Fields saved" };
+  });
+}
+
+/** Reorder from the settings page (drag and drop or the up/down arrows). */
+export async function moveFieldAction(
+  workspaceSlug: string,
+  fieldId: string,
+  afterFieldId: string | null,
+  beforeFieldId: string | null,
+): Promise<ActionState> {
+  return runAction(async () => {
+    await moveField(await actorFor(workspaceSlug), fieldId, { afterFieldId, beforeFieldId });
+    revalidatePath(`/w/${workspaceSlug}`, "layout");
   });
 }

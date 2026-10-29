@@ -144,6 +144,17 @@ test("an owner organises work into lists and tasks", async ({ page }) => {
   await page.getByRole("button", { name: "Create field" }).click();
   await expect(page.getByText("Created “Channel”")).toBeVisible();
   await expect(page.getByRole("list", { name: "Options of Channel" })).toContainText("Email");
+  // A second field, moved above the first with the arrow buttons.
+  await page.getByPlaceholder("e.g. Budget").fill("Budget");
+  await page.getByLabel("Type", { exact: true }).selectOption({ label: "Number" });
+  await page.getByRole("button", { name: "Create field" }).click();
+  await expect(page.getByText("Created “Budget”")).toBeVisible();
+  const fieldOrder = page.getByRole("list", { name: "Fields in order" }).locator(":scope > li");
+  await expect(fieldOrder.first().getByLabel("Field name")).toHaveValue("Channel");
+  await page.getByRole("button", { name: "Move Budget up" }).click();
+  await expect(fieldOrder.first().getByLabel("Field name")).toHaveValue("Budget");
+  await page.reload();
+  await expect(fieldOrder.first().getByLabel("Field name")).toHaveValue("Budget");
 
   await page.goto(page.url().replace(/\/p\/WEB\/fields$/, "/t/WEB-1"));
   await page.getByLabel("Channel", { exact: true }).selectOption({ label: "Social" });
