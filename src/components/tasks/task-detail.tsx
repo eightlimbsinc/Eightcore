@@ -1,9 +1,20 @@
 import Link from "next/link";
-import { ChevronRight, CircleDot, CornerLeftUp, Eye, Paperclip, Tag, UserRound } from "lucide-react";
+import {
+  ChevronRight,
+  CircleDot,
+  CornerLeftUp,
+  Eye,
+  Paperclip,
+  Tag,
+  UserRound,
+  Hourglass,
+  Timer,
+} from "lucide-react";
 import { getTaskPage } from "@/modules/tasks/queries";
 import { describeActivity } from "@/lib/task-format";
 import { cn } from "@/lib/utils";
 import { TaskSidePanel } from "@/components/tasks/task-side-panel";
+import { TaskTime, TimeEstimate } from "@/components/time/task-time";
 import { NewTaskForm } from "@/components/tasks/new-task-form";
 import { ArchiveTaskButton, TaskForm, TaskTitleInput } from "@/components/tasks/task-forms";
 import { AssigneePicker } from "@/components/tasks/assignee-picker";
@@ -58,6 +69,7 @@ export async function TaskDetail({
     tags,
     dependencies,
     fields,
+    time,
   } = await getTaskPage(slug, reference);
   const fieldsHref = fields.canManage ? `/w/${slug}/p/${project.key}/fields` : null;
   const mentionable = assignable.map((a) => ({ userId: a.userId, name: a.name }));
@@ -170,6 +182,42 @@ export async function TaskDetail({
                   taskTagIds={tags.map((t) => t.id)}
                   canEdit={can.update}
                   canManage={can.manageTags}
+                />
+              </dd>
+              <dt className="text-muted-foreground flex items-center gap-2 pt-1.5">
+                <Timer className="size-4" aria-hidden /> Time tracked
+              </dt>
+              <dd>
+                <TaskTime
+                  workspaceSlug={slug}
+                  taskId={task.id}
+                  entries={time.entries.map((e) => ({
+                    id: e.id,
+                    userId: e.userId,
+                    userName: e.userName,
+                    startedAt: e.startedAt.toISOString(),
+                    seconds: e.seconds,
+                    running: e.running,
+                    note: e.note,
+                    source: e.source,
+                    canEdit: e.canEdit,
+                  }))}
+                  totalSeconds={time.totalSeconds}
+                  myRunningSince={time.myRunning ? time.myRunning.startedAt.toISOString() : null}
+                  canTrack={time.can.track}
+                />
+              </dd>
+              <dt className="text-muted-foreground flex items-center gap-2 pt-1.5">
+                <Hourglass className="size-4" aria-hidden /> Time estimate
+              </dt>
+              <dd>
+                <TimeEstimate
+                  workspaceSlug={slug}
+                  taskId={task.id}
+                  version={task.version}
+                  estimateMinutes={time.estimateMinutes}
+                  trackedSeconds={time.totalSeconds}
+                  canEdit={can.update}
                 />
               </dd>
               <dt className="text-muted-foreground flex items-center gap-2 pt-1.5">

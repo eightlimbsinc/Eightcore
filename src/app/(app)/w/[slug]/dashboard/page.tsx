@@ -5,6 +5,7 @@ import { getDashboardPage } from "@/modules/workspaces/queries";
 import { PRIORITY_META, formatDate } from "@/lib/task-format";
 import { PageHeader } from "@/components/app/page-header";
 import { BarList, ChartCard, ColumnChart, StatTile } from "@/components/dashboard/charts";
+import { formatMinutes } from "@/lib/time-format";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Dashboard" };
@@ -24,7 +25,7 @@ export default async function DashboardPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { slug } = await params;
-  const { project, projects, totals, stages, workload, completedByWeek, priorities, topTags } =
+  const { project, projects, totals, stages, workload, timeThisWeek, completedByWeek, priorities, topTags } =
     await getDashboardPage(slug, await searchParams);
   /** Link to the matching tasks (in the focused project, if any). */
   const tasks = (query: Record<string, string> = {}) => {
@@ -134,6 +135,25 @@ export default async function DashboardPage({
                     ]
                   : []),
               ]}
+            />
+          </ChartCard>
+
+          <ChartCard
+            title="Time tracked this week"
+            description="Timer and manual entries since Monday (a running timer counts so far)."
+            table={{
+              headers: ["Person", "Time"],
+              rows: timeThisWeek.map((t) => [t.name, formatMinutes(t.seconds / 60)]),
+            }}
+          >
+            <BarList
+              empty="No time tracked this week."
+              rows={timeThisWeek.map((t) => ({
+                label: t.name,
+                value: Math.round(t.seconds / 60),
+                display: formatMinutes(t.seconds / 60),
+                href: tasks({ assignee: t.userId }),
+              }))}
             />
           </ChartCard>
 

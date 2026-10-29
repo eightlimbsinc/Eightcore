@@ -1,4 +1,5 @@
 // Pure display helpers for tasks (shared by server and client components).
+import { formatMinutes } from "./time-format";
 
 export const PRIORITY_META = {
   urgent: { label: "Urgent", tone: "text-[#EF4444]" },
@@ -48,12 +49,14 @@ const FIELD_LABELS: Record<string, string> = {
   priority: "priority",
   startDate: "start date",
   dueDate: "due date",
+  timeEstimateMinutes: "time estimate",
 };
 
 function show(field: string, value: unknown): string {
   if (value === null || value === undefined || value === "") return "none";
   if (field === "priority") return PRIORITY_META[value as Priority]?.label ?? String(value);
   if (field === "startDate" || field === "dueDate") return formatDate(String(value));
+  if (field === "timeEstimateMinutes") return formatMinutes(Number(value));
   return String(value);
 }
 
@@ -121,6 +124,14 @@ export function describeActivity(
     }
     case "attachment_removed":
       return [`removed the file “${String(event.metadata.name ?? "")}”`];
+    case "time_logged": {
+      const minutes = Number(event.metadata.minutes ?? 0);
+      return [
+        `tracked ${formatMinutes(minutes)}${event.metadata.source === "timer" ? " with the timer" : ""}`,
+      ];
+    }
+    case "time_removed":
+      return [`removed ${formatMinutes(Number(event.metadata.minutes ?? 0))} of tracked time`];
     default:
       return [event.action.replace(/_/g, " ")];
   }

@@ -1,4 +1,5 @@
 import "server-only";
+import { timeTotalsForTasks } from "@/modules/time/service";
 import { effectiveView } from "./view-settings";
 import { isClosedCategory, isHiddenCategory } from "./templates";
 import { isFiltering, matchesFilter, readFilter } from "@/modules/tasks/filters";
@@ -20,11 +21,12 @@ export async function getListPage(slug: string, listId: string) {
     if (detail.list.archivedAt) notFound();
     // listTasks has checked access to this list, so its task ids are safe to look up.
     const ids = tasks.map((t) => t.id);
-    const [tags, blockers, fields, people] = await Promise.all([
+    const [tags, blockers, fields, people, time] = await Promise.all([
       tagsForTasks(db(), ids),
       openBlockerCounts(db(), actor, ids),
       fieldValuesForTasks(db(), ids),
       listAssignableMembers(actor, detail.list.projectId),
+      timeTotalsForTasks(db(), ids),
     ]);
     return {
       user,
@@ -36,6 +38,7 @@ export async function getListPage(slug: string, listId: string) {
         tags: tags.get(t.id) ?? [],
         openBlockers: blockers.get(t.id) ?? 0,
         fields: fields.get(t.id) ?? [],
+        trackedSeconds: time.get(t.id) ?? 0,
       })),
     };
   } catch (error) {

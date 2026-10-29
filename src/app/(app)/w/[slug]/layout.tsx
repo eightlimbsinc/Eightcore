@@ -8,6 +8,7 @@ import { NavLink, ProjectTree } from "@/components/app/sidebar-nav";
 import { LogoMark } from "@/components/brand/logo";
 import { TimeZoneCookie } from "@/components/app/time-zone-cookie";
 import { CommandPalette, OpenPaletteButton } from "@/components/app/command-palette";
+import { RunningTimer } from "@/components/time/running-timer";
 
 export default async function WorkspaceLayout({
   children,
@@ -20,7 +21,8 @@ export default async function WorkspaceLayout({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const { user, actor, workspace, workspaces, projects, unread, can } = await getWorkspaceShell(slug);
+  const { user, actor, workspace, workspaces, projects, unread, runningTimer, can } =
+    await getWorkspaceShell(slug);
   const base = `/w/${workspace.slug}`;
   return (
     <div className="flex min-h-dvh">
@@ -37,6 +39,18 @@ export default async function WorkspaceLayout({
         <div className="px-2 pb-1">
           <OpenPaletteButton />
         </div>
+        <RunningTimer
+          workspaceSlug={workspace.slug}
+          timer={
+            runningTimer
+              ? {
+                  ref: runningTimer.ref,
+                  title: runningTimer.title,
+                  startedAt: runningTimer.startedAt.toISOString(),
+                }
+              : null
+          }
+        />
         <nav className="grid gap-0.5 px-2 pt-1">
           <NavLink href={base} exact>
             <Home /> Home

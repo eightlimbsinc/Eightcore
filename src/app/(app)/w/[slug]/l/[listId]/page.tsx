@@ -10,6 +10,7 @@ import { AssigneePicker } from "@/components/tasks/assignee-picker";
 import { ExpandableTask } from "@/components/tasks/expandable-task";
 import { DueDatePicker, PriorityPicker } from "@/components/tasks/row-pickers";
 import { StatusGroup } from "@/components/tasks/status-group";
+import { formatMinutes } from "@/lib/time-format";
 import { ListKeyboard } from "@/components/tasks/list-keyboard";
 import { BulkSelection, GroupCheckbox, RowCheckbox } from "@/components/tasks/bulk-select";
 import { BlockedBadge, FieldChips, TagList } from "@/components/tasks/task-bits";
@@ -19,9 +20,9 @@ export const metadata: Metadata = { title: "List" };
 /** Tasks shown per status group before "Show all". */
 const GROUP_PAGE = 30;
 
-/** Columns: select, expand, status, name, ID, assignee, priority, due date. Below md select to name. */
+/** Columns: select, expand, status, name, ID, assignee, priority, due date, time tracked. Below md select to name. */
 const ROW_GRID =
-  "grid grid-cols-[0.875rem_1.25rem_1.75rem_minmax(0,1fr)] md:grid-cols-[0.875rem_1.25rem_1.75rem_minmax(0,1fr)_6.5rem_7rem_7rem_6.5rem]";
+  "grid grid-cols-[0.875rem_1.25rem_1.75rem_minmax(0,1fr)] md:grid-cols-[0.875rem_1.25rem_1.75rem_minmax(0,1fr)_6.5rem_7rem_7rem_6.5rem_5.5rem]";
 
 export default async function ListPage({
   params,
@@ -159,6 +160,14 @@ export default async function ListPage({
                 canEdit={can.updateTask}
               />
             </span>
+            <span
+              className="text-muted-foreground hidden text-[12px] tabular-nums md:block"
+              title={
+                task.trackedSeconds ? `${formatMinutes(task.trackedSeconds / 60)} tracked` : "No time tracked"
+              }
+            >
+              {task.trackedSeconds ? formatMinutes(task.trackedSeconds / 60) : "—"}
+            </span>
           </>
         }
       >
@@ -259,6 +268,9 @@ export default async function ListPage({
                             </span>
                             <span aria-hidden className="hidden md:block">
                               Due date
+                            </span>
+                            <span aria-hidden className="hidden md:block">
+                              Time tracked
                             </span>
                           </div>
                           <ul className="divide-y">{groupTasks.map((task) => renderTask(task, 0))}</ul>

@@ -88,6 +88,8 @@ Status: **implemented in Phase 2** for the workspace and project actions below (
 | `attachment.delete` | ✅ | ◐ | ◐ | ❌ |
 | `qa_cycle.conclude` | ✅ | ✅ | ❌ | ❌ |
 | `custom_field.manage` (project/list scope) | ✅ | ❌ | ❌ | ❌ |
+| `time.track` (timer and manual entries; edit or delete your own; set estimates is `task.update`) | ✅ | ✅ | ❌ | ❌ |
+| `time.manage` (edit or delete anyone's time entries) | ✅ | ❌ | ❌ | ❌ |
 | `automation.manage` (project scope) | ✅ | ❌ | ❌ | ❌ |
 | `saved_view.create_shared` | ✅ | ✅ | ❌ | ❌ |
 

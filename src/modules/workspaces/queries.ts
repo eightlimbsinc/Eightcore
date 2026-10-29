@@ -1,4 +1,5 @@
 import "server-only";
+import { getRunningTimer } from "@/modules/time/service";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { requireUser } from "@/server/auth/session";
@@ -37,11 +38,12 @@ export const getWorkspaceContext = cache(async (slug: string) => {
 /** Everything the workspace shell (sidebar, switcher) needs. */
 export const getWorkspaceShell = cache(async (slug: string) => {
   const { user, actor } = await getWorkspaceContext(slug);
-  const [workspace, workspaces, projects, unread] = await Promise.all([
+  const [workspace, workspaces, projects, unread, runningTimer] = await Promise.all([
     getWorkspace(actor),
     listWorkspacesForUser(user.id),
     listVisibleProjects(actor),
     countUnread(actor),
+    getRunningTimer(actor),
   ]);
   const tree = await getSidebarTree(
     actor,
@@ -59,6 +61,7 @@ export const getWorkspaceShell = cache(async (slug: string) => {
       canEditProject: canProject(p.role, "project.update"),
     })),
     unread,
+    runningTimer,
     can: {
       createProject: canWorkspace(actor.workspaceRole, "project.create"),
       viewMembers: canWorkspace(actor.workspaceRole, "member.view_directory"),

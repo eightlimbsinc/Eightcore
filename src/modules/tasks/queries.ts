@@ -8,6 +8,7 @@ import { listTaskAttachments } from "@/modules/attachments/service";
 import { listProjectTags, tagsForTasks } from "@/modules/tags/service";
 import { getTaskDependencies } from "@/modules/dependencies/service";
 import { getTaskFields } from "@/modules/fields/service";
+import { getTaskTime } from "@/modules/time/service";
 import { getTaskByRef } from "./service";
 
 export async function getTaskPage(slug: string, ref: string) {
@@ -15,13 +16,14 @@ export async function getTaskPage(slug: string, ref: string) {
   try {
     const detail = await getTaskByRef(actor, decodeURIComponent(ref));
     if (detail.task.archivedAt) notFound();
-    const [comments, attachments, projectTags, taskTags, dependencies, fields] = await Promise.all([
+    const [comments, attachments, projectTags, taskTags, dependencies, fields, time] = await Promise.all([
       listComments(actor, detail.task.id),
       listTaskAttachments(actor, detail.task.id),
       listProjectTags(actor, detail.project.id),
       tagsForTasks(db(), [detail.task.id]),
       getTaskDependencies(actor, detail.task.id),
       getTaskFields(actor, detail.task.id),
+      getTaskTime(actor, detail.task.id),
     ]);
     return {
       user,
@@ -34,6 +36,7 @@ export async function getTaskPage(slug: string, ref: string) {
       tags: taskTags.get(detail.task.id) ?? [],
       dependencies,
       fields,
+      time,
     };
   } catch (error) {
     if (error instanceof NotFoundError) notFound();

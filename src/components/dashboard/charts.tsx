@@ -55,7 +55,7 @@ export function ChartCard({
   description?: string;
   children: React.ReactNode;
   /** The same numbers as a table (for screen readers, print, exact values). */
-  table: { headers: [string, string]; rows: [string, number][] };
+  table: { headers: [string, string]; rows: [string, number | string][] };
 }) {
   return (
     <section className="bg-surface grid content-start gap-3 rounded-lg border p-4" aria-label={title}>
@@ -95,6 +95,8 @@ export interface BarRow {
   href: string;
   /** Extra text after the value, e.g. "2 high". */
   note?: string;
+  /** How to show the value (e.g. "3h 20m"); defaults to the number. */
+  display?: string;
 }
 
 /** Horizontal bars, one hue; the value sits at the end of each bar. */
@@ -102,6 +104,7 @@ export function BarList({ rows, empty }: { rows: BarRow[]; empty: string }) {
   const max = Math.max(1, ...rows.map((r) => r.value));
   // Reserve the note column on every row when any row has one, so the bars line up.
   const withNotes = rows.some((r) => r.note);
+  const wide = rows.some((r) => r.display);
   if (!rows.length || rows.every((r) => r.value === 0)) {
     return <p className="text-muted-foreground py-4 text-[13px]">{empty}</p>;
   }
@@ -111,7 +114,7 @@ export function BarList({ rows, empty }: { rows: BarRow[]; empty: string }) {
         <li key={r.label}>
           <Link
             href={r.href}
-            title={`${r.label}: ${r.value}${r.note ? ` (${r.note})` : ""}`}
+            title={`${r.label}: ${r.display ?? r.value}${r.note ? ` (${r.note})` : ""}`}
             className="hover:bg-surface-muted/60 grid grid-cols-[minmax(6rem,9rem)_1fr] items-center gap-3 rounded-md px-1 py-1"
           >
             <span className="truncate text-[13px]">{r.label}</span>
@@ -122,7 +125,11 @@ export function BarList({ rows, empty }: { rows: BarRow[]; empty: string }) {
                   style={{ width: `${(r.value / max) * 100}%`, minWidth: r.value ? "4px" : 0 }}
                 />
               </span>
-              <span className="w-8 shrink-0 text-right text-[13px] font-medium tabular-nums">{r.value}</span>
+              <span
+                className={`${wide ? "w-16" : "w-8"} shrink-0 text-right text-[13px] font-medium tabular-nums`}
+              >
+                {r.display ?? r.value}
+              </span>
               {withNotes ? (
                 <span className="text-muted-foreground w-16 shrink-0 text-[11px]">{r.note ?? ""}</span>
               ) : null}

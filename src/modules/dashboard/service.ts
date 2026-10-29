@@ -11,6 +11,7 @@ import {
   tasks,
   taskTags,
   users,
+  timeEntries,
 } from "@/server/db/schema";
 import type { ActorContext } from "@/server/authz/policy";
 import { assertId } from "@/server/errors";
@@ -77,7 +78,7 @@ export async function getDashboard(
   const count = sql<number>`count(*)::int`;
   const countIf = (cond: SQL) => sql<number>`(count(*) filter (where ${cond}))::int`;
 
-  const [totals, stages, workload, weeks, priorities, topTags] = await Promise.all([
+  const [totals, stages, workload, weeks, priorities, topTags, timeThisWeek] = await Promise.all([
     s
       .from(
         db().select({
@@ -142,6 +143,23 @@ export async function getDashboard(
       .groupBy(tags.name)
       .orderBy(desc(count), tags.name)
       .limit(8),
+    // Time tracked this week per person (on visible tasks; a running timer counts so far).
+    s
+      .from(
+        db().select({
+          userId: users.id,
+          name: users.name,
+          seconds: sql<number>`sum(case when ${timeEntries.endedAt} is null
+            then least(604800, extract(epoch from now() - ${timeEntries.startedAt}))
+            else ${timeEntries.durationSeconds} end)::int`,
+        }),
+      )
+      .innerJoin(timeEntries, eq(timeEntries.taskId, tasks.id))
+      .innerJoin(users, eq(users.id, timeEntries.userId))
+      .where(s.where(sql`${localDate(sql`${timeEntries.startedAt}`)} between ${monday} and ${sunday}`))
+      .groupBy(users.id, users.name)
+      .orderBy(desc(sql`3`), users.name)
+      .limit(15),
   ]);
 
   // The shared query helper loses Drizzle's column types, so name the shapes here.
@@ -161,6 +179,10 @@ export async function getDashboard(
       urgentOrHigh: number;
       overdue: number;
     }[],
+    timeThisWeek: (timeThisWeek as { userId: string; name: string; seconds: number }[]).map((r) => ({
+      ...r,
+      seconds: Number(r.seconds),
+    })),
     completedByWeek: Array.from({ length: WEEKS }, (_, i) => {
       const week = addDays(firstWeek, 7 * i);
       return { week, n: byWeek.get(week) ?? 0 };

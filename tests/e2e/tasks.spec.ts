@@ -78,6 +78,26 @@ test("an owner organises work into lists and tasks", async ({ page }) => {
   await page.getByRole("option", { name: /Me/ }).click();
   await expect(win.getByRole("button", { name: "Assignees: Tess Tasks" })).toBeVisible();
   await page.keyboard.press("Escape");
+  // Time tracking: the timer (also shown in the sidebar), time typed in, an estimate.
+  await win.getByRole("button", { name: "Start timer" }).click();
+  await expect(win.getByRole("button", { name: "Stop timer" })).toBeVisible();
+  await expect(page.locator('[aria-label="Timer running on WEB-1"]')).toBeVisible();
+  await win.getByRole("button", { name: "Stop timer" }).click();
+  await expect(page.locator('[aria-label="Timer running on WEB-1"]')).toHaveCount(0);
+  await win.getByRole("button", { name: "Log time" }).click();
+  await page.getByLabel("Time spent").fill("1h 30m");
+  await page.getByLabel("Note").fill("Hero layout");
+  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await expect(page.getByText("Time added")).toBeVisible();
+  await expect(page.getByRole("list", { name: "Entries" })).toContainText("Hero layout");
+  await page.keyboard.press("Escape");
+  await expect(win.getByText(/^1h 3\dm$/)).toBeVisible();
+  await win.getByRole("button", { name: "Time estimate: none" }).click();
+  await win.getByLabel("Time estimate").fill("4h");
+  await win.getByLabel("Time estimate").press("Enter");
+  await expect(win.getByRole("button", { name: "Time estimate: 4h" })).toBeVisible();
+  await expect(win.getByRole("meter", { name: "Tracked against estimate" })).toBeVisible();
+
   await win.getByLabel("New subtask title").fill("Pick hero video");
   await page.getByRole("button", { name: "Add subtask" }).click();
   await expect(page.getByRole("link", { name: "Pick hero video" })).toBeVisible();

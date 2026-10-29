@@ -53,6 +53,13 @@ describe("time tracking", () => {
     expect(await stopTimer(actors.member)).toBeNull();
   });
 
+  it("drops a timer stopped within a minute (no 0m entries)", async () => {
+    const { actors, a } = await setup();
+    await startTimer(actors.member, a.id);
+    expect(await stopTimer(actors.member)).toMatchObject({ seconds: 0 });
+    expect((await getTaskTime(actors.member, a.id)).entries).toEqual([]);
+  });
+
   it("adds, edits and deletes manual entries, and totals them with running timers", async () => {
     const { actors, a } = await setup();
     const entry = await addTimeEntry(actors.member, a.id, {

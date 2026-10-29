@@ -49,6 +49,11 @@ async function stopRunning(tx: DbOrTx, actor: ActorContext) {
     .for("update");
   if (!running) return null;
   const seconds = elapsed(running.startedAt);
+  // Started and stopped within a minute (usually by mistake): keep no entry.
+  if (seconds < 60) {
+    await tx.delete(timeEntries).where(eq(timeEntries.id, running.id));
+    return { ...running, durationSeconds: 0 };
+  }
   await tx
     .update(timeEntries)
     .set({ endedAt: new Date(), durationSeconds: seconds })
