@@ -134,6 +134,21 @@
   .dark .neu-tile {
     --tint: var(--tile-dark, var(--accent));
   }
+  /* Status badges: a soft raised pill in the status's colour (--status, set inline). */
+  .neu-status {
+    color: #fff;
+    text-shadow: 0 1px 1px rgb(0 0 0 / 0.18);
+    background: linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--status) 82%, #fff),
+      color-mix(in srgb, var(--status) 90%, #000)
+    );
+    box-shadow:
+      2px 2px 4px var(--neu-shadow),
+      -1.5px -1.5px 3px var(--neu-light),
+      inset 0 1px 0 rgb(255 255 255 / 0.28),
+      inset 0 -1px 0 rgb(0 0 0 / 0.12);
+  }
   /* Pressed in: the picked option, or a tile whose picker is open. */
   .neu-inset,
   .neu-tile[data-state="open"] {

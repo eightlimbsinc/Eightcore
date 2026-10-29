@@ -36,8 +36,8 @@ export function StatusGroup({
           <ChevronRight className={cn("size-3.5 transition-transform", open && "rotate-90")} aria-hidden />
         </button>
         <span
-          className="inline-flex h-6 items-center rounded-md px-2 font-semibold tracking-wide text-white uppercase"
-          style={{ background: color }}
+          className="neu-status inline-flex h-6 items-center rounded-md px-2 font-semibold tracking-wide uppercase"
+          style={{ "--status": color } as React.CSSProperties}
         >
           {name}
         </span>

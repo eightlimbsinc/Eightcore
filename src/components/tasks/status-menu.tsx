@@ -111,8 +111,8 @@ export function StatusMenu({
   const face =
     variant === "pill" ? (
       <span
-        className="inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[12px] font-semibold tracking-wide text-white uppercase"
-        style={{ background: current.color }}
+        className="neu-status inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[12px] font-semibold tracking-wide uppercase"
+        style={{ "--status": current.color } as React.CSSProperties}
       >
         {current.name}
         {canEdit ? <ChevronDown className="size-3.5" aria-hidden /> : null}

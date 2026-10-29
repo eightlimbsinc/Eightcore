@@ -306,8 +306,8 @@ function BoardColumn({
     >
       <header className="flex items-center gap-2 px-3 py-2">
         <span
-          className="inline-flex h-6 items-center rounded-md px-2 text-[11px] font-semibold tracking-wide text-white uppercase"
-          style={{ background: status.color }}
+          className="neu-status inline-flex h-6 items-center rounded-md px-2 text-[11px] font-semibold tracking-wide uppercase"
+          style={{ "--status": status.color } as React.CSSProperties}
         >
           {status.name}
         </span>
