@@ -1,12 +1,9 @@
 "use client";
 import { useState } from "react";
-import { ChevronsLeft, ChevronsRight, Link2, MessagesSquare, Paperclip, type LucideIcon } from "lucide-react";
+import { ChevronsLeft, ChevronsRight, Link2, MessagesSquare, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const ICONS = { activity: MessagesSquare, relations: Link2, files: Paperclip } satisfies Record<
-  string,
-  LucideIcon
->;
+const ICONS = { activity: MessagesSquare, relations: Link2 } satisfies Record<string, LucideIcon>;
 
 export interface SidePanelTab {
   key: keyof typeof ICONS;
@@ -17,7 +14,7 @@ export interface SidePanelTab {
 }
 
 /**
- * The task's right-hand side: an icon strip (Activity, Relationships, Files) and the chosen
+ * The task's right-hand side: an icon strip (Activity, Relationships) and the chosen
  * panel. Always opens expanded; » collapses it to the strip, and any icon opens it again.
  */
 export function TaskSidePanel({ tabs }: { tabs: SidePanelTab[] }) {

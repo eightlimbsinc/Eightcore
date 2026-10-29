@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRight, CircleDot, CornerLeftUp, Eye, Tag, UserRound } from "lucide-react";
+import { ChevronRight, CircleDot, CornerLeftUp, Eye, Paperclip, Tag, UserRound } from "lucide-react";
 import { getTaskPage } from "@/modules/tasks/queries";
 import { describeActivity } from "@/lib/task-format";
 import { cn } from "@/lib/utils";
@@ -245,6 +245,22 @@ export async function TaskDetail({
               />
             </section>
 
+            <section aria-labelledby="files-heading" className="grid gap-3 border-t pt-5">
+              <h2 id="files-heading" className="flex items-center gap-2 text-[13px] font-semibold">
+                <Paperclip className="size-4" aria-hidden /> Attachments{" "}
+                {attachments.length ? (
+                  <span className="text-muted-foreground font-normal">({attachments.length})</span>
+                ) : null}
+              </h2>
+              <AttachmentsPanel
+                workspaceSlug={slug}
+                taskId={task.id}
+                files={attachments}
+                canUpload={can.attach}
+                maxMb={Math.floor(env().MAX_UPLOAD_BYTES / (1024 * 1024))}
+              />
+            </section>
+
             {can.archive || can.delete ? (
               <div className="flex flex-wrap gap-2 border-t pt-5">
                 {can.archive ? (
@@ -289,22 +305,6 @@ export async function TaskDetail({
                     blockedBy={dependencies.blockedBy}
                     blocking={dependencies.blocking}
                     canEdit={dependencies.canEdit}
-                  />
-                </div>
-              ),
-            },
-            {
-              key: "files",
-              label: "Files",
-              count: attachments.length,
-              content: (
-                <div className="overflow-y-auto p-4">
-                  <AttachmentsPanel
-                    workspaceSlug={slug}
-                    taskId={task.id}
-                    files={attachments}
-                    canUpload={can.attach}
-                    maxMb={Math.floor(env().MAX_UPLOAD_BYTES / (1024 * 1024))}
                   />
                 </div>
               ),

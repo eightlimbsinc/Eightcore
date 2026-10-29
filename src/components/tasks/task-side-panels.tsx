@@ -1,13 +1,23 @@
 "use client";
-import { useActionState, useState, useTransition } from "react";
-import { Bell, BellOff, Download, FileText, Paperclip, Trash2 } from "lucide-react";
+import { useActionState, useOptimistic, useState, useTransition } from "react";
+import { Popover } from "radix-ui";
+import {
+  Bell,
+  BellOff,
+  Check,
+  Download,
+  FileText,
+  Paperclip,
+  Plus,
+  Tag as TagIcon,
+  Trash2,
+} from "lucide-react";
 import { setWatchingAction } from "@/modules/tasks/actions";
 import { createTagAction, setTaskTagsAction } from "@/modules/tags/actions";
 import { deleteAttachmentAction, uploadAttachmentsAction } from "@/modules/attachments/actions";
 import { TAG_COLORS } from "@/modules/tags/validators";
 import { formatBytes, isPreviewableImage } from "@/lib/file-format";
 import { Button } from "@/components/ui/button";
-import { Input, NativeSelect } from "@/components/ui/input";
 import { Alert } from "@/components/ui/alert";
 import { TagChip } from "./task-bits";
 
@@ -61,6 +71,10 @@ export function WatchButton({
   );
 }
 
+/**
+ * The task's tags as chips; click to open a picker. Search the project's tags, tick or
+ * untick (saved straight away), or type a new name to create it (tag managers).
+ */
 export function TagsPanel({
   workspaceSlug,
   projectId,
@@ -78,89 +92,123 @@ export function TagsPanel({
   canEdit: boolean;
   canManage: boolean;
 }) {
-  const [state, action, pending] = useActionState(
-    setTaskTagsAction.bind(null, workspaceSlug, taskId),
-    undefined,
-  );
-  const [createState, createAction, creating] = useActionState(
-    createTagAction.bind(null, workspaceSlug, projectId, taskId, taskTagIds),
-    undefined,
-  );
-  if (!canEdit) {
-    const current = projectTags.filter((t) => taskTagIds.includes(t.id));
-    return current.length ? (
-      <div className="flex flex-wrap gap-1">
-        {current.map((t) => (
-          <TagChip key={t.id} name={t.name} color={t.color} />
-        ))}
-      </div>
-    ) : (
-      <p className="text-muted-foreground">No tags</p>
-    );
-  }
+  const [selected, setSelected] = useOptimistic(taskTagIds);
+  const [query, setQuery] = useState("");
+  const [status, setStatus] = useState<{ ok: boolean; message: string } | null>(null);
+  const [pending, startTransition] = useTransition();
+  const current = projectTags.filter((t) => selected.includes(t.id));
+  const chips = current.length ? (
+    <span className="flex flex-wrap gap-1">
+      {current.map((t) => (
+        <TagChip key={t.id} name={t.name} color={t.color} />
+      ))}
+    </span>
+  ) : null;
+  if (!canEdit) return chips ?? <span className="text-muted-foreground">Empty</span>;
+
+  const q = query.trim();
+  const shown = projectTags.filter((t) => t.name.toLowerCase().includes(q.toLowerCase()));
+  const exact = projectTags.some((t) => t.name.toLowerCase() === q.toLowerCase());
+  const save = (ids: string[]) =>
+    startTransition(async () => {
+      setSelected(ids);
+      const form = new FormData();
+      ids.forEach((id) => form.append("tag", id));
+      const result = await setTaskTagsAction(workspaceSlug, taskId, undefined, form);
+      setStatus(result && !result.ok ? { ok: false, message: result.message } : null);
+    });
+  const create = () =>
+    startTransition(async () => {
+      const form = new FormData();
+      form.set("name", q);
+      // A colour of its own, picked from the name so it stays the same.
+      let hash = 0;
+      for (const ch of q.toLowerCase()) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+      form.set("color", TAG_COLORS[hash % TAG_COLORS.length]!);
+      const result = await createTagAction(workspaceSlug, projectId, taskId, selected, undefined, form);
+      setStatus(result ? { ok: result.ok, message: result.message ?? "" } : null);
+      if (result?.ok) setQuery("");
+    });
+
   return (
-    <div className="grid gap-4">
-      {projectTags.length ? (
-        <form action={action} className="grid gap-3">
-          <ul className="flex flex-wrap gap-1.5" aria-label="Project tags">
-            {projectTags.map((t) => (
-              <li key={t.id}>
-                <label className="has-[:checked]:bg-surface-muted flex cursor-pointer items-center gap-1.5 rounded-md border px-1.5 py-1">
-                  <input
-                    suppressHydrationWarning
-                    type="checkbox"
-                    name="tag"
-                    value={t.id}
-                    defaultChecked={taskTagIds.includes(t.id)}
-                    className="accent-[var(--accent)]"
-                  />
-                  <TagChip name={t.name} color={t.color} />
-                </label>
-              </li>
-            ))}
-          </ul>
-          <div className="flex items-center gap-2">
-            <Button type="submit" variant="outline" size="sm" disabled={pending}>
-              {pending ? "Saving…" : "Save tags"}
-            </Button>
-            <InlineStatus state={state} />
-          </div>
-        </form>
-      ) : (
-        <p className="text-muted-foreground text-[13px]">This project has no tags yet.</p>
-      )}
-      {canManage ? (
-        <form action={createAction} className="grid gap-2 border-t pt-3">
-          <label htmlFor="new-tag-name" className="text-[12px] font-medium">
-            New tag
-          </label>
-          <div className="flex gap-2">
-            <Input
-              id="new-tag-name"
-              name="name"
-              required
+    <div className="grid gap-1">
+      <Popover.Root onOpenChange={(open) => !open && setQuery("")}>
+        <Popover.Trigger
+          aria-label={`Tags: ${current.length ? current.map((t) => t.name).join(", ") : "none"}`}
+          disabled={pending}
+          className="hover:bg-surface-muted -mx-1.5 flex min-h-8 items-center justify-self-start rounded-md px-1.5 text-left"
+        >
+          {chips ?? (
+            <span className="text-muted-foreground flex items-center gap-1.5 text-[13px]">
+              <TagIcon className="size-3.5" aria-hidden /> Add tags
+            </span>
+          )}
+        </Popover.Trigger>
+        <Popover.Portal>
+          <Popover.Content
+            align="start"
+            sideOffset={6}
+            className="bg-surface text-foreground z-50 grid w-64 gap-1 rounded-lg border p-1.5 shadow-lg"
+          >
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && q && !exact && canManage) {
+                  e.preventDefault();
+                  create();
+                }
+              }}
               maxLength={40}
-              placeholder="e.g. Client feedback"
-              className="h-8"
+              autoFocus
+              aria-label={canManage ? "Search or create tags" : "Search tags"}
+              placeholder={canManage ? "Search or create…" : "Search tags…"}
+              className="border-input bg-surface h-8 rounded-md border px-2 text-[13px] outline-none"
             />
-            <NativeSelect
-              name="color"
-              aria-label="Tag colour"
-              defaultValue={TAG_COLORS[6]}
-              className="h-8 w-24"
-            >
-              {TAG_COLORS.map((c, i) => (
-                <option key={c} value={c}>
-                  {["Slate", "Red", "Orange", "Yellow", "Green", "Teal", "Blue", "Violet", "Pink"][i]}
-                </option>
-              ))}
-            </NativeSelect>
-            <Button type="submit" size="sm" variant="outline" disabled={creating}>
-              Add
-            </Button>
-          </div>
-          <InlineStatus state={createState} />
-        </form>
+            <div className="grid max-h-64 gap-0.5 overflow-y-auto" role="group" aria-label="Project tags">
+              {shown.map((t) => {
+                const on = selected.includes(t.id);
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    role="menuitemcheckbox"
+                    aria-checked={on}
+                    aria-label={t.name}
+                    onClick={() => save(on ? selected.filter((id) => id !== t.id) : [...selected, t.id])}
+                    className="hover:bg-surface-muted flex items-center gap-2 rounded-md px-2 py-1.5 text-left"
+                  >
+                    <TagChip name={t.name} color={t.color} />
+                    <span className="flex-1" />
+                    {on ? <Check className="size-3.5" aria-hidden /> : null}
+                  </button>
+                );
+              })}
+              {projectTags.length === 0 && !q ? (
+                <p className="text-muted-foreground px-2 py-1.5 text-[12px]">
+                  No tags yet.{canManage ? " Type a name to create one." : ""}
+                </p>
+              ) : null}
+              {q && !exact && canManage ? (
+                <button
+                  type="button"
+                  onClick={create}
+                  className="hover:bg-surface-muted flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px]"
+                >
+                  <Plus className="size-3.5" aria-hidden /> Create “{q}”
+                </button>
+              ) : null}
+            </div>
+          </Popover.Content>
+        </Popover.Portal>
+      </Popover.Root>
+      {status?.message ? (
+        <span
+          role="status"
+          className={status.ok ? "text-success text-[12px]" : "text-destructive text-[12px]"}
+        >
+          {status.message}
+        </span>
       ) : null}
     </div>
   );

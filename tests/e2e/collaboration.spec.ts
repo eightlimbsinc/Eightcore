@@ -110,17 +110,19 @@ test("owner sees the mention in the inbox, replies, tags and attaches", async ({
   );
 
   // Create a tag straight onto the task.
-  await page.getByLabel("New tag").fill("Client review");
-  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await page.getByRole("button", { name: "Tags: none" }).click();
+  await page.getByLabel("Search or create tags").fill("Client review");
+  await page.getByRole("button", { name: "Create “Client review”" }).click();
   await expect(page.getByText("Created “Client review”")).toBeVisible();
-  await expect(page.getByRole("checkbox", { name: "Client review" })).toBeChecked();
+  await expect(page.getByRole("menuitemcheckbox", { name: "Client review" })).toHaveAttribute(
+    "aria-checked",
+    "true",
+  );
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("button", { name: "Tags: Client review" })).toBeVisible();
   await expect(page.getByText("added the tag “Client review”")).toBeVisible();
 
-  // Attach a file to the task itself (the side panel's Files tab).
-  await page
-    .getByRole("navigation", { name: "Task panels" })
-    .getByRole("button", { name: /^Files/ })
-    .click();
+  // Attach a file to the task itself (Attachments, at the bottom of the task).
   await page.getByLabel(/Attach files \(up to/).setInputFiles({
     name: "brief.txt",
     mimeType: "text/plain",
