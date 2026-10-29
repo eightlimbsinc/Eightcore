@@ -26,10 +26,10 @@ const CHOICES: { key: keyof ViewSettings; title: string; options: [string, strin
   },
   {
     key: "closed",
-    title: "Closed tasks",
+    title: "Closed statuses",
     options: [
-      ["show", "Show"],
-      ["hide", "Hide"],
+      ["hide", "Hidden"],
+      ["show", "Shown"],
     ],
   },
 ];

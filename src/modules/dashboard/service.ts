@@ -30,7 +30,7 @@ export interface DashboardTotals {
   doneThisWeek: number;
   createdThisWeek: number;
 }
-const open = sql`${listStatuses.category} not in ('done', 'cancelled')`;
+const open = sql`${listStatuses.category} not in ('done', 'cancelled', 'closed')`;
 const done = sql`${listStatuses.category} = 'done'`;
 
 /** Live tasks in visible projects (optionally one project), with their status joined. */

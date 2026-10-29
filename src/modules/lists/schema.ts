@@ -26,6 +26,7 @@ export const statusCategory = pgEnum("status_category", [
   "review",
   "done",
   "cancelled",
+  "closed",
 ]);
 
 export const folders = pgTable(

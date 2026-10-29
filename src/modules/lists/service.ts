@@ -17,7 +17,7 @@ import { enqueueOutbox, recordActivity } from "@/modules/activity/service";
 import { loadProjectAccess } from "@/modules/projects/service";
 import { isItemColor, isItemIcon, type ItemAppearance, type ItemKind } from "@/lib/appearance";
 import { readViewSettings } from "./view-settings";
-import { STATUS_TEMPLATES } from "./templates";
+import { STATUS_TEMPLATES, isClosedCategory, isHiddenCategory } from "./templates";
 import {
   createFolderInput,
   createListInput,
@@ -77,7 +77,7 @@ export async function getProjectTree(actor: ActorContext, projectId: string) {
         openTasks: sql<number>`(select count(*)::int from ${tasks} t
           join ${listStatuses} s on s.id = t.status_id
           where t.list_id = "task_lists"."id" and t.archived_at is null and t.parent_task_id is null
-            and s.category not in ('done', 'cancelled'))`,
+            and s.category not in ('done', 'cancelled', 'closed'))`,
       })
       .from(taskLists)
       .where(and(eq(taskLists.projectId, projectId), isNull(taskLists.archivedAt)))
@@ -371,13 +371,20 @@ export async function addStatus(actor: ActorContext, listId: string, raw: Status
       const { role } = await loadListAccess(tx, actor, listId);
       assertProject(role, "list.manage");
       const statuses = await listStatusesFor(tx, listId);
+      // New statuses go before the "closed" ones (e.g. Completed), which stay last;
+      // a new closed status goes at the very end.
+      const firstClosed = statuses.findIndex((s) => isHiddenCategory(s.category));
+      const position =
+        firstClosed === -1 || isHiddenCategory(input.category)
+          ? nextPosition(statuses.at(-1)?.position)
+          : generateKeyBetween(statuses[firstClosed - 1]?.position ?? null, statuses[firstClosed]!.position);
       const [status] = await tx
         .insert(listStatuses)
         .values({
           workspaceId: actor.workspaceId,
           listId,
           ...input,
-          position: nextPosition(statuses.at(-1)?.position),
+          position,
         })
         .returning({ id: listStatuses.id });
       await recordActivity(tx, actor, {
@@ -418,7 +425,7 @@ export async function updateStatus(actor: ActorContext, statusId: string, raw: S
       await tx.update(listStatuses).set(input).where(eq(listStatuses.id, statusId));
       if (changes.category) {
         // Keep "finished" in step with the status's new meaning.
-        const closed = input.category === "done" || input.category === "cancelled";
+        const closed = isClosedCategory(input.category);
         await tx
           .update(tasks)
           .set({ completedAt: closed ? sql`coalesce(${tasks.completedAt}, now())` : null })
@@ -469,7 +476,7 @@ export async function deleteStatus(actor: ActorContext, statusId: string, replac
     if (statuses.length <= 1) throw new ConflictError("A list needs at least one status");
     const replacement = statuses.find((s) => s.id === replacementStatusId);
     if (!replacement) throw new NotFoundError("Replacement status not found");
-    const closed = replacement.category === "done" || replacement.category === "cancelled";
+    const closed = isClosedCategory(replacement.category);
     const moved = await tx
       .update(tasks)
       .set({

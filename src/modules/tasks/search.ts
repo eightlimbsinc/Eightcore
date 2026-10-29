@@ -6,9 +6,10 @@ import type { ActorContext } from "@/server/authz/policy";
 import { assertId } from "@/server/errors";
 import { visibleProjectCondition } from "@/modules/projects/visibility";
 import { tagsForTasks } from "@/modules/tags/service";
+import { CLOSED_CATEGORIES } from "@/modules/lists/templates";
 import { dueRange, type TaskFilter } from "./filters";
 
-const CLOSED = ["done", "cancelled"] as const;
+const CLOSED = CLOSED_CATEGORIES;
 export const SEARCH_LIMIT = 300;
 
 /** SQL conditions for a filter. Correlated subqueries name the outer table as "tasks". */

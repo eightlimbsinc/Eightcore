@@ -1,6 +1,6 @@
 import "server-only";
 import { effectiveView } from "./view-settings";
-import { isClosedCategory } from "./templates";
+import { isClosedCategory, isHiddenCategory } from "./templates";
 import { isFiltering, matchesFilter, readFilter } from "@/modules/tasks/filters";
 import { viewerToday } from "@/server/today";
 import { notFound } from "next/navigation";
@@ -97,12 +97,18 @@ export async function getListView(
     return show;
   };
   tasks.filter((t) => t.parentTaskId === null).forEach(markShown);
-  const visibleStatuses =
-    view.closed === "hide" ? statuses.filter((s) => !isClosedCategory(s.category)) : statuses;
+  // "Closed" statuses (e.g. Completed) and their tasks are hidden unless the view shows them.
+  const hiddenStatus = new Set(
+    view.closed === "hide" ? statuses.filter((s) => isHiddenCategory(s.category)).map((s) => s.id) : [],
+  );
+  const visibleStatuses = statuses.filter((s) => !hiddenStatus.has(s.id));
   const ordered = view.order === "desc" ? [...visibleStatuses].reverse() : visibleStatuses;
+  for (const t of tasks) if (hiddenStatus.has(t.statusId) && t.parentTaskId === null) shown.delete(t.id);
   // Groups hold top-level tasks; subtasks appear under their parent when it is expanded.
   const allTopLevel = tasks.filter((t) => t.parentTaskId === null);
   const topLevel = allTopLevel.filter((t) => shown.has(t.id));
+  const closedStatusIds = new Set(statuses.filter((s) => isHiddenCategory(s.category)).map((s) => s.id));
+  const closedCount = allTopLevel.filter((t) => closedStatusIds.has(t.statusId)).length;
   const groups = ordered.map((status) => ({
     status,
     tasks: topLevel.filter((t) => t.statusId === status.id),
@@ -120,5 +126,6 @@ export async function getListView(
     topLevel,
     groups,
     shown,
+    closedCount,
   };
 }

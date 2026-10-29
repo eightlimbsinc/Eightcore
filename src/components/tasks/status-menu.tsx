@@ -42,7 +42,7 @@ export function StatusIcon({
   const { color, category } = status;
   return (
     <svg viewBox="0 0 16 16" className={cn("size-4 shrink-0", className)} aria-hidden>
-      {category === "done" ? (
+      {category === "done" || category === "closed" ? (
         <>
           <circle cx="8" cy="8" r="7" fill={color} />
           <path

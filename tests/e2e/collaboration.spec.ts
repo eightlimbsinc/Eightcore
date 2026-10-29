@@ -417,3 +417,41 @@ test("a tab from before a release reloads itself instead of crashing", async ({ 
   await expect(page.getByRole("link", { name: "New logo" })).toBeVisible();
   await expect(page.getByText("This page couldn’t load")).toHaveCount(0);
 });
+
+test("Completed tasks hide behind the Closed toggle; finished groups start collapsed", async ({ page }) => {
+  await signIn(page, owner);
+  await expect(page).toHaveURL(/\/w\//);
+  await page.goto(`/w/${workspaceSlug}`);
+  const projectsNav = page.getByRole("navigation", { name: "Projects" });
+  await projectsNav.getByRole("button", { name: "Expand Brand" }).click();
+  await projectsNav.getByRole("link", { name: "Design" }).click();
+  await page.getByRole("button", { name: "Add task", exact: true }).click();
+  await page.getByLabel("New task title").fill("Old work");
+  await page.getByLabel("New task title").press("Enter");
+  await expect(page.getByRole("link", { name: "Old work" })).toBeVisible();
+
+  // Completed: gone from the list until "Closed" is turned on.
+  await page
+    .getByRole("button", { name: /^Status of BRD-\d+: Backlog/ })
+    .last()
+    .click();
+  await page.getByRole("menuitem", { name: "Completed" }).click();
+  await expect(page.getByRole("link", { name: "Old work" })).toHaveCount(0);
+  await page.getByRole("link", { name: "Show closed tasks (1)" }).click();
+  await expect(page).toHaveURL(/closed=show/);
+  await expect(page.getByRole("link", { name: "Old work" })).toBeVisible();
+
+  // Any group can be collapsed.
+  await page.getByRole("button", { name: "Collapse Completed" }).click();
+  await expect(page.getByRole("link", { name: "Old work" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Expand Completed" }).click();
+
+  // Done statuses (Accepted) start collapsed.
+  await page.getByRole("button", { name: /^Status of BRD-\d+: Completed/ }).click();
+  await page.getByRole("menuitem", { name: "Accepted" }).click();
+  await page.getByRole("link", { name: "Hide closed tasks" }).click();
+  await expect(page.getByRole("button", { name: "Expand Accepted" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Old work" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Expand Accepted" }).click();
+  await expect(page.getByRole("link", { name: "Old work" })).toBeVisible();
+});

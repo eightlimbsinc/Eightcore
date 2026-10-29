@@ -1,5 +1,5 @@
 // Starting points for a new list's statuses. After creation each list's statuses are its own.
-export type StatusCategory = "backlog" | "unstarted" | "active" | "review" | "done" | "cancelled";
+export type StatusCategory = "backlog" | "unstarted" | "active" | "review" | "done" | "cancelled" | "closed";
 
 export interface StatusTemplate {
   name: string;
@@ -22,6 +22,7 @@ export const STATUS_TEMPLATES = {
       { name: "Push to Production", category: "active", color: "#F59E0B" },
       { name: "Accepted", category: "done", color: "#22C55E" },
       { name: "Cancelled", category: "cancelled", color: "#EF4444" },
+      { name: "Completed", category: "closed", color: "#6B7280" },
     ],
   },
   simple: {
@@ -31,6 +32,7 @@ export const STATUS_TEMPLATES = {
       { name: "To Do", category: "unstarted", color: "#A1A1AA" },
       { name: "In Progress", category: "active", color: "#3B82F6" },
       { name: "Done", category: "done", color: "#22C55E" },
+      { name: "Completed", category: "closed", color: "#6B7280" },
     ],
   },
 } as const satisfies Record<
@@ -47,9 +49,16 @@ export const STATUS_CATEGORIES: { value: StatusCategory; label: string }[] = [
   { value: "review", label: "In review" },
   { value: "done", label: "Done" },
   { value: "cancelled", label: "Cancelled" },
+  { value: "closed", label: "Closed (hidden unless “Closed” is on)" },
 ];
 
 /** Tasks in these categories count as finished (completed_at is set). */
 export function isClosedCategory(category: StatusCategory): boolean {
-  return category === "done" || category === "cancelled";
+  return category === "done" || category === "cancelled" || category === "closed";
 }
+
+/** Finished categories as SQL-ready strings. */
+export const CLOSED_CATEGORIES = ["done", "cancelled", "closed"] as const;
+
+/** "Closed" statuses (like ClickUp's) are hidden in lists unless the Closed toggle is on. */
+export const isHiddenCategory = (category: StatusCategory) => category === "closed";

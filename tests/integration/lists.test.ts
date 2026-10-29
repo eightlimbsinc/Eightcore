@@ -45,8 +45,9 @@ describe("lists and their statuses", () => {
       "Push to Production",
       "Accepted",
       "Cancelled",
+      "Completed",
     ]);
-    expect(await names(simple.id)).toEqual(["To Do", "In Progress", "Done"]);
+    expect(await names(simple.id)).toEqual(["To Do", "In Progress", "Done", "Completed"]);
   });
 
   it("customises each list's statuses independently", async () => {
@@ -56,8 +57,9 @@ describe("lists and their statuses", () => {
     const [todoA] = await listStatusesFor(db(), a.id);
     await updateStatus(actors.owner, todoA!.id, { name: "Inbox", category: "backlog", color: "#112233" });
     await addStatus(actors.owner, a.id, { name: "Blocked", category: "active", color: "#EF4444" });
-    expect(await names(a.id)).toEqual(["Inbox", "In Progress", "Done", "Blocked"]);
-    expect(await names(b.id)).toEqual(["To Do", "In Progress", "Done"]);
+    // New statuses go before Completed, which stays last.
+    expect(await names(a.id)).toEqual(["Inbox", "In Progress", "Done", "Blocked", "Completed"]);
+    expect(await names(b.id)).toEqual(["To Do", "In Progress", "Done", "Completed"]);
   });
 
   it("rejects duplicate names within a list, case-insensitively", async () => {
@@ -73,25 +75,26 @@ describe("lists and their statuses", () => {
     const list = await createList(actors.owner, project.id, { name: "A", template: "simple" });
     const statuses = await listStatusesFor(db(), list.id);
     await moveStatus(actors.owner, statuses[2]!.id, "up");
-    expect(await names(list.id)).toEqual(["To Do", "Done", "In Progress"]);
+    expect(await names(list.id)).toEqual(["To Do", "Done", "In Progress", "Completed"]);
     await moveStatus(actors.owner, statuses[2]!.id, "up");
-    expect(await names(list.id)).toEqual(["Done", "To Do", "In Progress"]);
+    expect(await names(list.id)).toEqual(["Done", "To Do", "In Progress", "Completed"]);
     await moveStatus(actors.owner, statuses[2]!.id, "up"); // already first: no-op
-    expect(await names(list.id)).toEqual(["Done", "To Do", "In Progress"]);
+    expect(await names(list.id)).toEqual(["Done", "To Do", "In Progress", "Completed"]);
     await moveStatus(actors.owner, statuses[0]!.id, "down");
-    expect(await names(list.id)).toEqual(["Done", "In Progress", "To Do"]);
+    expect(await names(list.id)).toEqual(["Done", "In Progress", "To Do", "Completed"]);
   });
 
   it("moves tasks to a replacement when a status is deleted, and keeps at least one status", async () => {
     const { actors, project } = await setup();
     const list = await createList(actors.owner, project.id, { name: "A", template: "simple" });
-    const [todo, doing, done] = await listStatusesFor(db(), list.id);
+    const [todo, doing, done, completed] = await listStatusesFor(db(), list.id);
     const task = await createTask(actors.owner, list.id, { title: "Ship it", statusId: todo!.id });
     await deleteStatus(actors.owner, todo!.id, done!.id);
     const detail = await getTaskByRef(actors.owner, task.ref);
     expect(detail.task.statusId).toBe(done!.id);
     expect(detail.task.completedAt).not.toBeNull();
     await deleteStatus(actors.owner, doing!.id, done!.id);
+    await deleteStatus(actors.owner, completed!.id, done!.id);
     await expect(deleteStatus(actors.owner, done!.id, done!.id)).rejects.toBeInstanceOf(ValidationError);
     const other = await createList(actors.owner, project.id, { name: "B", template: "simple" });
     const [otherStatus] = await listStatusesFor(db(), other.id);
@@ -167,7 +170,7 @@ describe("saved list views", () => {
     expect((await getList(actors.owner, list.id)).view).toEqual({
       order: "desc",
       subtasks: "expanded",
-      closed: "show",
+      closed: "hide",
       filters: "",
     });
 
@@ -177,11 +180,11 @@ describe("saved list views", () => {
       ForbiddenError,
     );
     expect((await getList(actors.member, list.id)).can.saveView).toBe(false);
-    await saveListView(actors.owner, list.id, { closed: "hide" });
+    await saveListView(actors.owner, list.id, { closed: "show" });
     expect((await getList(actors.member, list.id)).view).toEqual({
       order: "asc",
       subtasks: "collapsed",
-      closed: "hide",
+      closed: "show",
       filters: "",
     });
   });

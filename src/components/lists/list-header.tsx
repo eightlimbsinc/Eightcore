@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarDays, ChevronRight, Columns3, List, Settings2 } from "lucide-react";
+import { CalendarDays, ChevronRight, Columns3, List, Settings2, CircleCheckBig } from "lucide-react";
 import { viewQuery, type ViewSettings } from "@/modules/lists/view-settings";
 import { filterQuery, type TaskFilter } from "@/modules/tasks/filters";
 import { PageHeader } from "@/components/app/page-header";
@@ -26,6 +26,7 @@ export function ListHeader({
   filtering,
   can,
   statuses,
+  closedCount = 0,
   people,
   tagNames,
 }: {
@@ -43,6 +44,8 @@ export function ListHeader({
   can: { manage: boolean; saveView: boolean; protectView: boolean; createTask: boolean };
   /** For "Add task". */
   statuses: StatusOption[];
+  /** Tasks in "closed" statuses (shown on the Closed toggle). */
+  closedCount?: number;
   people: { userId: string; name: string }[];
   tagNames: string[];
 }) {
@@ -142,6 +145,23 @@ export function ListHeader({
               tags={tagNames}
             />
           </div>
+          <Link
+            href={`${layout === "list" ? listPath : `${listPath}/${layout}`}${viewQuery(
+              { ...view, closed: view.closed === "show" ? "hide" : "show" },
+              savedView,
+              changes,
+            )}`}
+            scroll={false}
+            aria-label={view.closed === "show" ? "Hide closed tasks" : `Show closed tasks (${closedCount})`}
+            title={view.closed === "show" ? "Hide closed tasks" : "Show closed tasks"}
+            className={cn(
+              "border-input bg-surface hover:bg-surface-muted inline-flex h-9 items-center gap-1.5 rounded-md border px-3 text-sm",
+              view.closed === "show" && "border-accent bg-accent-soft",
+            )}
+          >
+            <CircleCheckBig className="size-4" aria-hidden /> Closed
+            {closedCount ? <span className="text-muted-foreground tabular-nums">{closedCount}</span> : null}
+          </Link>
           {can.createTask ? (
             <AddTaskButton
               workspaceSlug={slug}

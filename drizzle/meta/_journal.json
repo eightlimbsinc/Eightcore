@@ -78,6 +78,13 @@
       "when": 1793266773394,
       "tag": "0010_item_appearance",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793277614097,
+      "tag": "0011_status_closed",
+      "breakpoints": true
     }
   ]
 }

@@ -22,7 +22,7 @@ export type UpdateListInput = z.input<typeof updateListInput>;
 
 export const statusInput = z.object({
   name: z.string().trim().min(1, "Name is required").max(40, "Use at most 40 characters"),
-  category: z.enum(["backlog", "unstarted", "active", "review", "done", "cancelled"]),
+  category: z.enum(["backlog", "unstarted", "active", "review", "done", "cancelled", "closed"]),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/, "Use a hex colour like #3B82F6"),
 });
 export type StatusInput = z.input<typeof statusInput>;

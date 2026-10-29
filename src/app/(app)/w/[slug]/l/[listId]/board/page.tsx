@@ -32,6 +32,7 @@ export default async function BoardPage({
         filter={data.filter}
         savedFilter={data.savedFilter}
         filtering={data.filtering}
+        closedCount={data.closedCount}
         can={can}
         statuses={data.statuses}
         people={data.people.map((p) => ({ userId: p.userId, name: p.name }))}

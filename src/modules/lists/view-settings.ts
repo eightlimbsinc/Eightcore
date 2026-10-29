@@ -6,8 +6,8 @@ export const viewSettingsSchema = z.object({
   order: z.enum(["asc", "desc"]).catch("asc"),
   /** Subtasks start collapsed under their parent, or expanded. */
   subtasks: z.enum(["collapsed", "expanded"]).catch("collapsed"),
-  /** Show or hide the groups of finished (done/cancelled) statuses. */
-  closed: z.enum(["show", "hide"]).catch("show"),
+  /** Show or hide the groups of "closed" statuses (e.g. Completed). Hidden by default. */
+  closed: z.enum(["show", "hide"]).catch("hide"),
   /** Saved filters, as an address-bar query ("priority=high&assignee=me"). */
   filters: z.string().max(2000).catch(""),
 });
@@ -16,7 +16,7 @@ export type ViewSettings = z.infer<typeof viewSettingsSchema>;
 export const DEFAULT_VIEW: ViewSettings = {
   order: "asc",
   subtasks: "collapsed",
-  closed: "show",
+  closed: "hide",
   filters: "",
 };
 

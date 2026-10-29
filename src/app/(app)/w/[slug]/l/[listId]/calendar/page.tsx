@@ -71,6 +71,7 @@ export default async function CalendarPage({
         filter={data.filter}
         savedFilter={data.savedFilter}
         filtering={data.filtering}
+        closedCount={data.closedCount}
         can={can}
         statuses={statuses}
         people={data.people.map((p) => ({ userId: p.userId, name: p.name }))}

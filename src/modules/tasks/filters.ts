@@ -26,7 +26,7 @@ export interface TaskFilter {
   tags: string[];
   /** Words in the title (or the task's reference, e.g. "B3-14"). */
   q: string;
-  /** Open (not done/cancelled) tasks, closed ones, or both. */
+  /** Open (not done/cancelled/closed) tasks, finished ones, or both. */
   state: StateFilter;
   /** Only tasks blocked by unfinished tasks. */
   blocked: boolean;

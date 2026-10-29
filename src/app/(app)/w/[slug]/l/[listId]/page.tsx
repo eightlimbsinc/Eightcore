@@ -9,6 +9,7 @@ import { StatusMenu } from "@/components/tasks/status-menu";
 import { AssigneePicker } from "@/components/tasks/assignee-picker";
 import { ExpandableTask } from "@/components/tasks/expandable-task";
 import { DueDatePicker, PriorityPicker } from "@/components/tasks/row-pickers";
+import { StatusGroup } from "@/components/tasks/status-group";
 import { BulkSelection, GroupCheckbox, RowCheckbox } from "@/components/tasks/bulk-select";
 import { BlockedBadge, FieldChips, TagList } from "@/components/tasks/task-bits";
 
@@ -45,6 +46,7 @@ export default async function ListPage({
     topLevel,
     groups,
     shown,
+    closedCount,
   } = await getListView(slug, listId, await searchParams);
 
   const childrenOf = new Map<string, typeof tasks>();
@@ -168,6 +170,7 @@ export default async function ListPage({
         filter={filter}
         savedFilter={savedFilter}
         filtering={filtering}
+        closedCount={closedCount}
         can={can}
         statuses={statuses}
         people={people.map((p) => ({ userId: p.userId, name: p.name }))}
@@ -201,16 +204,15 @@ export default async function ListPage({
               {groups
                 .filter((g) => g.tasks.length > 0)
                 .map(({ status, tasks: groupTasks }) => (
-                  <section key={status.id} aria-labelledby={`status-${status.id}`} className="grid gap-1">
-                    <h2 id={`status-${status.id}`} className="flex items-center gap-2 text-[12px]">
-                      <span
-                        className="inline-flex h-6 items-center rounded-md px-2 font-semibold tracking-wide text-white uppercase"
-                        style={{ background: status.color }}
-                      >
-                        {status.name}
-                      </span>
-                      <span className="text-muted-foreground tabular-nums">{groupTasks.length}</span>
-                    </h2>
+                  <StatusGroup
+                    key={status.id}
+                    id={status.id}
+                    name={status.name}
+                    color={status.color}
+                    count={groupTasks.length}
+                    // Finished work (done, cancelled) starts collapsed; Closed shows open when turned on.
+                    defaultOpen={status.category !== "done" && status.category !== "cancelled"}
+                  >
                     <div className="bg-surface overflow-hidden rounded-lg border">
                       <div
                         className={`${ROW_GRID} group text-muted-foreground items-center gap-x-2 border-b py-1.5 pr-9 pl-2 text-[11px] font-medium`}
@@ -248,7 +250,7 @@ export default async function ListPage({
                         </div>
                       ) : null}
                     </div>
-                  </section>
+                  </StatusGroup>
                 ))}
             </div>
           </BulkSelection>
