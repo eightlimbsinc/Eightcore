@@ -236,7 +236,7 @@ test("the board moves tasks between statuses, also by keyboard", async ({ page }
   await expect(page).toHaveURL(/\/board/);
 
   const columns = page.getByRole("list", { name: "Board columns" });
-  const card = page.getByRole("button", { name: "BRD-1 New logo" });
+  const card = page.getByRole("group", { name: "BRD-1 New logo" });
   await expect(columns.getByRole("listitem", { name: /^Backlog, 1 task/ })).toBeVisible();
 
   // Keyboard drag: focus the card, Space to lift, Right arrow to the next column, Space to drop.
@@ -272,8 +272,8 @@ test("the calendar schedules and reschedules tasks by dragging", async ({ page }
 
   // "New logo" has no due date yet: drag it from the side panel onto today.
   const undated = page.getByRole("region", { name: /^No due date/ });
-  const chip = page.getByRole("button", { name: "BRD-1 New logo" });
-  await expect(undated.getByRole("button", { name: "BRD-1 New logo" })).toBeVisible();
+  const chip = page.getByRole("group", { name: "BRD-1 New logo" });
+  await expect(undated.getByRole("group", { name: "BRD-1 New logo" })).toBeVisible();
   const today = page.getByRole("gridcell", { name: /, today:/ });
   await page.setViewportSize({ width: 1400, height: 1100 });
   await today.scrollIntoViewIfNeeded();
@@ -285,7 +285,7 @@ test("the calendar schedules and reschedules tasks by dragging", async ({ page }
   // Aim near the top of the cell: dragging near the window's edge scrolls the page.
   await page.mouse.move(to.x + to.width / 2, to.y + 28, { steps: 15 });
   await page.mouse.up();
-  await expect(today.getByRole("button", { name: "BRD-1 New logo" })).toBeVisible();
+  await expect(today.getByRole("group", { name: "BRD-1 New logo" })).toBeVisible();
   await page.reload();
   await expect(page.getByRole("gridcell", { name: /, today: 1 task/ })).toContainText("New logo");
 

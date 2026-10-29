@@ -145,7 +145,7 @@ export function ColumnChart({
   const max = Math.max(1, ...columns.map((c) => c.value));
   const peak = Math.max(...columns.map((c) => c.value));
   return (
-    <div className="grid gap-1" role="img" aria-label={label}>
+    <div className="grid gap-1" role="group" aria-label={label}>
       <div className="border-viz-grid flex h-40 items-end gap-2 border-b pt-5">
         {columns.map((c, i) => (
           <Link

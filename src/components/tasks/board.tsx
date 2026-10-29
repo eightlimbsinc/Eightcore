@@ -377,10 +377,11 @@ function BoardCard({
           canDelete: task.canDelete,
         }}
       >
-        {/* The drag handle is the whole card (a button for keyboard and screen readers). */}
+        {/* The drag handle is the whole card: focus it, Space to lift. A group (not a button), since it holds the task link. */}
         <div
           {...attributes}
           {...listeners}
+          role="group"
           aria-roledescription={canEdit ? "draggable task" : undefined}
           aria-label={`${task.ref} ${task.title}`}
         >

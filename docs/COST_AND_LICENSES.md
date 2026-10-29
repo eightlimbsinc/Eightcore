@@ -127,14 +127,14 @@ Everything else in §2–§4 is **planned** and is added (and re-verified) in th
 | Kind | Packages (exact versions in `package.json`) |
 |---|---|
 | Runtime | next 16.4.2, react / react-dom 19.3.0, better-auth 1.7.7, drizzle-orm 0.45.4, pg 8.23.1, zod 4.6.7, nodemailer 10.1.0, radix-ui 1.8.1, lucide-react 1.56.0, next-themes 0.4.6, class-variance-authority 0.7.1, clsx 2.1.1, tailwind-merge 3.7.0, geist 1.7.2, server-only 0.0.1, fractional-indexing 4.0.0 (CC0-1.0), aws4fetch 1.0.20, file-type 22.2.0, @dnd-kit/core 6.3.1, @dnd-kit/sortable 10.0.0, @dnd-kit/utilities 3.2.2 |
-| Development | typescript 6.0.3, tailwindcss + @tailwindcss/postcss 4.3.3, drizzle-kit 0.31.11, eslint 9.39.5, eslint-config-next 16.4.2, typescript-eslint 8.71.2, prettier 3.9.10, prettier-plugin-tailwindcss 0.8.1 (MIT), vitest 5.0.4, @playwright/test 1.64.0, tsx 4.23.15, @types/* |
+| Development | typescript 6.0.3, tailwindcss + @tailwindcss/postcss 4.3.3, drizzle-kit 0.31.11, eslint 9.39.5, eslint-config-next 16.4.2, typescript-eslint 8.71.2, prettier 3.9.10, prettier-plugin-tailwindcss 0.8.1 (MIT), vitest 5.0.4, @playwright/test 1.64.0, @axe-core/playwright 4.13.0 (MPL-2.0, accessibility tests), tsx 4.23.15, @types/* |
 
 ### Reviewed non-permissive transitive packages
 
 | Package | Licence | Pulled in by | Why it's acceptable |
 |---|---|---|---|
 | `lightningcss` (+ platform binaries) | MPL-2.0 | Tailwind CSS 4 (CSS compiler, build time) | File-level copyleft. Used unmodified, so there are no obligations for our code |
-| `axe-core` | MPL-2.0 | `eslint-plugin-jsx-a11y` (lint only) | Same. Dev tooling, unmodified |
+| `axe-core` | MPL-2.0 | `eslint-plugin-jsx-a11y` (lint only) and `@axe-core/playwright` (accessibility tests) | Same. Dev tooling, unmodified |
 | `@img/sharp-libvips-*` | LGPL-3.0-or-later | `sharp`, Next.js's optional image optimiser | Dynamically linked, unmodified native library. LGPL permits this in proprietary apps. Optional and platform-specific |
 | `caniuse-lite` | CC-BY-4.0 | Browserslist (build tooling) | Data licence. Attribution is kept in the package |
 

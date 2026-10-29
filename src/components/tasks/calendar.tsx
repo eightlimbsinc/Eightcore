@@ -249,7 +249,8 @@ function DayCell({
       <span
         className={cn(
           "justify-self-end rounded-full px-1.5 text-[11px] tabular-nums",
-          dimmed ? "text-muted-foreground/60" : "text-muted-foreground",
+          // Days outside the month: smaller and lighter weight, but still readable (WCAG contrast).
+          dimmed ? "text-muted-foreground font-light" : "text-muted-foreground",
           isToday && "bg-accent font-semibold text-[#17171a]",
         )}
       >
@@ -318,6 +319,8 @@ function DraggableChip({
       ref={setNodeRef}
       {...attributes}
       {...listeners}
+      // A group, not a button: the chip holds the task link.
+      role="group"
       aria-roledescription={canEdit ? "draggable task" : undefined}
       aria-label={`${task.ref} ${task.title}`}
       className={cn(isDragging && "opacity-40")}

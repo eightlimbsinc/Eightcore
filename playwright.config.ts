@@ -46,7 +46,7 @@ export default defineConfig({
       SMTP_URL: "",
       // Production defaults to invite-only sign-up; these may sign up without an invitation.
       SIGNUP_ALLOWED_EMAILS:
-        "olivia@e2e.example.test,sam@e2e.example.test,tess@e2e.example.test,cora@e2e.example.test",
+        "olivia@e2e.example.test,sam@e2e.example.test,tess@e2e.example.test,cora@e2e.example.test,ally@e2e.example.test",
       MAIL_OUTBOX_DIR: ".mail/e2e",
       // Production mode refuses to drop mail on disk; allow it only for this local test server.
       EIGHTCORE_ALLOW_FILE_MAIL: "1",
