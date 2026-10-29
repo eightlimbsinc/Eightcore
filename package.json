@@ -23,6 +23,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/db/migrate.ts",
     "db:seed": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/db/seed.ts",
+    "perf:seed": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/perf/seed-large-list.ts",
     "db:reset": "tsx scripts/db/reset.ts",
     "db:studio": "drizzle-kit studio",
     "licenses:check": "node scripts/check-licenses.mjs",

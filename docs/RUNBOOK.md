@@ -151,6 +151,8 @@ rsync -a /srv/eightcore/storage/ /backups/storage/
 # retention: 14 daily, 8 weekly, 6 monthly; copy to a second physical disk / NAS
 ```
 
+Performance check (1,000-task list, see `PERFORMANCE.md`): `npm run perf:seed`, then `node scripts/perf/measure-pages.mjs`.
+
 Restore drill (performed at least quarterly, and before cutover):
 
 ```bash

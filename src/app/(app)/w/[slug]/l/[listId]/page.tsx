@@ -16,6 +16,9 @@ import { BlockedBadge, FieldChips, TagList } from "@/components/tasks/task-bits"
 
 export const metadata: Metadata = { title: "List" };
 
+/** Tasks shown per status group before "Show all". */
+const GROUP_PAGE = 30;
+
 /** Columns: select, expand, status, name, ID, assignee, priority, due date. Below md select to name. */
 const ROW_GRID =
   "grid grid-cols-[0.875rem_1.25rem_1.75rem_minmax(0,1fr)] md:grid-cols-[0.875rem_1.25rem_1.75rem_minmax(0,1fr)_6.5rem_7rem_7rem_6.5rem]";
@@ -28,6 +31,7 @@ export default async function ListPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { slug, listId } = await params;
+  const query = await searchParams;
   const {
     user,
     list,
@@ -48,7 +52,13 @@ export default async function ListPage({
     groups,
     shown,
     closedCount,
-  } = await getListView(slug, listId, await searchParams);
+  } = await getListView(slug, listId, query);
+  // Big lists: each group shows its first GROUP_PAGE tasks ("Show all" adds ?all=<status>),
+  // and groups that start collapsed send no rows until opened (?open=<status>).
+  const idsParam = (key: string) =>
+    new Set(typeof query[key] === "string" ? (query[key] as string).split(",").filter(Boolean) : []);
+  const openParam = idsParam("open");
+  const allParam = idsParam("all");
 
   const childrenOf = new Map<string, typeof tasks>();
   for (const t of tasks) {
@@ -205,55 +215,67 @@ export default async function ListPage({
               <div className="grid gap-6">
                 {groups
                   .filter((g) => g.tasks.length > 0)
-                  .map(({ status, tasks: groupTasks }) => (
-                    <StatusGroup
-                      key={status.id}
-                      id={status.id}
-                      name={status.name}
-                      color={status.color}
-                      count={groupTasks.length}
-                      // Finished work (done, cancelled) starts collapsed; Closed shows open when turned on.
-                      defaultOpen={status.category !== "done" && status.category !== "cancelled"}
-                    >
-                      <div className="bg-surface overflow-hidden rounded-lg border">
-                        <div
-                          className={`${ROW_GRID} group text-muted-foreground items-center gap-x-2 border-b py-1.5 pr-9 pl-2 text-[11px] font-medium`}
-                        >
-                          {selectable ? (
-                            <GroupCheckbox ids={groupTasks.map((t) => t.id)} label={status.name} />
-                          ) : (
-                            <span />
-                          )}
-                          <span aria-hidden />
-                          <span aria-hidden />
-                          <span aria-hidden>Name</span>
-                          <span aria-hidden className="hidden md:block">
-                            ID
-                          </span>
-                          <span aria-hidden className="hidden md:block">
-                            Assignee
-                          </span>
-                          <span aria-hidden className="hidden md:block">
-                            Priority
-                          </span>
-                          <span aria-hidden className="hidden md:block">
-                            Due date
-                          </span>
-                        </div>
-                        <ul className="divide-y">{groupTasks.map((task) => renderTask(task, 0))}</ul>
-                        {can.createTask ? (
-                          <div className="border-t">
-                            <QuickAddTask
-                              workspaceSlug={slug}
-                              listId={list.id}
-                              statusId={status.id}
-                              statusName={status.name}
-                            />
+                  .map(({ status, tasks: allGroupTasks }) => {
+                    // Finished work (done, cancelled) starts collapsed; Closed shows open when turned on.
+                    const startsOpen =
+                      (status.category !== "done" && status.category !== "cancelled") ||
+                      openParam.has(status.id);
+                    const groupTasks = !startsOpen
+                      ? []
+                      : allParam.has(status.id)
+                        ? allGroupTasks
+                        : allGroupTasks.slice(0, GROUP_PAGE);
+                    return (
+                      <StatusGroup
+                        key={status.id}
+                        id={status.id}
+                        name={status.name}
+                        color={status.color}
+                        count={allGroupTasks.length}
+                        defaultOpen={startsOpen}
+                        loaded={startsOpen}
+                        hiddenCount={startsOpen ? allGroupTasks.length - groupTasks.length : 0}
+                      >
+                        <div className="bg-surface overflow-hidden rounded-lg border">
+                          <div
+                            className={`${ROW_GRID} group text-muted-foreground items-center gap-x-2 border-b py-1.5 pr-9 pl-2 text-[11px] font-medium`}
+                          >
+                            {selectable ? (
+                              <GroupCheckbox ids={groupTasks.map((t) => t.id)} label={status.name} />
+                            ) : (
+                              <span />
+                            )}
+                            <span aria-hidden />
+                            <span aria-hidden />
+                            <span aria-hidden>Name</span>
+                            <span aria-hidden className="hidden md:block">
+                              ID
+                            </span>
+                            <span aria-hidden className="hidden md:block">
+                              Assignee
+                            </span>
+                            <span aria-hidden className="hidden md:block">
+                              Priority
+                            </span>
+                            <span aria-hidden className="hidden md:block">
+                              Due date
+                            </span>
                           </div>
-                        ) : null}
-                      </div>
-                    </StatusGroup>
-                  ))}
+                          <ul className="divide-y">{groupTasks.map((task) => renderTask(task, 0))}</ul>
+                          {can.createTask ? (
+                            <div className="border-t">
+                              <QuickAddTask
+                                workspaceSlug={slug}
+                                listId={list.id}
+                                statusId={status.id}
+                                statusName={status.name}
+                              />
+                            </div>
+                          ) : null}
+                        </div>
+                      </StatusGroup>
+                    );
+                  })}
               </div>
             </ListKeyboard>
           </BulkSelection>

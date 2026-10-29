@@ -72,7 +72,7 @@ Status: Phase 1 proposal. Every phase ships with passing tests for its acceptanc
 5. QA flow: Ready to Test → Testing in Staging → fail with note and evidence → back to In Development → retest → pass → Accepted. Both cycles visible.
 6. Search and filters return the expected tasks. A guest sees only shared items.
 7. Calendar: drag to reschedule, and the due date persists after reload.
-8. Light/dark theme toggle persists. axe reports no serious violations on the main screens.
+8. Light/dark theme toggle persists. axe reports no serious violations on the main screens (`tests/e2e/accessibility.spec.ts`: every main page in light and dark mode, plus the Add task window and the command palette, against WCAG 2.1 A/AA). Performance is measured separately (`PERFORMANCE.md`).
 
 ## 4. CI pipeline (GitHub Actions)
 

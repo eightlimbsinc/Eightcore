@@ -71,6 +71,9 @@ Status: **implemented in Phase 2** for the workspace and project actions below (
 | `project.view` / `task.view` | ✅ | ✅ | ✅ | ✅ |
 | `project.update` / archive / manage members | ✅ | ❌ | ❌ | ❌ |
 | `list.create` / `update` / `archive`, `folder.*` | ✅ | ❌ | ❌ | ❌ |
+| List statuses, and saving or applying a status template (`list.manage`); templates are shared workspace-wide and can be deleted by whoever saved them or a workspace owner/admin | ✅ | ❌ | ❌ | ❌ |
+| Project, folder and list icon/colour (`project.update` for projects, `list.manage` for folders and lists) | ✅ | ❌ | ❌ | ❌ |
+| Bulk actions (each selected task is checked like a single edit; tasks not allowed are skipped and counted) | ✅ | ✅ (archive/delete: own tasks) | ❌ | ❌ |
 | `task.create` / `task.update` / `task.move` | ✅ | ✅ | ❌ | ❌ |
 | `task.change_status` | ✅ | ✅ (subject to workflow `min_project_role`) | ❌ | ❌ |
 | `task.assign` | ✅ | ✅ | ❌ | ❌ |
