@@ -151,7 +151,11 @@ test("an owner organises work into lists and tasks", async ({ page }) => {
   await expect(page.getByText("Fields saved")).toBeVisible();
   await expect(page.getByText("updated the field “Channel”")).toBeVisible();
 
-  // Dependencies: WEB-1 waits on WEB-2, and closing it asks first.
+  // Dependencies (the side panel's Relationships tab): WEB-1 waits on WEB-2, and closing it asks first.
+  await page
+    .getByRole("navigation", { name: "Task panels" })
+    .getByRole("button", { name: /^Relationships/ })
+    .click();
   await page.getByLabel("Task reference").fill("WEB-2");
   await page.getByRole("button", { name: "Link" }).click();
   await expect(page.getByText("Dependency added")).toBeVisible();
@@ -173,6 +177,10 @@ test("an owner organises work into lists and tasks", async ({ page }) => {
 
   // The blocker's page shows the other side; unlinking clears the badge.
   await page.goto(page.url().replace(/\/l\/[^/]+$/, "/t/WEB-2"));
+  await page
+    .getByRole("navigation", { name: "Task panels" })
+    .getByRole("button", { name: /^Relationships/ })
+    .click();
   await expect(page.getByRole("list", { name: "Blocking" })).toContainText("Homepage hero");
   await page.getByRole("button", { name: "Remove link to WEB-1" }).click();
   await expect(page.getByText("No tasks are waiting on this one.")).toBeVisible();

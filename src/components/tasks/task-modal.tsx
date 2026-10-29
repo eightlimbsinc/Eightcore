@@ -18,7 +18,7 @@ export function TaskModal({ title, children }: { title: string; children: React.
           className="bg-background fixed inset-x-2 top-4 bottom-4 z-50 mx-auto flex max-w-6xl flex-col overflow-hidden rounded-xl border shadow-2xl sm:inset-x-6 sm:top-8 sm:bottom-8"
         >
           <Dialog.Title className="sr-only">{title}</Dialog.Title>
-          <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+          <div className="min-h-0 flex-1 overflow-y-auto lg:overflow-hidden">{children}</div>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

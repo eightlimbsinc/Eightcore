@@ -149,6 +149,8 @@ export function CommentsSection({
   members,
   canComment,
   canAttach,
+  events = [],
+  layout = "stacked",
 }: {
   workspaceSlug: string;
   taskId: string;
@@ -156,52 +158,75 @@ export function CommentsSection({
   members: Mentionable[];
   canComment: boolean;
   canAttach: boolean;
+  /** History lines to show between the comments, in time order (the task's Activity panel). */
+  events?: { id: string; at: string; content: React.ReactNode }[];
+  /** "panel": the timeline scrolls and the comment box stays at the bottom. */
+  layout?: "stacked" | "panel";
 }) {
   const [replyTo, setReplyTo] = useState<string | null>(null);
+  // Oldest first, like a chat: the newest is next to the comment box.
+  const timeline = [
+    ...threads.map((t) => ({ kind: "thread" as const, at: new Date(t.createdAt).getTime(), thread: t })),
+    ...events.map((e) => ({ kind: "event" as const, at: new Date(e.at).getTime(), event: e })),
+  ].sort((a, b) => a.at - b.at);
+  const panel = layout === "panel";
   return (
-    <div className="grid gap-5">
-      {threads.length ? (
-        <ol className="grid gap-5">
-          {threads.map((thread) => (
-            <li key={thread.id} className="grid gap-3">
-              <CommentItem
-                workspaceSlug={workspaceSlug}
-                comment={thread}
-                members={members}
-                onReply={canComment && !thread.deleted ? () => setReplyTo(thread.id) : undefined}
-              />
-              {thread.replies.length || replyTo === thread.id ? (
-                <ol className="ml-10 grid gap-3 border-l pl-4">
-                  {thread.replies.map((reply) => (
-                    <li key={reply.id}>
-                      <CommentItem workspaceSlug={workspaceSlug} comment={reply} members={members} />
-                    </li>
-                  ))}
-                  {replyTo === thread.id ? (
-                    <li>
-                      <CommentComposer
-                        action={createCommentAction.bind(null, workspaceSlug, taskId, thread.id)}
-                        members={members}
-                        label={`Reply to ${thread.authorName}`}
-                        placeholder="Write a reply…"
-                        submitLabel="Reply"
-                        allowFiles={canAttach}
-                        autoFocus
-                        onDone={() => setReplyTo(null)}
-                        onCancel={() => setReplyTo(null)}
-                      />
-                    </li>
+    <div className={panel ? "flex min-h-0 flex-1 flex-col" : "grid gap-5"}>
+      {timeline.length ? (
+        // In the panel, column-reverse keeps the view scrolled to the newest item.
+        <div className={panel ? "flex min-h-0 flex-1 flex-col-reverse overflow-y-auto px-4 py-4" : undefined}>
+          <ol className="grid gap-5">
+            {timeline.map((item) =>
+              item.kind === "event" ? (
+                <li key={`e-${item.event.id}`} className="text-muted-foreground text-[12px]">
+                  {item.event.content}
+                </li>
+              ) : (
+                <li key={item.thread.id} className="grid gap-3">
+                  <CommentItem
+                    workspaceSlug={workspaceSlug}
+                    comment={item.thread}
+                    members={members}
+                    onReply={
+                      canComment && !item.thread.deleted ? () => setReplyTo(item.thread.id) : undefined
+                    }
+                  />
+                  {item.thread.replies.length || replyTo === item.thread.id ? (
+                    <ol className="ml-10 grid gap-3 border-l pl-4">
+                      {item.thread.replies.map((reply) => (
+                        <li key={reply.id}>
+                          <CommentItem workspaceSlug={workspaceSlug} comment={reply} members={members} />
+                        </li>
+                      ))}
+                      {replyTo === item.thread.id ? (
+                        <li>
+                          <CommentComposer
+                            action={createCommentAction.bind(null, workspaceSlug, taskId, item.thread.id)}
+                            members={members}
+                            label={`Reply to ${item.thread.authorName}`}
+                            placeholder="Write a reply…"
+                            submitLabel="Reply"
+                            allowFiles={canAttach}
+                            autoFocus
+                            onDone={() => setReplyTo(null)}
+                            onCancel={() => setReplyTo(null)}
+                          />
+                        </li>
+                      ) : null}
+                    </ol>
                   ) : null}
-                </ol>
-              ) : null}
-            </li>
-          ))}
-        </ol>
+                </li>
+              ),
+            )}
+          </ol>
+        </div>
       ) : (
-        <p className="text-muted-foreground">No comments yet.</p>
+        <p className={panel ? "text-muted-foreground flex-1 px-4 py-4" : "text-muted-foreground"}>
+          No comments yet.
+        </p>
       )}
       {canComment ? (
-        <div className="border-t pt-4">
+        <div className={panel ? "border-t p-3" : "border-t pt-4"}>
           <CommentComposer
             action={createCommentAction.bind(null, workspaceSlug, taskId, null)}
             members={members}

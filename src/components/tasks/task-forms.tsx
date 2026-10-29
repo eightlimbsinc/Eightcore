@@ -34,22 +34,12 @@ export function TaskForm({
   );
   const errors = state && !state.ok ? state.fieldErrors : undefined;
   return (
-    <form action={action} className="grid gap-4">
+    <form id={`task-form-${task.id}`} action={action} className="grid gap-4">
       <input type="hidden" name="version" value={task.version} />
       {state ? (
         <Alert variant={state.ok ? "success" : "destructive"}>{state.message ?? "Saved"}</Alert>
       ) : null}
-      <Field label="Title" htmlFor="task-title" error={errors?.title}>
-        <Input
-          id="task-title"
-          name="title"
-          defaultValue={task.title}
-          required
-          maxLength={500}
-          disabled={!canEdit}
-          className="text-[15px] font-medium"
-        />
-      </Field>
+      {errors?.title ? <Alert variant="destructive">{errors.title}</Alert> : null}
       <div className="grid gap-3 sm:grid-cols-3">
         <Field label="Priority" htmlFor="task-priority">
           <NativeSelect
@@ -103,6 +93,33 @@ export function TaskForm({
         </div>
       ) : null}
     </form>
+  );
+}
+
+/** The task's name at the top of the page, edited in place; saved with the form below ("Save changes"). */
+export function TaskTitleInput({
+  task,
+  canEdit,
+}: {
+  task: Pick<TaskFields, "id" | "title">;
+  canEdit: boolean;
+}) {
+  return (
+    <div className="grid">
+      <label htmlFor="task-title" className="sr-only">
+        Title
+      </label>
+      <input
+        id="task-title"
+        form={`task-form-${task.id}`}
+        name="title"
+        defaultValue={task.title}
+        required
+        maxLength={500}
+        disabled={!canEdit}
+        className="hover:border-input focus:border-ring -mx-2 rounded-md border border-transparent bg-transparent px-2 py-1 text-2xl font-semibold tracking-tight outline-none disabled:opacity-100"
+      />
+    </div>
   );
 }
 

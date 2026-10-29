@@ -116,7 +116,11 @@ test("owner sees the mention in the inbox, replies, tags and attaches", async ({
   await expect(page.getByRole("checkbox", { name: "Client review" })).toBeChecked();
   await expect(page.getByText("added the tag “Client review”")).toBeVisible();
 
-  // Attach a file to the task itself.
+  // Attach a file to the task itself (the side panel's Files tab).
+  await page
+    .getByRole("navigation", { name: "Task panels" })
+    .getByRole("button", { name: /^Files/ })
+    .click();
   await page.getByLabel(/Attach files \(up to/).setInputFiles({
     name: "brief.txt",
     mimeType: "text/plain",
