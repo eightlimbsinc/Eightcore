@@ -56,7 +56,10 @@ export function AddTaskButton({
           if (o) setCreated(null);
         }}
       >
-        <Dialog.Trigger className="bg-primary text-primary-foreground inline-flex h-9 items-center gap-1.5 rounded-md px-3 text-sm font-medium hover:opacity-90 [&_svg]:size-4">
+        <Dialog.Trigger
+          data-add-task
+          className="bg-primary text-primary-foreground inline-flex h-9 items-center gap-1.5 rounded-md px-3 text-sm font-medium hover:opacity-90 [&_svg]:size-4"
+        >
           <Plus aria-hidden /> Add task
         </Dialog.Trigger>
         <Dialog.Portal>

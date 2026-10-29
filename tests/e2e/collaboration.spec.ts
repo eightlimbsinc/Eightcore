@@ -348,6 +348,33 @@ test("bulk actions change and archive many tasks at once", async ({ page }) => {
     await expect(page.getByRole("link", { name: title })).toBeVisible();
   }
 
+  // Keyboard: j/k move between rows, x selects, Enter opens, ? shows the shortcuts.
+  const focused = page.locator("[data-row]:focus");
+  await page.keyboard.press("j");
+  await expect(focused).toHaveCount(1);
+  for (let i = 0; i < 10 && !/Bulk one$/.test((await focused.getAttribute("aria-label")) ?? ""); i++) {
+    await page.keyboard.press("j");
+  }
+  await expect(focused).toHaveAttribute("aria-label", /BRD-\d+ Bulk one$/);
+  await page.keyboard.press("j");
+  await expect(focused).toHaveAttribute("aria-label", /Bulk two$/);
+  await page.keyboard.press("k");
+  await expect(focused).toHaveAttribute("aria-label", /Bulk one$/);
+  await page.keyboard.press("x");
+  await expect(page.getByRole("checkbox", { name: /^Select BRD-\d+ Bulk one$/ })).toBeChecked();
+  await page.keyboard.press("x");
+  await expect(page.getByRole("checkbox", { name: /^Select BRD-\d+ Bulk one$/ })).not.toBeChecked();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/t\/BRD-\d+$/);
+  await page.keyboard.press("Escape");
+  await expect(page).toHaveURL(/\/l\//);
+  await page.keyboard.press("?");
+  await expect(page.getByRole("dialog", { name: "Keyboard shortcuts" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("n");
+  await expect(page.getByLabel("New task title")).toBeFocused();
+  await page.keyboard.press("Escape");
+
   // Click the first, Shift+click the last: all three are selected.
   await page.getByRole("checkbox", { name: /^Select BRD-\d+ Bulk one$/ }).click();
   await page.getByRole("checkbox", { name: /^Select BRD-\d+ Bulk three$/ }).click({ modifiers: ["Shift"] });

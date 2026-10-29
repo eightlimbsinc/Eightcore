@@ -40,9 +40,14 @@ export function ExpandableTask({
     <li>
       <TaskContextMenu target={menu}>
         <div
+          // A stop for keyboard navigation (see ListKeyboard): arrow keys move between rows.
+          data-row
+          tabIndex={-1}
+          role="group"
+          aria-label={name}
           className={cn(
             gridClass,
-            "group hover:bg-surface-muted/50 relative min-h-10 items-center gap-x-2 py-1 pr-9 pl-2",
+            "group hover:bg-surface-muted/50 focus-visible:bg-accent-soft/50 relative min-h-10 items-center gap-x-2 py-1 pr-9 pl-2 outline-none focus-visible:shadow-[inset_3px_0_0_var(--accent)]",
           )}
           style={depth ? { paddingLeft: `${0.5 + depth * 1.5}rem` } : undefined}
         >

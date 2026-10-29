@@ -10,6 +10,7 @@ import { AssigneePicker } from "@/components/tasks/assignee-picker";
 import { ExpandableTask } from "@/components/tasks/expandable-task";
 import { DueDatePicker, PriorityPicker } from "@/components/tasks/row-pickers";
 import { StatusGroup } from "@/components/tasks/status-group";
+import { ListKeyboard } from "@/components/tasks/list-keyboard";
 import { BulkSelection, GroupCheckbox, RowCheckbox } from "@/components/tasks/bulk-select";
 import { BlockedBadge, FieldChips, TagList } from "@/components/tasks/task-bits";
 
@@ -200,59 +201,61 @@ export default async function ListPage({
             people={people.map((p) => ({ userId: p.userId, name: p.name }))}
             can={bulk}
           >
-            <div className="grid gap-6">
-              {groups
-                .filter((g) => g.tasks.length > 0)
-                .map(({ status, tasks: groupTasks }) => (
-                  <StatusGroup
-                    key={status.id}
-                    id={status.id}
-                    name={status.name}
-                    color={status.color}
-                    count={groupTasks.length}
-                    // Finished work (done, cancelled) starts collapsed; Closed shows open when turned on.
-                    defaultOpen={status.category !== "done" && status.category !== "cancelled"}
-                  >
-                    <div className="bg-surface overflow-hidden rounded-lg border">
-                      <div
-                        className={`${ROW_GRID} group text-muted-foreground items-center gap-x-2 border-b py-1.5 pr-9 pl-2 text-[11px] font-medium`}
-                      >
-                        {selectable ? (
-                          <GroupCheckbox ids={groupTasks.map((t) => t.id)} label={status.name} />
-                        ) : (
-                          <span />
-                        )}
-                        <span aria-hidden />
-                        <span aria-hidden />
-                        <span aria-hidden>Name</span>
-                        <span aria-hidden className="hidden md:block">
-                          ID
-                        </span>
-                        <span aria-hidden className="hidden md:block">
-                          Assignee
-                        </span>
-                        <span aria-hidden className="hidden md:block">
-                          Priority
-                        </span>
-                        <span aria-hidden className="hidden md:block">
-                          Due date
-                        </span>
-                      </div>
-                      <ul className="divide-y">{groupTasks.map((task) => renderTask(task, 0))}</ul>
-                      {can.createTask ? (
-                        <div className="border-t">
-                          <QuickAddTask
-                            workspaceSlug={slug}
-                            listId={list.id}
-                            statusId={status.id}
-                            statusName={status.name}
-                          />
+            <ListKeyboard>
+              <div className="grid gap-6">
+                {groups
+                  .filter((g) => g.tasks.length > 0)
+                  .map(({ status, tasks: groupTasks }) => (
+                    <StatusGroup
+                      key={status.id}
+                      id={status.id}
+                      name={status.name}
+                      color={status.color}
+                      count={groupTasks.length}
+                      // Finished work (done, cancelled) starts collapsed; Closed shows open when turned on.
+                      defaultOpen={status.category !== "done" && status.category !== "cancelled"}
+                    >
+                      <div className="bg-surface overflow-hidden rounded-lg border">
+                        <div
+                          className={`${ROW_GRID} group text-muted-foreground items-center gap-x-2 border-b py-1.5 pr-9 pl-2 text-[11px] font-medium`}
+                        >
+                          {selectable ? (
+                            <GroupCheckbox ids={groupTasks.map((t) => t.id)} label={status.name} />
+                          ) : (
+                            <span />
+                          )}
+                          <span aria-hidden />
+                          <span aria-hidden />
+                          <span aria-hidden>Name</span>
+                          <span aria-hidden className="hidden md:block">
+                            ID
+                          </span>
+                          <span aria-hidden className="hidden md:block">
+                            Assignee
+                          </span>
+                          <span aria-hidden className="hidden md:block">
+                            Priority
+                          </span>
+                          <span aria-hidden className="hidden md:block">
+                            Due date
+                          </span>
                         </div>
-                      ) : null}
-                    </div>
-                  </StatusGroup>
-                ))}
-            </div>
+                        <ul className="divide-y">{groupTasks.map((task) => renderTask(task, 0))}</ul>
+                        {can.createTask ? (
+                          <div className="border-t">
+                            <QuickAddTask
+                              workspaceSlug={slug}
+                              listId={list.id}
+                              statusId={status.id}
+                              statusName={status.name}
+                            />
+                          </div>
+                        ) : null}
+                      </div>
+                    </StatusGroup>
+                  ))}
+              </div>
+            </ListKeyboard>
           </BulkSelection>
         )}
       </div>
