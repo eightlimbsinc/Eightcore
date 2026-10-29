@@ -12,10 +12,13 @@ export function NewListForm({
   workspaceSlug,
   projectId,
   folders,
+  savedTemplates = [],
 }: {
   workspaceSlug: string;
   projectId: string;
   folders: { id: string; name: string }[];
+  /** The workspace's saved status templates. */
+  savedTemplates?: { id: string; name: string; statuses: { name: string }[] }[];
 }) {
   const [state, action, pending] = useActionState(
     createListAction.bind(null, workspaceSlug, projectId),
@@ -65,6 +68,26 @@ export function NewListForm({
               <span>
                 <span className="block font-medium">{t.label}</span>
                 <span className="text-muted-foreground block text-[12px]">{t.description}</span>
+              </span>
+            </label>
+          ))}
+          {savedTemplates.map((t) => (
+            <label
+              key={t.id}
+              className="bg-surface has-[:checked]:border-accent has-[:checked]:bg-accent-soft/40 flex cursor-pointer gap-3 rounded-md border p-3"
+            >
+              <input
+                suppressHydrationWarning
+                type="radio"
+                name="template"
+                value={`saved:${t.id}`}
+                className="mt-0.5 accent-[var(--accent)]"
+              />
+              <span className="min-w-0">
+                <span className="block font-medium">{t.name}</span>
+                <span className="text-muted-foreground block truncate text-[12px]">
+                  {t.statuses.map((s) => s.name).join(" → ")}
+                </span>
               </span>
             </label>
           ))}

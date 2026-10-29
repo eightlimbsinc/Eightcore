@@ -22,6 +22,12 @@ import {
 } from "./service";
 import type { ItemAppearance, ItemKind } from "@/lib/appearance";
 import { statusInput } from "./validators";
+import {
+  applyStatusTemplate,
+  deleteStatusTemplate,
+  saveStatusTemplate,
+  type TemplateSource,
+} from "./status-templates";
 
 async function actorFor(workspaceSlug: string) {
   const user = await requireUser();
@@ -89,7 +95,11 @@ export async function createListAction(
     const list = await createList(await actorFor(workspaceSlug), projectId, {
       name: formString(form, "name"),
       folderId: folderId || null,
-      template: formString(form, "template") === "simple" ? "simple" : "agency",
+      ...(formString(form, "template").startsWith("saved:")
+        ? { templateId: formString(form, "template").slice("saved:".length) }
+        : {
+            template: formString(form, "template") === "simple" ? ("simple" as const) : ("agency" as const),
+          }),
     });
     listId = list.id;
   });
@@ -216,6 +226,51 @@ export async function setItemAppearanceAction(
       icon: appearance.icon ?? null,
       color: appearance.color ?? null,
     });
+    revalidatePath(`/w/${workspaceSlug}`, "layout");
+  });
+}
+
+/** "Save as template" on the list settings page. */
+export async function saveStatusTemplateAction(
+  workspaceSlug: string,
+  listId: string,
+  _prev: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  return runAction(async () => {
+    const name = formString(form, "name");
+    await saveStatusTemplate(await actorFor(workspaceSlug), listId, name);
+    revalidatePath(`/w/${workspaceSlug}`, "layout");
+    return { ok: true, message: `Saved “${name.trim()}” as a template` };
+  });
+}
+
+/** Replaces the list's statuses with a template's (tasks are kept and moved). */
+export async function applyStatusTemplateAction(
+  workspaceSlug: string,
+  listId: string,
+  source: TemplateSource,
+): Promise<ActionState> {
+  return runAction(async () => {
+    const clean: TemplateSource =
+      "builtin" in source
+        ? { builtin: source.builtin === "simple" ? "simple" : "agency" }
+        : { id: String(source.id) };
+    const { removed, movedTasks } = await applyStatusTemplate(await actorFor(workspaceSlug), listId, clean);
+    revalidatePath(`/w/${workspaceSlug}`, "layout");
+    const note = removed.length
+      ? ` Removed ${removed.join(", ")}${movedTasks ? `; moved ${movedTasks} ${movedTasks === 1 ? "task" : "tasks"}` : ""}.`
+      : "";
+    return { ok: true, message: `Template applied.${note}` };
+  });
+}
+
+export async function deleteStatusTemplateAction(
+  workspaceSlug: string,
+  templateId: string,
+): Promise<ActionState> {
+  return runAction(async () => {
+    await deleteStatusTemplate(await actorFor(workspaceSlug), templateId);
     revalidatePath(`/w/${workspaceSlug}`, "layout");
   });
 }

@@ -418,7 +418,7 @@ test("a tab from before a release reloads itself instead of crashing", async ({ 
   await expect(page.getByText("This page couldn’t load")).toHaveCount(0);
 });
 
-test("Completed tasks hide behind the Closed toggle; finished groups start collapsed", async ({ page }) => {
+test("Completed tasks hide behind Closed; finished groups collapse; status templates", async ({ page }) => {
   await signIn(page, owner);
   await expect(page).toHaveURL(/\/w\//);
   await page.goto(`/w/${workspaceSlug}`);
@@ -454,4 +454,23 @@ test("Completed tasks hide behind the Closed toggle; finished groups start colla
   await expect(page.getByRole("link", { name: "Old work" })).toHaveCount(0);
   await page.getByRole("button", { name: "Expand Accepted" }).click();
   await expect(page.getByRole("link", { name: "Old work" })).toBeVisible();
+
+  // Status templates: save this list's statuses, apply another set, reuse the saved one.
+  await page.getByRole("link", { name: /List settings/ }).click();
+
+  await page.getByLabel("Save this list's statuses as a template").fill("Brand flow");
+  await page.getByRole("button", { name: "Save as template" }).click();
+  await expect(page.getByText("Saved “Brand flow” as a template")).toBeVisible();
+  const templates = page.getByRole("list", { name: "Status templates" });
+  await expect(templates).toContainText("Brand flow");
+
+  page.once("dialog", (d) => void d.accept());
+  await templates.getByRole("button", { name: "Apply Simple" }).click();
+  await expect(page.getByText(/Template applied\./)).toBeVisible();
+  await expect(page.locator('input[value="In Progress"]')).toBeVisible();
+  await expect(page.locator('input[value="Backlog"]')).toHaveCount(0);
+
+  // The saved template is offered when creating a list.
+  await page.goto(`/w/${workspaceSlug}/p/BRD`);
+  await expect(page.getByRole("radio", { name: /Brand flow/ })).toBeVisible();
 });

@@ -16,7 +16,10 @@ export async function generateMetadata({ params }: { params: Promise<{ key: stri
 
 export default async function ProjectPage({ params }: { params: Promise<{ slug: string; key: string }> }) {
   const { slug, key } = await params;
-  const { actor, project, members, workspaceMembers, tree } = await getProjectPage(slug, key);
+  const { actor, project, members, workspaceMembers, tree, statusTemplates } = await getProjectPage(
+    slug,
+    key,
+  );
   return (
     <>
       <PageHeader
@@ -56,7 +59,12 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
       />
       <div className="grid gap-6 px-8 py-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]">
         <div className="grid content-start gap-6">
-          <ProjectLists workspaceSlug={slug} projectId={project.id} tree={tree} />
+          <ProjectLists
+            workspaceSlug={slug}
+            projectId={project.id}
+            tree={tree}
+            statusTemplates={statusTemplates}
+          />
           {project.can.update ? (
             <Card>
               <CardHeader>

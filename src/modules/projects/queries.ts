@@ -1,4 +1,5 @@
 import "server-only";
+import { listStatusTemplates } from "@/modules/lists/status-templates";
 import { notFound } from "next/navigation";
 import { canWorkspace } from "@/server/authz/policy";
 import { NotFoundError } from "@/server/errors";
@@ -12,16 +13,17 @@ export async function getProjectPage(slug: string, key: string) {
   const { actor } = await getWorkspaceContext(slug);
   try {
     const project = await getProjectByKey(actor, key);
-    const [members, tree] = await Promise.all([
+    const [members, tree, statusTemplates] = await Promise.all([
       listProjectMembers(actor, project.id),
       getProjectTree(actor, project.id),
+      listStatusTemplates(actor),
     ]);
     // Candidates for "add member": only needed (and only allowed) for project managers.
     const workspaceMembers =
       project.can.manageMembers && canWorkspace(actor.workspaceRole, "member.view_directory")
         ? (await listMembers(actor)).filter((m) => m.status === "active")
         : [];
-    return { actor, project, members, workspaceMembers, tree };
+    return { actor, project, members, workspaceMembers, tree, statusTemplates };
   } catch (error) {
     if (error instanceof NotFoundError) notFound();
     throw error;

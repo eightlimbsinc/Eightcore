@@ -10,6 +10,8 @@ export const createListInput = z.object({
   name,
   folderId: z.uuid().nullable().default(null),
   template: z.enum(Object.keys(STATUS_TEMPLATES) as [keyof typeof STATUS_TEMPLATES]).default("agency"),
+  /** A saved workspace template; wins over `template` when given. */
+  templateId: z.uuid().optional(),
 });
 export type CreateListInput = z.input<typeof createListInput>;
 

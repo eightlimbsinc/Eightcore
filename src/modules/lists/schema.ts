@@ -135,3 +135,28 @@ export const listStatuses = pgTable(
     check("list_statuses_color_format", sql`${t.color} ~ '^#[0-9a-fA-F]{6}$'`),
   ],
 );
+
+/**
+ * Saved sets of statuses ("status templates"), shared across a workspace. A copy: applying
+ * one to a list (or creating a list from it) gives the list its own statuses.
+ */
+export const statusTemplates = pgTable(
+  "status_templates",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    workspaceId: uuid()
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    name: text().notNull(),
+    /** [{ name, category, color }] in order. */
+    statuses: jsonb().$type<{ name: string; category: string; color: string }[]>().notNull(),
+    createdBy: uuid()
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("status_templates_workspace_name_uq").on(t.workspaceId, sql`lower(${t.name})`),
+    check("status_templates_name_length", sql`char_length(${t.name}) between 1 and 60`),
+  ],
+);

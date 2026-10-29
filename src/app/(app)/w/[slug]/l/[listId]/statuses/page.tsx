@@ -6,6 +6,8 @@ import { getListPage } from "@/modules/lists/queries";
 import { PageHeader } from "@/components/app/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ListSettingsForm, StatusEditor } from "@/components/lists/status-editor";
+import { StatusTemplatesPanel } from "@/components/lists/status-templates";
+import { listStatusTemplates } from "@/modules/lists/status-templates";
 
 export const metadata: Metadata = { title: "List settings" };
 
@@ -15,8 +17,9 @@ export default async function ListStatusesPage({
   params: Promise<{ slug: string; listId: string }>;
 }) {
   const { slug, listId } = await params;
-  const { list, project, statuses, can } = await getListPage(slug, listId);
+  const { actor, list, project, statuses, can } = await getListPage(slug, listId);
   if (!can.manage) notFound();
+  const saved = await listStatusTemplates(actor);
   return (
     <>
       <PageHeader
@@ -41,6 +44,17 @@ export default async function ListStatusesPage({
           </CardHeader>
           <CardContent>
             <StatusEditor workspaceSlug={slug} listId={list.id} statuses={statuses} />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Status templates</CardTitle>
+            <CardDescription>
+              Reuse a set of statuses across lists. Templates are shared with everyone in the workspace.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <StatusTemplatesPanel workspaceSlug={slug} listId={list.id} saved={saved} />
           </CardContent>
         </Card>
         <Card>

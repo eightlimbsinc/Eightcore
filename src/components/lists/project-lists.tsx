@@ -35,10 +35,13 @@ export function ProjectLists({
   workspaceSlug,
   projectId,
   tree,
+  statusTemplates = [],
 }: {
   workspaceSlug: string;
   projectId: string;
   tree: Tree;
+  /** Saved workspace templates, offered when creating a list. */
+  statusTemplates?: { id: string; name: string; statuses: { name: string }[] }[];
 }) {
   const empty = tree.folders.length === 0 && tree.rootLists.length === 0;
   return (
@@ -91,7 +94,12 @@ export function ProjectLists({
         )}
         {tree.can.manage ? (
           <div className="grid gap-5 border-t pt-5">
-            <NewListForm workspaceSlug={workspaceSlug} projectId={projectId} folders={tree.folders} />
+            <NewListForm
+              workspaceSlug={workspaceSlug}
+              projectId={projectId}
+              folders={tree.folders}
+              savedTemplates={statusTemplates}
+            />
             <NewFolderForm workspaceSlug={workspaceSlug} projectId={projectId} />
           </div>
         ) : null}

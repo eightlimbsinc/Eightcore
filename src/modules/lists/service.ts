@@ -17,7 +17,8 @@ import { enqueueOutbox, recordActivity } from "@/modules/activity/service";
 import { loadProjectAccess } from "@/modules/projects/service";
 import { isItemColor, isItemIcon, type ItemAppearance, type ItemKind } from "@/lib/appearance";
 import { readViewSettings } from "./view-settings";
-import { STATUS_TEMPLATES, isClosedCategory, isHiddenCategory } from "./templates";
+import { templateStatusesFor } from "./status-templates";
+import { isClosedCategory, isHiddenCategory } from "./templates";
 import {
   createFolderInput,
   createListInput,
@@ -250,7 +251,11 @@ export async function createList(actor: ActorContext, projectId: string, raw: Cr
         createdBy: actor.userId,
       })
       .returning({ id: taskLists.id, name: taskLists.name });
-    const template = STATUS_TEMPLATES[input.template].statuses;
+    const template = await templateStatusesFor(
+      tx,
+      actor,
+      input.templateId ? { id: input.templateId } : { builtin: input.template },
+    );
     const positions = generateNKeysBetween(null, null, template.length);
     await tx.insert(listStatuses).values(
       template.map((s, i) => ({
@@ -266,7 +271,7 @@ export async function createList(actor: ActorContext, projectId: string, raw: Cr
       entityType: "list",
       entityId: list!.id,
       action: "created",
-      metadata: { name: input.name, template: input.template, projectId },
+      metadata: { name: input.name, template: input.templateId ?? input.template, projectId },
     });
     await enqueueOutbox(tx, actor.workspaceId, "list.created", { listId: list!.id, projectId });
     return list!;
