@@ -45,8 +45,13 @@ test("an owner organises work into lists and tasks", async ({ page }) => {
   // Add a task; it gets the project's first number.
   await page.getByRole("button", { name: "Add task", exact: true }).click();
   await page.getByLabel("New task title").fill("Homepage hero");
-  await page.getByLabel("Status", { exact: true }).selectOption({ label: "To Do" });
-  await page.getByRole("dialog").getByRole("button", { name: "Add task", exact: true }).click();
+  await page.getByLabel("Description").fill("Big image, short headline.");
+  await page.getByRole("button", { name: /^Status: / }).click();
+  await page.getByRole("menuitem", { name: "To Do" }).click();
+  await page.getByRole("button", { name: /^Priority: / }).click();
+  await page.getByRole("menuitem", { name: "High" }).click();
+  await expect(page.getByRole("button", { name: "Status: To Do" })).toBeVisible();
+  await page.getByRole("dialog").getByRole("button", { name: "Create task" }).click();
   await expect(page.getByText("Created WEB-1")).toBeVisible();
   await expect(
     page.getByRole("region", { name: /To Do/ }).getByRole("link", { name: "Homepage hero" }),
@@ -92,7 +97,9 @@ test("an owner organises work into lists and tasks", async ({ page }) => {
     page.getByRole("region", { name: /In Development/ }).getByRole("link", { name: "Homepage hero" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Add task", exact: true }).click();
-  await expect(page.getByRole("dialog").getByLabel("Status", { exact: true })).toContainText("Queued");
+  await page.getByRole("button", { name: /^Status: / }).click();
+  await expect(page.getByRole("menuitem", { name: "Queued" })).toBeVisible();
+  await page.keyboard.press("Escape");
   await page.keyboard.press("Escape");
 
   // Manage folders and lists from the side navigation.

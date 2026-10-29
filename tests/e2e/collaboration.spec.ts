@@ -43,7 +43,7 @@ test("owner sets up a task and invites a teammate", async ({ page }) => {
   await page.getByRole("button", { name: "Create list" }).click();
   await page.getByRole("button", { name: "Add task", exact: true }).click();
   await page.getByLabel("New task title").fill("New logo");
-  await page.getByRole("dialog").getByRole("button", { name: "Add task", exact: true }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Create task" }).click();
   await expect(page.getByText("Created BRD-1")).toBeVisible();
 
   await page.getByRole("link", { name: "Members" }).click();
@@ -387,4 +387,27 @@ test("projects, folders and lists get their own icon and colour", async ({ page 
   await expect(picker.getByRole("radio", { name: "Rocket" })).toHaveAttribute("aria-checked", "true");
   await expect(picker.getByRole("radio", { name: "Blue" })).toHaveAttribute("aria-checked", "true");
   await page.keyboard.press("Escape");
+});
+
+test("a tab from before a release reloads itself instead of crashing", async ({ page }) => {
+  await signIn(page, owner);
+  await expect(page).toHaveURL(/\/w\//);
+  await page.goto(`/w/${workspaceSlug}`);
+  const projectsNav = page.getByRole("navigation", { name: "Projects" });
+  await projectsNav.getByRole("button", { name: "Expand Brand" }).click();
+  await projectsNav.getByRole("link", { name: "Design" }).click();
+  await expect(page.getByRole("link", { name: "New logo" })).toBeVisible();
+
+  // What a new release answers to an old tab's Server Action.
+  await page.route("**/*", (route) =>
+    route.request().method() === "POST" && route.request().headers()["next-action"]
+      ? route.fulfill({ status: 404, headers: { "x-nextjs-action-not-found": "1" }, body: "" })
+      : route.fallback(),
+  );
+  const reloaded = page.waitForEvent("load");
+  await page.getByRole("button", { name: /^Priority of BRD-1/ }).click();
+  await page.getByRole("menuitem", { name: "Low" }).click();
+  await reloaded;
+  await expect(page.getByRole("link", { name: "New logo" })).toBeVisible();
+  await expect(page.getByText("This page couldn’t load")).toHaveCount(0);
 });

@@ -1,6 +1,7 @@
 import { Ban, CalendarDays, Flag } from "lucide-react";
 import { PRIORITY_META, dueState, formatDate, type Priority } from "@/lib/task-format";
-import { cn, initials } from "@/lib/utils";
+import { PersonAvatar } from "@/components/app/person-avatar";
+import { cn } from "@/lib/utils";
 
 export function StatusDot({ color, className }: { color: string; className?: string }) {
   return (
@@ -70,15 +71,9 @@ export function AssigneeStack({
   if (people.length === 0) return null;
   const shown = people.slice(0, max);
   return (
-    <span className="flex -space-x-1.5" aria-label={`Assigned to ${people.map((p) => p.name).join(", ")}`}>
+    <span className="flex -space-x-1" aria-label={`Assigned to ${people.map((p) => p.name).join(", ")}`}>
       {shown.map((p) => (
-        <span
-          key={p.userId}
-          title={p.name}
-          className="border-surface bg-accent-soft text-accent-foreground grid size-6 place-items-center rounded-full border-2 text-[10px] font-semibold"
-        >
-          {initials(p.name)}
-        </span>
+        <PersonAvatar key={p.userId} id={p.userId} name={p.name} title={p.name} />
       ))}
       {people.length > max ? (
         <span className="border-surface bg-surface-muted grid size-6 place-items-center rounded-full border-2 text-[10px]">

@@ -194,6 +194,7 @@ export async function createTask(actor: ActorContext, listId: string, raw: Creat
           parentTaskId: input.parentTaskId ?? null,
           number: counter!.number,
           title: input.title,
+          description: input.description,
           priority: input.priority,
           startDate: input.startDate ?? null,
           dueDate: input.dueDate ?? null,

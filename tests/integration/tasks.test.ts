@@ -57,6 +57,26 @@ describe("creating tasks", () => {
   });
 });
 
+describe("creating with details", () => {
+  it("saves the description, priority, due date and assignees given at creation", async () => {
+    const { actors, users, list } = await setup();
+    const task = await createTask(actors.member, list.id, {
+      title: "Hero",
+      description: "Big image, short headline.",
+      priority: "high",
+      dueDate: "2026-11-20",
+      assigneeIds: [users.owner.id],
+    });
+    const { task: saved, assignees } = await getTaskByRef(actors.member, task.ref);
+    expect(saved).toMatchObject({
+      description: "Big image, short headline.",
+      priority: "high",
+      dueDate: "2026-11-20",
+    });
+    expect(assignees.map((a) => a.userId)).toEqual([users.owner.id]);
+  });
+});
+
 describe("subtasks", () => {
   it("nests subtasks, counts them, and links back to the parent", async () => {
     const { actors, list } = await setup();

@@ -89,7 +89,7 @@ export default async function WorkspaceLayout({
           )}
         </nav>
         <div className="flex items-center gap-1 border-t p-2">
-          <UserMenu name={user.name} email={user.email} />
+          <UserMenu userId={user.id} name={user.name} email={user.email} />
           <ThemeToggle className="shrink-0 [&>button]:size-6" />
         </div>
       </aside>

@@ -7,6 +7,7 @@ import { AppearancePicker } from "@/components/app/appearance-picker";
 import { Button } from "@/components/ui/button";
 import { FilterBar } from "@/components/tasks/filter-bar";
 import { AddTaskButton } from "@/components/tasks/add-task-button";
+import type { StatusOption } from "@/components/tasks/status-menu";
 import { ViewMenu } from "@/components/lists/view-menu";
 import { cn } from "@/lib/utils";
 
@@ -41,7 +42,7 @@ export function ListHeader({
   filtering: boolean;
   can: { manage: boolean; saveView: boolean; protectView: boolean; createTask: boolean };
   /** For "Add task". */
-  statuses: { id: string; name: string }[];
+  statuses: StatusOption[];
   people: { userId: string; name: string }[];
   tagNames: string[];
 }) {
@@ -142,7 +143,13 @@ export function ListHeader({
             />
           </div>
           {can.createTask ? (
-            <AddTaskButton workspaceSlug={slug} listId={list.id} listName={list.name} statuses={statuses} />
+            <AddTaskButton
+              workspaceSlug={slug}
+              listId={list.id}
+              listName={list.name}
+              statuses={statuses}
+              people={people}
+            />
           ) : null}
         </div>
       </div>

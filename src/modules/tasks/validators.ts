@@ -12,6 +12,7 @@ const optionalDate = z.preprocess(
 
 export const createTaskInput = z.object({
   title,
+  description: z.string().max(20_000, "The description is too long").default(""),
   statusId: z.uuid().optional(),
   parentTaskId: z.uuid().optional(),
   priority: z.enum(TASK_PRIORITIES).default("none"),

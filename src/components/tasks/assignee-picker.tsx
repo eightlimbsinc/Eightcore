@@ -3,7 +3,8 @@ import { useOptimistic, useState, useTransition } from "react";
 import { Popover } from "radix-ui";
 import { Check, Search, UserPlus } from "lucide-react";
 import { setTaskAssigneesAction } from "@/modules/tasks/actions";
-import { cn, initials } from "@/lib/utils";
+import { PersonAvatar } from "@/components/app/person-avatar";
+import { cn } from "@/lib/utils";
 
 export interface Person {
   userId: string;
@@ -11,17 +12,8 @@ export interface Person {
   email?: string;
 }
 
-function Avatar({ name, className }: { name: string; className?: string }) {
-  return (
-    <span
-      className={cn(
-        "border-surface bg-accent-soft text-accent-foreground grid size-6 shrink-0 place-items-center rounded-full border-2 text-[10px] font-semibold",
-        className,
-      )}
-    >
-      {initials(name)}
-    </span>
-  );
+function Avatar({ id, name, className }: { id: string; name: string; className?: string }) {
+  return <PersonAvatar id={id} name={name} className={className} />;
 }
 
 /**
@@ -76,7 +68,7 @@ export function AssigneePicker({
     <span className="flex items-center gap-2">
       <span className="flex -space-x-1.5">
         {chosen.slice(0, 3).map((p) => (
-          <Avatar key={p.userId} name={p.name} />
+          <Avatar key={p.userId} id={p.userId} name={p.name} />
         ))}
         {chosen.length > 3 ? (
           <span className="border-surface bg-surface-muted grid size-6 place-items-center rounded-full border-2 text-[10px]">
@@ -152,7 +144,7 @@ export function AssigneePicker({
                       onClick={() => toggle(p.userId)}
                       className="hover:bg-surface-muted flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left"
                     >
-                      <Avatar name={p.name} />
+                      <Avatar id={p.userId} name={p.name} />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-[13px] font-medium">
                           {p.userId === currentUserId ? "Me" : p.name}

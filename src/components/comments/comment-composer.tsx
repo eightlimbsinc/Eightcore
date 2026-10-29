@@ -1,8 +1,8 @@
 "use client";
+import { PersonAvatar } from "@/components/app/person-avatar";
 import { startTransition, useActionState, useId, useRef, useState } from "react";
 import { Paperclip } from "lucide-react";
 import type { ActionState } from "@/lib/action-state";
-import { initials } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
 
@@ -165,9 +165,7 @@ export function CommentComposer({
                 }}
                 className="aria-selected:bg-surface-muted flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1 text-[13px]"
               >
-                <span className="bg-accent-soft text-accent-foreground grid size-5 place-items-center rounded-full text-[9px] font-semibold">
-                  {initials(person.name)}
-                </span>
+                <PersonAvatar id={person.userId} name={person.name} size="xs" />
                 {person.name}
               </li>
             ))}

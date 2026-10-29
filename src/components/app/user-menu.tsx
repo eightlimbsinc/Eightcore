@@ -1,9 +1,9 @@
 "use client";
+import { PersonAvatar } from "./person-avatar";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LogOut, UserRound } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
-import { initials } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export function UserMenu({ name, email }: { name: string; email: string }) {
+export function UserMenu({ userId, name, email }: { userId: string; name: string; email: string }) {
   const router = useRouter();
   async function signOut() {
     await authClient.signOut();
@@ -26,9 +26,7 @@ export function UserMenu({ name, email }: { name: string; email: string }) {
         className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-black/5 dark:hover:bg-white/5"
         aria-label="Account menu"
       >
-        <span className="bg-accent-soft text-accent-foreground grid size-7 shrink-0 place-items-center rounded-full text-[11px] font-semibold">
-          {initials(name)}
-        </span>
+        <PersonAvatar id={userId} name={name} size="md" />
         <span className="min-w-0">
           <span className="block truncate text-[13px] font-medium">{name}</span>
           <span className="text-muted-foreground block truncate text-[11px]">{email}</span>

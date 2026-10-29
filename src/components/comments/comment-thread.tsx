@@ -1,13 +1,14 @@
 "use client";
+import { PersonAvatar } from "@/components/app/person-avatar";
 import { useState, useTransition } from "react";
 import { Pencil, Reply, Trash2 } from "lucide-react";
 import { createCommentAction, deleteCommentAction, updateCommentAction } from "@/modules/comments/actions";
-import { initials } from "@/lib/utils";
 import { Alert } from "@/components/ui/alert";
 import { AttachmentList, type AttachmentItem } from "@/components/tasks/task-side-panels";
 import { CommentComposer, type Mentionable } from "./comment-composer";
 
 export interface CommentView {
+  authorId: string;
   id: string;
   authorName: string;
   body: string;
@@ -69,9 +70,7 @@ function CommentItem({
   }
   return (
     <article className="flex gap-3" aria-label={`Comment by ${comment.authorName}`}>
-      <span className="bg-accent-soft text-accent-foreground grid size-7 shrink-0 place-items-center rounded-full text-[10px] font-semibold">
-        {initials(comment.authorName)}
-      </span>
+      <PersonAvatar id={comment.authorId} name={comment.authorName} size="md" />
       <div className="grid min-w-0 flex-1 gap-1.5">
         <div className="flex flex-wrap items-baseline gap-x-2">
           <strong className="text-[13px] font-medium">{comment.authorName}</strong>

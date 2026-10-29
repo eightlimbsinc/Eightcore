@@ -42,10 +42,12 @@ export async function createTaskAction(
     const statusId = formString(form, "statusId");
     const task = await createTask(await actorFor(workspaceSlug), listId, {
       title: formString(form, "title"),
+      description: formString(form, "description"),
       statusId: statusId || undefined,
       parentTaskId: parentTaskId ?? undefined,
       priority: priorityFrom(form) ?? "none",
       dueDate: formString(form, "dueDate") || null,
+      assigneeIds: form.getAll("assigneeId").filter((v): v is string => typeof v === "string" && v !== ""),
     });
     revalidatePath(`/w/${workspaceSlug}`, "layout");
     return { ok: true, message: `Created ${task.ref}` };
