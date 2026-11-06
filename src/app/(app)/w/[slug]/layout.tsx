@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CircleUserRound, Home, Inbox, LayoutDashboard, ListTodo, Plus, Users } from "lucide-react";
+import { CircleUserRound, Home, Inbox, LayoutDashboard, ListTodo, Plug, Plus, Users } from "lucide-react";
 import { getWorkspaceShell } from "@/modules/workspaces/queries";
 import { WorkspaceSwitcher } from "@/components/app/workspace-switcher";
 import { UserMenu } from "@/components/app/user-menu";
@@ -78,6 +78,11 @@ export default async function WorkspaceLayout({
           {can.viewMembers ? (
             <NavLink href={`${base}/members`}>
               <Users /> Members
+            </NavLink>
+          ) : null}
+          {can.manageIntegrations ? (
+            <NavLink href={`${base}/integrations`}>
+              <Plug /> Integrations
             </NavLink>
           ) : null}
         </nav>

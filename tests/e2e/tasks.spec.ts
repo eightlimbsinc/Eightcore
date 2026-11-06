@@ -360,4 +360,41 @@ test("an owner organises work into lists and tasks", async ({ page }) => {
   await page.getByRole("button", { name: /^Status: / }).click();
   await page.getByRole("menuitem", { name: "Accepted" }).click();
   await expect(page.getByText(/was closed and repeats as WEB-\d+/)).toBeVisible();
+
+  // Automations: comment on every new task (runs right after the change is saved).
+  const base = new URL(page.url()).pathname.split("/").slice(0, 3).join("/");
+  await page.goto(`${base}/p/WEB`);
+  await page.getByRole("link", { name: "Automations" }).click();
+  await expect(page.getByRole("heading", { name: "Automations" })).toBeVisible();
+  await page.getByLabel("Name").fill("Welcome note");
+  await page.getByLabel("Comment").fill("Thanks, we're on it.");
+  await page.getByRole("button", { name: "Create automation" }).click();
+  const rule = page.getByRole("article", { name: "Welcome note" });
+  await expect(rule).toContainText("A task is created: comment.");
+
+  // Make → Eightcore: an incoming address creates a task through the automation too.
+  await page.getByRole("link", { name: "Integrations" }).click();
+  await expect(page.getByRole("heading", { name: "Integrations" })).toBeVisible();
+  await page.getByLabel("New address").fill("Make: support form");
+  await page.getByRole("button", { name: "Create address" }).click();
+  const address = await page.getByRole("status").locator("code").innerText();
+  expect(address).toMatch(/\/api\/hooks\/ecin_/);
+  await page.getByText("List ids").click();
+  const listId = await page
+    .getByRole("row", { name: /WEB · Phase 1 \/ Build/ })
+    .locator("td")
+    .nth(1)
+    .innerText();
+  const res = await page.request.post(new URL(address).pathname, {
+    data: { action: "create_task", list_id: listId, title: "From the support form", priority: "urgent" },
+  });
+  expect(res.status()).toBe(201);
+  const { task } = (await res.json()) as { task: { ref: string } };
+  await expect
+    .poll(async () => {
+      await page.goto(`${base}/t/${task.ref}`);
+      return page.getByText("Thanks, we're on it.").count();
+    })
+    .toBeGreaterThan(0);
+  await expect(page.getByText("From the support form").first()).toBeVisible();
 });

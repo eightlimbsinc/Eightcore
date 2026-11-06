@@ -71,7 +71,10 @@ Status: Phase 1 approved. **Phase 2 complete** (pending your review). Phases run
 **Scope:** strict transition rules editor (allowed pairs, `min_project_role`, required comment and fields), QA cycles with notes and evidence, retest history UI, deployment metadata fields, workflow assignment per list with status remapping on move, `task_status_changes` + cycle-time and QA failure reports, dashboard v1.
 **Acceptance:** E2E journey 5 green. Transition rules enforced server-side (tests bypass the UI). Concluded QA cycles are immutable. Reports match fixture data.
 
-## Phase 6 — Background jobs and optional integrations
+## Phase 6 — Background jobs and optional integrations (in progress)
+
+**Done (pulled forward, before the ClickUp switch):** time tracking (timer, manual entries, estimates); recurring tasks; automations per project (triggers: created, status change, assigned, priority change, comment, QA result; conditions; actions: status, assign, unassign, priority, comment, tag, due date, send to webhook) with a run log and a loop guard; the outbox dispatcher, run straight after each change plus an optional scheduler (`/api/cron/outbox`, no pg-boss needed); outgoing signed webhooks to Make with retries and a delivery log; incoming Make webhooks (create and update tasks); guests limited to the lists shared with them.
+**Still to do:** email due-date reminders, Slack, Figma references, encrypting webhook secrets at rest (`EIGHTCORE_ENCRYPTION_KEY`).
 
 **Scope:** pg-boss worker, outbox dispatcher, notification and email delivery via jobs, due-date reminders (cron), automation engine (rules, conditions, actions, run log, loop guard), outgoing and incoming signed webhooks (Make.com-compatible), Slack (internal app, channel and DM notifications), Figma references (URL parsing, optional cached thumbnails), integration settings with encrypted secrets and a failed-delivery view.
 **Acceptance:** §3.3 suite green. The "offline mode" CI job (no integrations configured) passes the full E2E suite. Each integration has a disconnected, healthy, and failing-state test. Webhook signature tests pass.

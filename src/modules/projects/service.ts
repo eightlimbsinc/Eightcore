@@ -138,6 +138,7 @@ export async function getProjectByKey(actor: ActorContext, key: string) {
       archive: canProject(role, "project.archive"),
       manageMembers: canProject(role, "project.manage_members"),
       manageFields: canProject(role, "custom_field.manage"),
+      manageAutomations: canProject(role, "automation.manage"),
     },
   };
 }

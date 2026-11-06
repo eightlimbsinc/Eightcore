@@ -65,6 +65,7 @@ export const getWorkspaceShell = cache(async (slug: string) => {
     can: {
       createProject: canWorkspace(actor.workspaceRole, "project.create"),
       viewMembers: canWorkspace(actor.workspaceRole, "member.view_directory"),
+      manageIntegrations: canWorkspace(actor.workspaceRole, "integration.manage"),
     },
   };
 });

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Lock, SlidersHorizontal } from "lucide-react";
+import { Lock, SlidersHorizontal, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getProjectPage } from "@/modules/projects/queries";
 import { PageHeader } from "@/components/app/page-header";
@@ -48,6 +48,13 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
               <Button asChild variant="outline">
                 <Link href={`/w/${slug}/p/${project.key}/fields`}>
                   <SlidersHorizontal /> Custom fields
+                </Link>
+              </Button>
+            ) : null}
+            {project.can.manageAutomations ? (
+              <Button asChild variant="outline">
+                <Link href={`/w/${slug}/p/${project.key}/automations`}>
+                  <Zap /> Automations
                 </Link>
               </Button>
             ) : null}

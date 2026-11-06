@@ -15,7 +15,6 @@ export const WEBHOOK_EVENTS = [
   "task.created",
   "task.updated",
   "task.assignees_changed",
-  "task.deleted",
   "comment.created",
   "qa.concluded",
 ] as const;
@@ -45,7 +44,9 @@ export function isPrivateAddress(address: string): boolean {
     );
   }
   const v6 = address.toLowerCase();
-  return v6 === "::" || v6 === "::1" || v6.startsWith("fc") || v6.startsWith("fd") || v6.startsWith("fe80");
+  // "::…" covers unspecified, loopback and IPv4-mapped/compatible forms (e.g. ::ffff:7f00:1);
+  // then NAT64, unique-local, link/site-local and multicast.
+  return v6.startsWith("::") || v6.startsWith("64:ff9b:") || /^f[c-f]/.test(v6);
 }
 
 /** A webhook target: public https only (no internal machines, no IP literals in private ranges). */
@@ -211,7 +212,7 @@ export async function retryWebhookDelivery(actor: ActorContext, deliveryId: numb
   assertWorkspace(actor, "integration.manage");
   const updated = await db()
     .update(webhookDeliveries)
-    .set({ status: "pending", nextAttemptAt: new Date(), attempts: 0 })
+    .set({ status: "pending", nextAttemptAt: sql`now()`, attempts: 0 })
     .where(and(eq(webhookDeliveries.id, deliveryId), eq(webhookDeliveries.workspaceId, actor.workspaceId)))
     .returning({ id: webhookDeliveries.id });
   if (!updated.length) throw new NotFoundError("Delivery not found");
@@ -264,7 +265,7 @@ export async function deliverDueWebhooks(options: { ids?: number[]; limit?: numb
   const claimed = await db().transaction(async (tx) => {
     const rows = await tx.execute<{ id: number }>(sql`
       select id from webhook_deliveries
-       where status = 'pending' and next_attempt_at <= now()
+       where status = 'pending' and (next_attempt_at <= now() ${options.ids?.length ? sql`or true` : sql``})
          ${
            options.ids?.length
              ? sql`and id in (${sql.join(

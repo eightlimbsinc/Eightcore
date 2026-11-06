@@ -5,14 +5,14 @@ import { processOutbox } from "@/modules/automations/engine";
 export const dynamic = "force-dynamic";
 
 /**
- * Catch-up for automations and webhooks: a scheduler (Netlify scheduled function, cron-job.org…)
+ * Catch-up for automations and webhooks: a scheduler (e.g. Supabase pg_cron, see docs/DEPLOY_NETLIFY_SUPABASE.md)
  * calls this every few minutes with `Authorization: Bearer <CRON_SECRET>`. Disabled when unset.
  */
 async function handle(request: Request) {
   const secret = env().CRON_SECRET;
-  const given = request.headers.get("authorization")?.replace(/^Bearer /, "") ?? "";
-  const ok =
-    secret && given.length === secret.length && timingSafeEqual(Buffer.from(given), Buffer.from(secret));
+  const given = Buffer.from(request.headers.get("authorization")?.replace(/^Bearer /, "") ?? "");
+  const expected = Buffer.from(secret ?? "");
+  const ok = secret && given.length === expected.length && timingSafeEqual(given, expected);
   if (!ok) return new Response("Not found", { status: 404 });
   let events = 0;
   let deliveries = 0;

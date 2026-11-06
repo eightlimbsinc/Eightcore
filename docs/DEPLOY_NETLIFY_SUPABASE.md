@@ -84,6 +84,27 @@ The bucket stays private: Eightcore checks permissions on every download and the
 
 `BETTER_AUTH_URL` must exactly match the address in the browser (scheme and host). After changing it, redeploy (**Deploys → Trigger deploy**).
 
+## 4b. Automations and webhook retries (optional scheduler)
+
+Automations and webhooks run straight after each change, inside the same request, so nothing needs to be scheduled for them to work. A scheduler only adds two things: webhook **retries** happen on time even when nobody is using the app, and anything interrupted (a timed-out function) is picked up.
+
+It is free with Supabase's built-in `pg_cron` and `pg_net` extensions (no new service):
+
+1. Netlify: add `CRON_SECRET` (run `openssl rand -base64 32`) to the environment variables and redeploy.
+2. Supabase: **Database → Extensions** → enable `pg_cron` and `pg_net`.
+3. Supabase **SQL Editor**, with your site address and the same secret:
+
+   ```sql
+   select cron.schedule('eightcore-outbox', '*/15 * * * *', $$
+     select net.http_post(
+       url := 'https://<your-site>/api/cron/outbox',
+       headers := jsonb_build_object('Authorization', 'Bearer <CRON_SECRET>')
+     )
+   $$);
+   ```
+
+Each call is one request to a Netlify function, which counts towards Netlify usage (every 15 minutes is about 2,900 calls a month). To stop it: `select cron.unschedule('eightcore-outbox');`.
+
 ## 5. Your domain (Cloudflare DNS)
 
 1. Netlify: **Domain management → Add a domain** → e.g. `eightcore.yourdomain.com`.

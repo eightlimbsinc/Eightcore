@@ -67,7 +67,6 @@ Changing a guest's role keeps their lists.
 | `project.create` | ✅ | ✅ | ✅ | ❌ |
 | `workflow.manage` | ✅ | ✅ | ❌ | ❌ |
 | `custom_field.manage` (workspace scope) | ✅ | ✅ | ❌ | ❌ |
-| `automation.manage` (workspace scope) | ✅ | ✅ | ❌ | ❌ |
 | `integration.manage` | ✅ | ✅ | ❌ | ❌ |
 | `import.run` (inventory/dry-run/staging) | ✅ | ✅ | ❌ | ❌ |
 | `import.run_final` (production) | ✅ (+ recorded approval) | ❌ | ❌ | ❌ |
@@ -127,8 +126,10 @@ export async function can(ctx: ActorContext, action: Action, resource?: Resource
 
 ### Automations and integrations
 
-- **Automation rules** run as `actorKind = "automation"`, with the rights of `run_as_user_id` (the creator by default) **re-checked at run time**. If the creator lost access, the run is `skipped` with a reason.
-- **Incoming webhooks** (Make.com) map to a service identity scoped to one workspace and an allowlist of actions (`task.create`, `task.update`, `comment.create`) on selected projects.
+- **Automation rules** run as `actorKind = "automation"` with the rights of their creator, **re-checked at run time** through the same services a person uses. If the creator lost access, the run is logged as `failed` with the reason. Every run (success, failed, skipped) is kept in `automation_runs`.
+- **Loop guard.** Changes made by an automation carry a causation depth; after 3 automations in a row trigger each other, the next is `skipped` ("Stopped: …").
+- **Outgoing webhooks** (`integration.manage`: owners and admins) are signed with HMAC-SHA256 (`x-eightcore-signature: t=…,v1=…`), go to public `https://` addresses only (checked when saved and again, after DNS, when sent; redirects aren't followed), and are retried with backoff (1 m, 5 m, 30 m, 2 h, 6 h). Signing secrets are stored in the database as is, until `EIGHTCORE_ENCRYPTION_KEY` encryption lands (Phase 8).
+- **Incoming webhooks** (Make → `POST /api/hooks/<token>`) act as the person who created the address (`actorKind = "integration"`), with that person's current rights, and can only create or update tasks and add comments. Only a SHA-256 hash of the token is stored; the address is shown once. Deleting the address, or deactivating its creator, switches it off.
 - **Import jobs** run as `actorKind = "import"` and can only write into the workspace that owns the job.
 
 ## 5. Protected file access
