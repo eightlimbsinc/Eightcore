@@ -7,6 +7,7 @@ import {
   attachments,
   projectMembers,
   taskWatchers,
+  taskStatusChanges,
   projects,
   taskAssignees,
   tasks,
@@ -204,6 +205,8 @@ export async function createTask(actor: ActorContext, listId: string, raw: Creat
         })
         .returning({ id: tasks.id, number: tasks.number });
 
+      await recordStatusChange(tx, actor, task!.id, null, status);
+
       let assigned: string[] = [];
       if (input.assigneeIds.length) {
         ({ added: assigned } = await setAssigneesInTx(
@@ -382,6 +385,45 @@ export async function listTaskActivity(tx: DbOrTx, actor: ActorContext, taskId: 
     .limit(100);
 }
 
+type StatusRef = { id: string; name: string; category: Parameters<typeof isClosedCategory>[0] };
+
+/** Appends one status change to the task's history (task_status_changes). */
+export async function recordStatusChange(
+  tx: DbOrTx,
+  actor: ActorContext,
+  taskId: string,
+  from: StatusRef | null | undefined,
+  to: StatusRef,
+) {
+  await tx.insert(taskStatusChanges).values({
+    workspaceId: actor.workspaceId,
+    taskId,
+    fromStatusId: from?.id ?? null,
+    fromName: from?.name ?? null,
+    fromCategory: from?.category ?? null,
+    toStatusId: to.id,
+    toName: to.name,
+    toCategory: to.category,
+    actorId: actor.actorKind === "user" ? actor.userId : null,
+  });
+}
+
+/** History for every task about to move from one status to another (deleting or replacing a status). */
+export async function recordStatusMoveForAll(
+  tx: DbOrTx,
+  actor: ActorContext,
+  from: StatusRef,
+  to: StatusRef,
+) {
+  await tx.execute(sql`
+    insert into ${taskStatusChanges}
+      (workspace_id, task_id, from_status_id, from_name, from_category, to_status_id, to_name, to_category, actor_id)
+    select ${actor.workspaceId}::uuid, t.id, ${from.id}::uuid, ${from.name}, ${from.category}::status_category,
+           ${to.id}::uuid, ${to.name}, ${to.category}::status_category,
+           ${actor.actorKind === "user" ? actor.userId : null}::uuid
+      from ${tasks} t where t.status_id = ${from.id}::uuid`);
+}
+
 /** Status change on `set`/`changes`, keeping completedAt in step with closed statuses. */
 function applyStatusChange(
   statuses: { id: string; name: string; category: Parameters<typeof isClosedCategory>[0] }[],
@@ -398,6 +440,7 @@ function applyStatusChange(
   const wasClosed = from ? isClosedCategory(from.category) : false;
   if (isClosedCategory(to.category) && !wasClosed) set.completedAt = new Date();
   if (!isClosedCategory(to.category)) set.completedAt = null;
+  return { from, to };
 }
 
 // ── Update ────────────────────────────────────────────────────────────────────────────────
@@ -440,8 +483,9 @@ export async function updateTask(
           (set as Record<string, unknown>)[field] = next;
         }
       }
+      let moved: ReturnType<typeof applyStatusChange> | null = null;
       if (input.statusId !== undefined && input.statusId !== task.statusId) {
-        applyStatusChange(statuses, task, input.statusId, set, changes);
+        moved = applyStatusChange(statuses, task, input.statusId, set, changes);
       }
       if (Object.keys(changes).length === 0) return { version: task.version };
 
@@ -456,6 +500,7 @@ export async function updateTask(
         );
 
       await recordActivity(tx, actor, { entityType: "task", entityId: taskId, action: "updated", changes });
+      if (moved) await recordStatusChange(tx, actor, taskId, moved.from, moved.to);
       if (changes.status) {
         await notifyInTx(tx, actor, {
           taskId,
@@ -618,8 +663,9 @@ export async function moveTask(
     const set: Partial<typeof tasks.$inferInsert> = {};
     const changes: Record<string, [unknown, unknown]> = {};
     if (neighbourIds.length) set.position = generateKeyBetween(after, before);
+    let moved: ReturnType<typeof applyStatusChange> | null = null;
     if (move.statusId && move.statusId !== task.statusId) {
-      applyStatusChange(await listStatusesFor(tx, list.id), task, move.statusId, set, changes);
+      moved = applyStatusChange(await listStatusesFor(tx, list.id), task, move.statusId, set, changes);
     }
     if (!set.position && !changes.status) return { version: task.version };
 
@@ -632,6 +678,7 @@ export async function moveTask(
       throw new ConflictError("Someone else changed this task. Reload to see their changes, then try again.");
     }
     // Reordering alone isn't worth a history line; a status change is.
+    if (moved) await recordStatusChange(tx, actor, taskId, moved.from, moved.to);
     if (changes.status) {
       await recordActivity(tx, actor, { entityType: "task", entityId: taskId, action: "updated", changes });
       await notifyInTx(tx, actor, {

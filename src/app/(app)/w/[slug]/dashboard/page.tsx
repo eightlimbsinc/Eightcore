@@ -1,6 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AlertTriangle, Ban, CalendarClock, CheckCircle2, CircleDot, UserX } from "lucide-react";
+import {
+  AlertTriangle,
+  Ban,
+  CalendarClock,
+  CheckCircle2,
+  CircleDot,
+  Gauge,
+  Hourglass,
+  Timer,
+  UserX,
+} from "lucide-react";
 import { getDashboardPage } from "@/modules/workspaces/queries";
 import { PRIORITY_META, formatDate } from "@/lib/task-format";
 import { PageHeader } from "@/components/app/page-header";
@@ -25,8 +35,18 @@ export default async function DashboardPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { slug } = await params;
-  const { project, projects, totals, stages, workload, timeThisWeek, completedByWeek, priorities, topTags } =
-    await getDashboardPage(slug, await searchParams);
+  const {
+    project,
+    projects,
+    totals,
+    stages,
+    workload,
+    timeThisWeek,
+    completedByWeek,
+    priorities,
+    topTags,
+    flow,
+  } = await getDashboardPage(slug, await searchParams);
   /** Link to the matching tasks (in the focused project, if any). */
   const tasks = (query: Record<string, string> = {}) => {
     const p = new URLSearchParams({ ...query, ...(project ? { project: project.key } : {}) });
@@ -246,7 +266,113 @@ export default async function DashboardPage({
             />
           </ChartCard>
         </div>
+
+        <section aria-labelledby="flow-heading" className="grid gap-4">
+          <div>
+            <h2 id="flow-heading" className="text-base font-semibold">
+              Flow
+            </h2>
+            <p className="text-muted-foreground text-[13px]">
+              From each task&apos;s status history, over the last {flow.days} days.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <StatTile
+              label="Finished"
+              value={flow.cycle.done}
+              hint="Moved to a done status"
+              href={tasks({ state: "closed" })}
+              icon={<CheckCircle2 className="size-3.5" aria-hidden />}
+            />
+            <StatTile
+              label="Cycle time (median)"
+              value={0}
+              display={days(flow.cycle.medianCycleHours)}
+              hint="From starting work to done"
+              href={tasks({ state: "closed" })}
+              icon={<Timer className="size-3.5" aria-hidden />}
+            />
+            <StatTile
+              label="85% finish within"
+              value={0}
+              display={days(flow.cycle.p85CycleHours)}
+              hint="Cycle time, 85th percentile"
+              href={tasks({ state: "closed" })}
+              icon={<Gauge className="size-3.5" aria-hidden />}
+            />
+            <StatTile
+              label="Lead time (median)"
+              value={0}
+              display={days(flow.cycle.medianLeadHours)}
+              hint="From created to done"
+              href={tasks({ state: "closed" })}
+              icon={<Hourglass className="size-3.5" aria-hidden />}
+            />
+          </div>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <ChartCard
+              title="Time in status"
+              description="Average days a task stays in each open status (a stay still going counts until now)."
+              table={{
+                headers: ["Status", "Average days"],
+                rows: flow.timeInStatus.map((s) => [s.name, (s.avgHours / 24).toFixed(1)]),
+              }}
+            >
+              <BarList
+                empty="No status history yet."
+                rows={flow.timeInStatus.map((s) => ({
+                  label: s.name,
+                  // Minutes, so short stays still draw a bar (the label shows hours or days).
+                  value: Math.max(1, Math.round(s.avgHours * 60)),
+                  display: days(s.avgHours),
+                  note: `${s.stays} ${s.stays === 1 ? "stay" : "stays"}`,
+                  href: tasks({ ...open }),
+                }))}
+              />
+            </ChartCard>
+            <ChartCard
+              title="Sitting still longest"
+              description="Open tasks that have been in their current status the longest (backlog left out)."
+              table={{
+                headers: ["Task", "Days in status"],
+                rows: flow.stuck.map((t) => [
+                  `${t.ref} ${t.title} (${t.statusName})`,
+                  (t.hours / 24).toFixed(1),
+                ]),
+              }}
+            >
+              {flow.stuck.length ? (
+                <ul className="grid gap-1.5">
+                  {flow.stuck.map((t) => (
+                    <li key={t.ref}>
+                      <Link
+                        href={`/w/${slug}/t/${t.ref}`}
+                        className="hover:bg-surface-muted/60 grid grid-cols-[4.5rem_minmax(0,1fr)_auto] items-center gap-3 rounded-md px-1 py-1 text-[13px]"
+                      >
+                        <span className="text-muted-foreground font-mono text-[11px]">{t.ref}</span>
+                        <span className="truncate">
+                          {t.title} <span className="text-muted-foreground">· {t.statusName}</span>
+                        </span>
+                        <span className="font-medium tabular-nums">{days(t.hours)}</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-muted-foreground py-4 text-[13px]">Nothing is waiting.</p>
+              )}
+            </ChartCard>
+          </div>
+        </section>
       </div>
     </>
   );
+}
+
+/** Hours as a short duration: "5 h", "3.5 d", or "—" when there is no data. */
+function days(hours: number | null): string {
+  if (hours === null || !Number.isFinite(hours)) return "—";
+  if (hours < 24) return `${Math.max(0, Math.round(hours))} h`;
+  const d = hours / 24;
+  return `${d < 10 ? d.toFixed(1) : Math.round(d)} d`;
 }

@@ -17,6 +17,7 @@ import { recordActivity } from "@/modules/activity/service";
 import { STATUS_TEMPLATES, isClosedCategory, type StatusCategory, type StatusTemplateKey } from "./templates";
 import { statusInput } from "./validators";
 import { listStatusesFor, loadListAccess } from "./service";
+import { recordStatusMoveForAll } from "@/modules/tasks/service";
 
 const templateName = z.string().trim().min(1, "Name is required").max(60, "Use at most 60 characters");
 const templateStatuses = z.array(statusInput).min(1).max(30);
@@ -135,7 +136,7 @@ export async function applyStatusTemplate(actor: ActorContext, listId: string, s
     const positions = generateNKeysBetween(null, null, template.length);
 
     // Kept or new statuses, in template order.
-    const result: { id: string; category: StatusCategory }[] = [];
+    const result: { id: string; name: string; category: StatusCategory }[] = [];
     for (const [i, s] of template.entries()) {
       const match = current.find((c) => c.name.toLowerCase() === s.name.toLowerCase());
       if (match) {
@@ -151,7 +152,7 @@ export async function applyStatusTemplate(actor: ActorContext, listId: string, s
             })
             .where(eq(tasks.statusId, match.id));
         }
-        result.push({ id: match.id, category: s.category });
+        result.push({ id: match.id, name: s.name, category: s.category });
       } else {
         const [row] = await tx
           .insert(listStatuses)
@@ -164,7 +165,7 @@ export async function applyStatusTemplate(actor: ActorContext, listId: string, s
             position: positions[i]!,
           })
           .returning({ id: listStatuses.id });
-        result.push({ id: row!.id, category: s.category });
+        result.push({ id: row!.id, name: s.name, category: s.category });
       }
     }
 
@@ -178,6 +179,7 @@ export async function applyStatusTemplate(actor: ActorContext, listId: string, s
         result.find((r) => isClosedCategory(r.category) === isClosedCategory(old.category)) ??
         result[0]!;
       const closed = isClosedCategory(target.category);
+      await recordStatusMoveForAll(tx, actor, old, target);
       const updated = await tx
         .update(tasks)
         .set({

@@ -10,9 +10,12 @@ export function StatTile({
   hint,
   tone,
   icon,
+  display,
 }: {
   label: string;
   value: number;
+  /** How to show the value (e.g. "4.5 days"); defaults to the number. */
+  display?: string;
   href: string;
   hint?: string;
   /** "critical" for counts that need attention (shown with an icon, never colour alone). */
@@ -38,7 +41,7 @@ export function StatTile({
         {label}
       </span>
       <span className={cn("text-3xl font-semibold tracking-tight tabular-nums", alert && "text-destructive")}>
-        {value}
+        {display ?? value}
       </span>
       {hint ? <span className="text-muted-foreground text-[11px]">{hint}</span> : null}
     </Link>

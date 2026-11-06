@@ -193,3 +193,117 @@ export async function getDashboard(
     topTags: topTags as { name: string; n: number }[],
   };
 }
+
+/** How far back the flow report looks. */
+export const FLOW_DAYS = 90;
+
+export interface FlowReport {
+  /** The period covered, in days. */
+  days: number;
+  /** Per status reached in the period: how long tasks stayed (hours). Ongoing stays count up to now. */
+  timeInStatus: { name: string; category: string; stays: number; medianHours: number; avgHours: number }[];
+  /** Tasks finished in the period: start of work → done, and created → done (hours). */
+  cycle: {
+    done: number;
+    medianCycleHours: number | null;
+    p85CycleHours: number | null;
+    medianLeadHours: number | null;
+  };
+  /** Open tasks that have been in their current status longest. */
+  stuck: { ref: string; title: string; statusName: string; hours: number }[];
+}
+
+/**
+ * Status history for the dashboard: time in each status, cycle and lead times, and work
+ * sitting still. Same scope as getDashboard (visible projects, optionally one).
+ */
+export async function getFlowReport(
+  actor: ActorContext,
+  options: { projectId?: string },
+): Promise<FlowReport> {
+  if (options.projectId) assertId(options.projectId, "Project not found");
+  const s = scoped(actor, options.projectId);
+  // Visible, live tasks (any status) in scope.
+  const visible = s.from(db().select({ id: tasks.id })).where(s.where());
+  const since = sql`now() - make_interval(days => ${FLOW_DAYS})`;
+  const hours = (a: SQL, b: SQL) => sql`extract(epoch from (${b} - ${a})) / 3600`;
+
+  const [inStatus, cycle, stuck] = await Promise.all([
+    db().execute<{
+      name: string;
+      category: string;
+      stays: number;
+      median_hours: number;
+      avg_hours: number;
+    }>(sql`
+      with v as (${visible}),
+      h as (
+        select c.task_id, c.to_name, c.to_category, c.changed_at,
+               coalesce(lead(c.changed_at) over (partition by c.task_id order by c.changed_at), now()) as left_at
+          from task_status_changes c
+         where c.task_id in (select id from v)
+      )
+      select to_name as name, to_category::text as category, count(*)::int as stays,
+             percentile_cont(0.5) within group (order by ${hours(sql`changed_at`, sql`left_at`)})::float as median_hours,
+             avg(${hours(sql`changed_at`, sql`left_at`)})::float as avg_hours
+        from h
+       where left_at >= ${since} and to_category not in ('done', 'cancelled', 'closed')
+       group by to_name, to_category
+       order by avg(${hours(sql`changed_at`, sql`left_at`)}) desc
+       limit 15`),
+    db().execute<{
+      done: number;
+      median_cycle: number | null;
+      p85_cycle: number | null;
+      median_lead: number | null;
+    }>(sql`
+      with v as (${visible}),
+      finished as (
+        select t.id, t.created_at, t.completed_at,
+               (select min(c.changed_at) from task_status_changes c
+                 where c.task_id = t.id and c.to_category in ('active', 'review')) as started_at
+          from tasks t
+          join list_statuses st on st.id = t.status_id
+         where t.id in (select id from v) and st.category = 'done' and t.completed_at >= ${since}
+      )
+      select count(*)::int as done,
+             (percentile_cont(0.5) within group (order by ${hours(sql`coalesce(started_at, created_at)`, sql`completed_at`)}))::float as median_cycle,
+             (percentile_cont(0.85) within group (order by ${hours(sql`coalesce(started_at, created_at)`, sql`completed_at`)}))::float as p85_cycle,
+             (percentile_cont(0.5) within group (order by ${hours(sql`created_at`, sql`completed_at`)}))::float as median_lead
+        from finished`),
+    db().execute<{ ref: string; title: string; status_name: string; hours: number }>(sql`
+      with v as (${visible})
+      select p.key || '-' || t.number as ref, t.title, st.name as status_name,
+             ${hours(sql`coalesce((select max(c.changed_at) from task_status_changes c where c.task_id = t.id), t.created_at)`, sql`now()`)}::float as hours
+        from tasks t
+        join projects p on p.id = t.project_id
+        join list_statuses st on st.id = t.status_id
+       where t.id in (select id from v) and t.parent_task_id is null
+         and st.category not in ('done', 'cancelled', 'closed', 'backlog')
+       order by hours desc
+       limit 8`),
+  ]);
+  const c = cycle.rows[0];
+  return {
+    days: FLOW_DAYS,
+    timeInStatus: inStatus.rows.map((r) => ({
+      name: r.name,
+      category: r.category,
+      stays: Number(r.stays),
+      medianHours: Number(r.median_hours),
+      avgHours: Number(r.avg_hours),
+    })),
+    cycle: {
+      done: Number(c?.done ?? 0),
+      medianCycleHours: c?.median_cycle ?? null,
+      p85CycleHours: c?.p85_cycle ?? null,
+      medianLeadHours: c?.median_lead ?? null,
+    },
+    stuck: stuck.rows.map((r) => ({
+      ref: r.ref,
+      title: r.title,
+      statusName: r.status_name,
+      hours: Number(r.hours),
+    })),
+  };
+}

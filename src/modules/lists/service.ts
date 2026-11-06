@@ -18,6 +18,7 @@ import { loadProjectAccess } from "@/modules/projects/service";
 import { isItemColor, isItemIcon, type ItemAppearance, type ItemKind } from "@/lib/appearance";
 import { readViewSettings } from "./view-settings";
 import { templateStatusesFor } from "./status-templates";
+import { recordStatusMoveForAll } from "@/modules/tasks/service";
 import { isClosedCategory, isHiddenCategory } from "./templates";
 import {
   createFolderInput,
@@ -482,6 +483,7 @@ export async function deleteStatus(actor: ActorContext, statusId: string, replac
     const replacement = statuses.find((s) => s.id === replacementStatusId);
     if (!replacement) throw new NotFoundError("Replacement status not found");
     const closed = isClosedCategory(replacement.category);
+    await recordStatusMoveForAll(tx, actor, status, replacement);
     const moved = await tx
       .update(tasks)
       .set({

@@ -15,7 +15,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { users } from "@/modules/identity/schema";
-import { listStatuses, taskLists } from "@/modules/lists/schema";
+import { listStatuses, statusCategory, taskLists } from "@/modules/lists/schema";
 import { workspaceMembers, workspaces } from "@/modules/workspaces/schema";
 
 export const taskPriority = pgEnum("task_priority", ["urgent", "high", "normal", "low", "none"]);
@@ -140,4 +140,32 @@ export const taskWatchers = pgTable(
     }).onDelete("cascade"),
     index().on(t.userId, t.workspaceId),
   ],
+);
+
+/**
+ * Every status change, append-only: drives time-in-status and cycle-time reports. Names and
+ * categories are copied, so history survives renamed or deleted statuses.
+ */
+export const taskStatusChanges = pgTable(
+  "task_status_changes",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    workspaceId: uuid()
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    taskId: uuid()
+      .notNull()
+      .references(() => tasks.id, { onDelete: "cascade" }),
+    /** Null when the task was created in this status. */
+    fromStatusId: uuid(),
+    fromName: text(),
+    fromCategory: statusCategory(),
+    toStatusId: uuid().notNull(),
+    toName: text().notNull(),
+    toCategory: statusCategory().notNull(),
+    /** Null for system changes (imports, automations without a person). */
+    actorId: uuid().references(() => users.id),
+    changedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index().on(t.taskId, t.changedAt), index().on(t.workspaceId, t.changedAt)],
 );

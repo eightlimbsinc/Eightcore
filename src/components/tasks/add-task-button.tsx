@@ -66,6 +66,13 @@ export function AddTaskButton({
           <Dialog.Overlay className="fixed inset-0 z-50 bg-black/40" />
           <Dialog.Content
             aria-describedby={undefined}
+            // Start in the task name (not the close button, which comes first).
+            onOpenAutoFocus={(e) => {
+              e.preventDefault();
+              (e.currentTarget as HTMLElement)
+                .querySelector<HTMLInputElement>('input[name="title"]')
+                ?.focus();
+            }}
             className="bg-surface text-foreground fixed top-[12vh] left-1/2 z-50 w-[min(42rem,calc(100vw-2rem))] -translate-x-1/2 rounded-xl border shadow-2xl"
           >
             {/* A fresh form each time the window opens. */}
