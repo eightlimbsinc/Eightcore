@@ -4,6 +4,7 @@ import { bigint, check, foreignKey, index, pgTable, text, timestamp, uuid } from
 import { users } from "@/modules/identity/schema";
 import { comments } from "@/modules/comments/schema";
 import { tasks } from "@/modules/tasks/schema";
+import { qaCycles } from "@/modules/qa/schema";
 import { workspaces } from "@/modules/workspaces/schema";
 
 export const attachments = pgTable(
@@ -15,6 +16,8 @@ export const attachments = pgTable(
       .references(() => workspaces.id, { onDelete: "cascade" }),
     taskId: uuid().notNull(),
     commentId: uuid(),
+    /** Evidence for a QA round (on the same task). */
+    qaCycleId: uuid(),
     uploaderId: uuid()
       .notNull()
       .references(() => users.id),
@@ -38,6 +41,11 @@ export const attachments = pgTable(
       name: "attachments_comment_fk",
       columns: [t.commentId, t.taskId],
       foreignColumns: [comments.id, comments.taskId],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "attachments_qa_cycle_fk",
+      columns: [t.qaCycleId, t.taskId],
+      foreignColumns: [qaCycles.id, qaCycles.taskId],
     }).onDelete("cascade"),
     check("attachments_size_positive", sql`${t.sizeBytes} > 0`),
     check("attachments_name_length", sql`char_length(${t.originalName}) between 1 and 255`),

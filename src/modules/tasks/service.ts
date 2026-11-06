@@ -8,6 +8,7 @@ import {
   projectMembers,
   taskWatchers,
   taskStatusChanges,
+  qaCycles,
   projects,
   taskAssignees,
   tasks,
@@ -29,6 +30,7 @@ import { loadProjectAccess } from "@/modules/projects/service";
 import { listStatusesFor, loadListAccess } from "@/modules/lists/service";
 import { isClosedCategory } from "@/modules/lists/templates";
 import { checkTransition } from "@/modules/lists/transitions";
+import { concludeQaCycleInTx, startQaCycleInTx } from "@/modules/qa/service";
 import { createComment } from "@/modules/comments/service";
 import { discardStored } from "@/server/storage";
 import { addWatchersInTx, listWatchers, notifyInTx, watcherIds } from "@/modules/notifications/service";
@@ -389,6 +391,26 @@ export async function listTaskActivity(tx: DbOrTx, actor: ActorContext, taskId: 
 
 type StatusRef = { id: string; name: string; category: Parameters<typeof isClosedCategory>[0] };
 
+/** What a status rule does to QA when the move happens: open a round, or pass/fail the open one. */
+async function applyQaAction(
+  tx: DbOrTx,
+  actor: ActorContext,
+  taskId: string,
+  action: "start" | "pass" | "fail" | null,
+  comment: string | undefined,
+) {
+  if (!action) return;
+  if (action === "start") {
+    const [open] = await tx
+      .select({ id: qaCycles.id })
+      .from(qaCycles)
+      .where(and(eq(qaCycles.taskId, taskId), eq(qaCycles.result, "pending")));
+    if (!open) await startQaCycleInTx(tx, actor, taskId);
+    return;
+  }
+  await concludeQaCycleInTx(tx, actor, taskId, action, comment ?? "");
+}
+
 /** Appends one status change to the task's history (task_status_changes). */
 export async function recordStatusChange(
   tx: DbOrTx,
@@ -486,9 +508,10 @@ export async function updateTask(
         }
       }
       let moved: ReturnType<typeof applyStatusChange> | null = null;
+      let qa: Awaited<ReturnType<typeof checkTransition>> | null = null;
       if (input.statusId !== undefined && input.statusId !== task.statusId) {
         moved = applyStatusChange(statuses, task, input.statusId, set, changes);
-        await checkTransition(tx, {
+        qa = await checkTransition(tx, {
           listId: list.id,
           strict: list.transitionsStrict,
           role,
@@ -512,6 +535,7 @@ export async function updateTask(
 
       await recordActivity(tx, actor, { entityType: "task", entityId: taskId, action: "updated", changes });
       if (moved) await recordStatusChange(tx, actor, taskId, moved.from, moved.to);
+      await applyQaAction(tx, actor, taskId, qa?.qa ?? null, input.comment);
       if (changes.status) {
         await notifyInTx(tx, actor, {
           taskId,
@@ -678,9 +702,10 @@ export async function moveTask(
     const changes: Record<string, [unknown, unknown]> = {};
     if (neighbourIds.length) set.position = generateKeyBetween(after, before);
     let moved: ReturnType<typeof applyStatusChange> | null = null;
+    let qa: Awaited<ReturnType<typeof checkTransition>> | null = null;
     if (move.statusId && move.statusId !== task.statusId) {
       moved = applyStatusChange(await listStatusesFor(tx, list.id), task, move.statusId, set, changes);
-      await checkTransition(tx, {
+      qa = await checkTransition(tx, {
         listId: list.id,
         strict: list.transitionsStrict,
         role,
@@ -702,6 +727,7 @@ export async function moveTask(
     }
     // Reordering alone isn't worth a history line; a status change is.
     if (moved) await recordStatusChange(tx, actor, taskId, moved.from, moved.to);
+    await applyQaAction(tx, actor, taskId, qa?.qa ?? null, move.comment);
     if (changes.status) {
       await recordActivity(tx, actor, { entityType: "task", entityId: taskId, action: "updated", changes });
       await notifyInTx(tx, actor, {

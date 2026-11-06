@@ -120,6 +120,8 @@ export async function insertAttachmentsInTx(
   taskId: string,
   commentId: string | null,
   uploads: PreparedUpload[],
+  /** Evidence for this QA round. */
+  qaCycleId: string | null = null,
 ) {
   if (!uploads.length) return [];
   const rows = await tx
@@ -129,6 +131,7 @@ export async function insertAttachmentsInTx(
         workspaceId: actor.workspaceId,
         taskId,
         commentId,
+        qaCycleId,
         uploaderId: actor.userId,
         storageKey: u.storageKey,
         originalName: u.originalName,
@@ -142,7 +145,7 @@ export async function insertAttachmentsInTx(
     entityType: "task",
     entityId: taskId,
     action: "attachments_added",
-    metadata: { names: rows.map((r) => r.originalName), commentId },
+    metadata: { names: rows.map((r) => r.originalName), commentId, qaCycleId },
   });
   return rows;
 }
@@ -174,6 +177,7 @@ export async function uploadTaskAttachments(actor: ActorContext, taskId: string,
 const attachmentColumns = {
   id: attachments.id,
   commentId: attachments.commentId,
+  qaCycleId: attachments.qaCycleId,
   originalName: attachments.originalName,
   mimeType: attachments.mimeType,
   sizeBytes: attachments.sizeBytes,

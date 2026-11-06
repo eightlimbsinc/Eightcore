@@ -186,6 +186,8 @@ export const statusTransitions = pgTable(
       .array()
       .notNull()
       .default(sql`'{}'::uuid[]`),
+    /** What the move does to QA: "start" a round, conclude it as "pass" or "fail"; null = nothing. */
+    qaAction: text(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -207,5 +209,9 @@ export const statusTransitions = pgTable(
     }).onDelete("cascade"),
     unique("status_transitions_pair_uq").on(t.listId, t.fromStatusId, t.toStatusId).nullsNotDistinct(),
     check("status_transitions_min_role", sql`${t.minRole} in ('editor', 'manager')`),
+    check(
+      "status_transitions_qa_action",
+      sql`${t.qaAction} is null or ${t.qaAction} in ('start', 'pass', 'fail')`,
+    ),
   ],
 );

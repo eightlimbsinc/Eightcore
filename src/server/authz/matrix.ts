@@ -59,6 +59,8 @@ export const PROJECT_ACTIONS = {
   "custom_field.manage": ["manager"],
   /** Set a list's status transition rules (who may move where, required comments and fields). */
   "transition.manage": ["manager", "editor"],
+  /** Start QA rounds, pass or fail them, add evidence. */
+  "qa.conduct": ["manager", "editor"],
   /** Track time on tasks (timer or manual entries); edit or delete your own entries. */
   "time.track": ["manager", "editor"],
   /** Edit or delete anyone's time entries. */

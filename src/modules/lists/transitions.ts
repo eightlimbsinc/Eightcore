@@ -24,6 +24,8 @@ const ruleInput = z.object({
   minRole: z.enum(["editor", "manager"]).default("editor"),
   requireComment: z.boolean().default(false),
   requiredFieldIds: z.array(z.uuid()).max(20).default([]),
+  /** What the move does to QA. */
+  qaAction: z.enum(["start", "pass", "fail"]).nullable().default(null),
 });
 export type TransitionRuleInput = z.input<typeof ruleInput>;
 
@@ -58,6 +60,7 @@ export async function listTransitions(actor: ActorContext, listId: string) {
       minRole: r.minRole as "editor" | "manager",
       requireComment: r.requireComment,
       requiredFieldIds: r.requiredFieldIds,
+      qaAction: r.qaAction as "start" | "pass" | "fail" | null,
     })),
     can: { manage: canProject(role, "transition.manage") },
   };
@@ -99,13 +102,19 @@ export async function saveTransition(actor: ActorContext, listId: string, raw: T
         minRole: input.minRole,
         requireComment: input.requireComment,
         requiredFieldIds: fieldIds,
+        qaAction: input.qaAction,
       };
       const [row] = await tx
         .insert(statusTransitions)
         .values(values)
         .onConflictDoUpdate({
           target: [statusTransitions.listId, statusTransitions.fromStatusId, statusTransitions.toStatusId],
-          set: { minRole: values.minRole, requireComment: values.requireComment, requiredFieldIds: fieldIds },
+          set: {
+            minRole: values.minRole,
+            requireComment: values.requireComment,
+            requiredFieldIds: fieldIds,
+            qaAction: values.qaAction,
+          },
         })
         .returning({ id: statusTransitions.id });
       await recordActivity(tx, actor, {
@@ -191,7 +200,7 @@ export async function checkTransition(
         "not_allowed",
       );
     }
-    return;
+    return { qa: null };
   }
   const needsManager = rules.some((r) => r.minRole === "manager");
   if (needsManager && ROLE_RANK[move.role] < ROLE_RANK.manager) {
@@ -224,7 +233,15 @@ export async function checkTransition(
       );
     }
   }
-  if (rules.some((r) => r.requireComment) && !move.comment?.trim()) {
-    throw new TransitionError(`Moving to “${move.to.name}” needs a comment.`, "comment");
+  // A QA fail beats a pass, which beats starting a round.
+  const qa = (["fail", "pass", "start"] as const).find((a) => rules.some((r) => r.qaAction === a)) ?? null;
+  if ((rules.some((r) => r.requireComment) || qa === "fail") && !move.comment?.trim()) {
+    throw new TransitionError(
+      qa === "fail"
+        ? `Moving to “${move.to.name}” fails QA: say what failed.`
+        : `Moving to “${move.to.name}” needs a comment.`,
+      "comment",
+    );
   }
+  return { qa };
 }

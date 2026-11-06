@@ -55,6 +55,7 @@ const projectExpectations: Record<ProjectAction, Row<ProjectRole>> = {
   "attachment.moderate": { manager: Y, editor: N, commenter: N, viewer: N },
   "custom_field.manage": { manager: Y, editor: N, commenter: N, viewer: N },
   "transition.manage": { manager: Y, editor: Y, commenter: N, viewer: N },
+  "qa.conduct": { manager: Y, editor: Y, commenter: N, viewer: N },
   "time.track": { manager: Y, editor: Y, commenter: N, viewer: N },
   "time.manage": { manager: Y, editor: N, commenter: N, viewer: N },
 };

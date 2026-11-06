@@ -39,6 +39,7 @@ import { createTag } from "@/modules/tags/service";
 import { createField } from "@/modules/fields/service";
 import { deleteAttachment, uploadTaskAttachments } from "@/modules/attachments/service";
 import { addTimeEntry, deleteTimeEntry } from "@/modules/time/service";
+import { startQaCycle } from "@/modules/qa/service";
 import { actorFor, createUser, createWorkspaceWithRoles } from "../support/factories";
 
 type Fixture = Awaited<ReturnType<typeof createWorkspaceWithRoles>> & {
@@ -152,6 +153,7 @@ const projectProbes: Record<ProjectAction, (actor: ActorContext, f: Fixture) => 
     const [first, second] = await listStatusesFor(db(), f.list.id);
     await saveTransition(actor, f.list.id, { fromStatusId: first!.id, toStatusId: second!.id });
   },
+  "qa.conduct": (actor, f) => startQaCycle(actor, f.ownerTask.id),
   "time.track": (actor, f) => addTimeEntry(actor, f.ownerTask.id, { minutes: 30, date: "2026-10-01" }),
   // Someone else's entry: only time.manage may delete it.
   "time.manage": async (actor, f) => {
