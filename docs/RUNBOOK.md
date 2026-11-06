@@ -190,19 +190,33 @@ Paid hosting (VPS/PaaS) is optional and needs approval (`COST_AND_LICENSES.md` �
 
 Encrypted columns store `secret_key_version`. To rotate: add `EIGHTCORE_ENCRYPTION_KEY_V2`, set it as the active version, run `npm run secrets:reencrypt`, verify, then remove the old key. (Implemented in Phase 6.)
 
-## 9. ClickUp import (Phase 7, approval-gated)
+## 9. ClickUp import (Phase 7; approved by the owner on 2026-11-06)
+
+`scripts/import/clickup-api.ts` reads ClickUp's API (never writes to it) and creates everything in
+Eightcore through the app's own services, as the importing owner or admin:
+
+- spaces → projects, folders → folders, lists → lists with their own ClickUp statuses;
+- tasks and subtasks (open, closed and archived), priority, start and due dates, estimates, tags,
+  custom fields, assignees and followers (matched by email), original created and completed dates;
+- comments and replies (as their author when that person is in Eightcore, otherwise "**Name** in ClickUp");
+- checklists in the description, attachments as a comment of links, dependencies ("waiting on").
+
+Not migrated: time entries, ClickUp automations, views and docs. Automations, webhooks and
+notifications stay silent during the import. Every created row is recorded in `import_mappings`,
+so re-running skips what's done and retries what failed.
 
 ```bash
-# 1. read-only inventory (requires approval to use the token)
-CLICKUP_API_TOKEN=... npm run import:clickup -- inventory --team <teamId>
-# 2. staging run into a dedicated staging workspace
-npm run import:clickup -- run --mode staging --workspace eightcore-staging --scope scope.yaml
-# 3. reconciliation report
-npm run import:clickup -- reconcile --job <jobId>
-# final mode refuses to run without --approved-by matching a workspace Owner
+# Once: ClickUp → avatar → Settings → Apps → API Token → Generate. Save it as a Codespace secret
+# named CLICKUP_API_TOKEN (github.com/settings/codespaces), then restart the Codespace.
+git pull && npm install && npm run db:migrate:supabase
+# Dry run: a report only (spaces, task counts, people matched, fields that don't fit)
+npm run import:clickup-api:supabase -- --as you@yourdomain.com
+# Choose project keys if you like, then import
+npm run import:clickup-api:supabase -- --as you@yourdomain.com --key "8limbs INC=INC" --apply
 ```
 
-See `MIGRATION_PLAN.md`.
+Options: `--space "Name"` (repeatable; default every space), `--key "Space name=KEY"` (repeatable),
+`--time-zone Asia/Manila` (for due dates), `--no-comments`, `--workspace <slug>`.
 
 ## 10. Troubleshooting
 

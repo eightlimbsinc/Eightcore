@@ -16,3 +16,4 @@ export * from "@/modules/qa/schema";
 export * from "@/modules/automations/schema";
 export * from "@/modules/webhooks/schema";
 export * from "@/modules/docs/schema";
+export * from "@/modules/imports/schema";

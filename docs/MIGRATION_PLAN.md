@@ -1,6 +1,6 @@
 # Eightcore — ClickUp Migration Plan
 
-Status: Phase 1 plan. The importer is built in Phase 7. **No live ClickUp data has been accessed. No production migration or cutover happens without explicit written approval.** Last updated 2026-10-13.
+Status: **approved by the owner on 2026-11-06** ("connect to ClickUp and migrate"; scope: every space, all tasks, attachments as links). The API importer is `scripts/import/clickup-api.ts`; how to run it is in `RUNBOOK.md` §9. A read-only survey on 2026-11-06 found 3 spaces, 11 lists and 11 members. Last updated 2026-11-06.
 
 ## 1. Principles
 

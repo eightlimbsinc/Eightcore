@@ -1,5 +1,5 @@
 import "server-only";
-import { causationDepth } from "@/server/causation";
+import { causationDepth, outboxSilenced } from "@/server/causation";
 import type { DbOrTx } from "@/server/db";
 import { activityEvents, auditLog, outboxEvents } from "@/server/db/schema";
 import type { ActorContext } from "@/server/authz/policy";
@@ -34,6 +34,7 @@ export async function enqueueOutbox(
   type: string,
   payload: Record<string, unknown>,
 ): Promise<void> {
+  if (outboxSilenced()) return;
   await tx.insert(outboxEvents).values({ workspaceId, type, payload, causationDepth: causationDepth() });
 }
 
