@@ -32,6 +32,8 @@ export const updateTaskInput = z
     dueDate: optionalDate.optional(),
     /** Planned effort in minutes; null clears it. */
     timeEstimateMinutes: z.number().int().min(1).max(100_000).nullable().optional(),
+    /** A comment posted with a status change (needed when a rule asks for one). */
+    comment: z.string().trim().max(10_000).optional(),
   })
   .refine((v) => !v.startDate || !v.dueDate || v.startDate <= v.dueDate, {
     message: "The start date must be on or before the due date",

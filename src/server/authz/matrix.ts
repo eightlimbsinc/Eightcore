@@ -57,6 +57,8 @@ export const PROJECT_ACTIONS = {
   "attachment.moderate": ["manager"],
   /** Create, rename and delete custom fields and their dropdown options (setting values is task.update). */
   "custom_field.manage": ["manager"],
+  /** Set a list's status transition rules (who may move where, required comments and fields). */
+  "transition.manage": ["manager", "editor"],
   /** Track time on tasks (timer or manual entries); edit or delete your own entries. */
   "time.track": ["manager", "editor"],
   /** Edit or delete anyone's time entries. */

@@ -28,6 +28,8 @@ import { enqueueOutbox, recordActivity } from "@/modules/activity/service";
 import { loadProjectAccess } from "@/modules/projects/service";
 import { listStatusesFor, loadListAccess } from "@/modules/lists/service";
 import { isClosedCategory } from "@/modules/lists/templates";
+import { checkTransition } from "@/modules/lists/transitions";
+import { createComment } from "@/modules/comments/service";
 import { discardStored } from "@/server/storage";
 import { addWatchersInTx, listWatchers, notifyInTx, watcherIds } from "@/modules/notifications/service";
 import {
@@ -457,7 +459,7 @@ export async function updateTask(
 ) {
   const input = updateTaskInput.parse(raw);
   try {
-    return await db().transaction(async (tx) => {
+    const result = await db().transaction(async (tx) => {
       const { task, list, project, role } = await loadTaskAccess(tx, actor, taskId);
       assertProject(role, "task.update");
       if (task.version !== expectedVersion) {
@@ -486,8 +488,17 @@ export async function updateTask(
       let moved: ReturnType<typeof applyStatusChange> | null = null;
       if (input.statusId !== undefined && input.statusId !== task.statusId) {
         moved = applyStatusChange(statuses, task, input.statusId, set, changes);
+        await checkTransition(tx, {
+          listId: list.id,
+          strict: list.transitionsStrict,
+          role,
+          taskId,
+          from: moved.from,
+          to: moved.to,
+          comment: input.comment,
+        });
       }
-      if (Object.keys(changes).length === 0) return { version: task.version };
+      if (Object.keys(changes).length === 0) return { version: task.version, moved: false };
 
       const [updated] = await tx
         .update(tasks)
@@ -511,8 +522,11 @@ export async function updateTask(
         });
       }
       await enqueueOutbox(tx, actor.workspaceId, "task.updated", { taskId, fields: Object.keys(changes) });
-      return { version: updated.version };
+      return { version: updated.version, moved: Boolean(moved) };
     });
+    // The comment a rule asked for, posted once the move has happened.
+    if (result.moved && input.comment) await createComment(actor, taskId, { body: input.comment });
+    return { version: result.version };
   } catch (error) {
     mapHierarchyError(error);
   }
@@ -626,11 +640,11 @@ export async function moveTask(
   actor: ActorContext,
   taskId: string,
   expectedVersion: number,
-  move: { statusId?: string; afterTaskId?: string | null; beforeTaskId?: string | null },
+  move: { statusId?: string; afterTaskId?: string | null; beforeTaskId?: string | null; comment?: string },
 ) {
   for (const id of [move.statusId, move.afterTaskId, move.beforeTaskId])
     if (id) assertId(id, "Task not found");
-  return db().transaction(async (tx) => {
+  const result = await db().transaction(async (tx) => {
     const { task, list, project, role } = await loadTaskAccess(tx, actor, taskId);
     assertProject(role, "task.update");
     if (task.parentTaskId) throw new ValidationError("Subtasks move with their parent");
@@ -666,8 +680,17 @@ export async function moveTask(
     let moved: ReturnType<typeof applyStatusChange> | null = null;
     if (move.statusId && move.statusId !== task.statusId) {
       moved = applyStatusChange(await listStatusesFor(tx, list.id), task, move.statusId, set, changes);
+      await checkTransition(tx, {
+        listId: list.id,
+        strict: list.transitionsStrict,
+        role,
+        taskId,
+        from: moved.from,
+        to: moved.to,
+        comment: move.comment,
+      });
     }
-    if (!set.position && !changes.status) return { version: task.version };
+    if (!set.position && !changes.status) return { version: task.version, moved: false };
 
     const [updated] = await tx
       .update(tasks)
@@ -690,6 +713,8 @@ export async function moveTask(
       });
       await enqueueOutbox(tx, actor.workspaceId, "task.updated", { taskId, fields: ["status"] });
     }
-    return { version: updated.version };
+    return { version: updated.version, moved: Boolean(moved) };
   });
+  if (result.moved && move.comment?.trim()) await createComment(actor, taskId, { body: move.comment.trim() });
+  return { version: result.version };
 }

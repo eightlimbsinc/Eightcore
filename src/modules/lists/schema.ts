@@ -80,6 +80,8 @@ export const taskLists = pgTable(
     viewSettings: jsonb().$type<Record<string, unknown>>().notNull().default({}),
     /** A protected view can only be changed by managers. */
     viewProtected: boolean().notNull().default(false),
+    /** Strict mode: only moves listed in status_transitions are allowed. */
+    transitionsStrict: boolean().notNull().default(false),
     createdBy: uuid()
       .notNull()
       .references(() => users.id),
@@ -158,5 +160,52 @@ export const statusTemplates = pgTable(
   (t) => [
     uniqueIndex("status_templates_workspace_name_uq").on(t.workspaceId, sql`lower(${t.name})`),
     check("status_templates_name_length", sql`char_length(${t.name}) between 1 and 60`),
+  ],
+);
+
+/**
+ * Rules for moving tasks between a list's statuses: "from (or any) → to", with who may do it,
+ * whether a comment is needed and which custom fields must be filled in. With the list's
+ * strict mode on, moves without a matching rule are refused.
+ */
+export const statusTransitions = pgTable(
+  "status_transitions",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    workspaceId: uuid()
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    listId: uuid().notNull(),
+    /** Null: from any status. */
+    fromStatusId: uuid(),
+    toStatusId: uuid().notNull(),
+    /** Lowest project role that may make this move: "editor" or "manager". */
+    minRole: text().notNull().default("editor"),
+    requireComment: boolean().notNull().default(false),
+    requiredFieldIds: uuid()
+      .array()
+      .notNull()
+      .default(sql`'{}'::uuid[]`),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    foreignKey({
+      name: "status_transitions_list_fk",
+      columns: [t.listId, t.workspaceId],
+      foreignColumns: [taskLists.id, taskLists.workspaceId],
+    }).onDelete("cascade"),
+    // Both statuses must belong to this list (and the rule goes when they do).
+    foreignKey({
+      name: "status_transitions_from_fk",
+      columns: [t.fromStatusId, t.listId],
+      foreignColumns: [listStatuses.id, listStatuses.listId],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "status_transitions_to_fk",
+      columns: [t.toStatusId, t.listId],
+      foreignColumns: [listStatuses.id, listStatuses.listId],
+    }).onDelete("cascade"),
+    unique("status_transitions_pair_uq").on(t.listId, t.fromStatusId, t.toStatusId).nullsNotDistinct(),
+    check("status_transitions_min_role", sql`${t.minRole} in ('editor', 'manager')`),
   ],
 );

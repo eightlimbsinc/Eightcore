@@ -31,7 +31,8 @@ import {
   setProjectMember,
   updateProject,
 } from "@/modules/projects/service";
-import { createList, saveListView, setListViewProtected } from "@/modules/lists/service";
+import { createList, listStatusesFor, saveListView, setListViewProtected } from "@/modules/lists/service";
+import { saveTransition } from "@/modules/lists/transitions";
 import { createTask, deleteTask, setTaskArchived, updateTask } from "@/modules/tasks/service";
 import { createComment, deleteComment } from "@/modules/comments/service";
 import { createTag } from "@/modules/tags/service";
@@ -147,6 +148,10 @@ const projectProbes: Record<ProjectAction, (actor: ActorContext, f: Fixture) => 
   "attachment.moderate": (actor, f) => deleteAttachment(actor, f.ownerFile.id),
   "custom_field.manage": (actor, f) =>
     createField(actor, f.privateProject.id, { name: "Budget", type: "number" }),
+  "transition.manage": async (actor, f) => {
+    const [first, second] = await listStatusesFor(db(), f.list.id);
+    await saveTransition(actor, f.list.id, { fromStatusId: first!.id, toStatusId: second!.id });
+  },
   "time.track": (actor, f) => addTimeEntry(actor, f.ownerTask.id, { minutes: 30, date: "2026-10-01" }),
   // Someone else's entry: only time.manage may delete it.
   "time.manage": async (actor, f) => {
