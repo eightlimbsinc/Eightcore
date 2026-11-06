@@ -372,6 +372,20 @@ test("an owner organises work into lists and tasks", async ({ page }) => {
   const rule = page.getByRole("article", { name: "Welcome note" });
   await expect(rule).toContainText("A task is created: comment.");
 
+  // Per list: the ⚡ icon in the list header opens that list's automations.
+  await page.getByRole("navigation", { name: "Projects" }).getByRole("link", { name: "Build" }).click();
+  await page.getByRole("link", { name: "Automations" }).click();
+  await expect(page.getByRole("heading", { name: "Automations: Build" })).toBeVisible();
+  await expect(page.getByText("1 project-wide automation also applies here.")).toBeVisible();
+  await page.getByLabel("Name").fill("Live → Make");
+  await page.getByLabel("Trigger").selectOption("status_changed");
+  await page.getByLabel("Action").selectOption("call_url");
+  await page.getByLabel("Webhook address").fill("https://hook.us1.make.com/abc?type=LIVE");
+  await page.getByRole("button", { name: "Create automation" }).click();
+  await expect(page.getByRole("article", { name: "Live → Make" })).toContainText(
+    "call webhook hook.us1.make.com",
+  );
+
   // Make → Eightcore: an incoming address creates a task through the automation too.
   await page.getByRole("link", { name: "Integrations" }).click();
   await expect(page.getByRole("heading", { name: "Integrations" })).toBeVisible();

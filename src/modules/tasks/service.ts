@@ -742,6 +742,32 @@ export async function setWatching(actor: ActorContext, taskId: string, watching:
   });
 }
 
+/** Adds and removes other people as followers (automations). Added people must be able to see the task. */
+export async function setTaskWatchers(
+  actor: ActorContext,
+  taskId: string,
+  change: { add: string[]; remove: string[] },
+) {
+  await db().transaction(async (tx) => {
+    const { task, project, role } = await loadTaskAccess(tx, actor, taskId);
+    assertProject(role, "task.update");
+    if (change.add.length) {
+      const allowed = await assignableUserIds(tx, actor, task.projectId, project.visibility, task.listId);
+      await addWatchersInTx(
+        tx,
+        actor,
+        taskId,
+        change.add.filter((id) => allowed.has(id)),
+      );
+    }
+    if (change.remove.length) {
+      await tx
+        .delete(taskWatchers)
+        .where(and(eq(taskWatchers.taskId, taskId), inArray(taskWatchers.userId, change.remove)));
+    }
+  });
+}
+
 /** Who may delete a task: managers any, editors the ones they created. */
 export function canDeleteTask(role: ProjectRole, actor: ActorContext, task: { createdBy: string }) {
   return (

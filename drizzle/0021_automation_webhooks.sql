@@ -1,0 +1,1 @@
+ALTER TABLE "webhook_endpoints" ADD COLUMN "from_automation" boolean DEFAULT false NOT NULL;

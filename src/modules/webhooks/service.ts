@@ -101,6 +101,7 @@ export async function listWebhookEndpoints(actor: ActorContext) {
       events: webhookEndpoints.events,
       enabled: webhookEndpoints.enabled,
       projectId: webhookEndpoints.projectId,
+      fromAutomation: webhookEndpoints.fromAutomation,
       createdAt: webhookEndpoints.createdAt,
     })
     .from(webhookEndpoints)
@@ -114,8 +115,53 @@ export async function webhookEndpointChoices(tx: DbOrTx, workspaceId: string) {
   return tx
     .select({ id: webhookEndpoints.id, name: webhookEndpoints.name })
     .from(webhookEndpoints)
-    .where(and(eq(webhookEndpoints.workspaceId, workspaceId), eq(webhookEndpoints.enabled, true)))
+    .where(
+      and(
+        eq(webhookEndpoints.workspaceId, workspaceId),
+        eq(webhookEndpoints.enabled, true),
+        eq(webhookEndpoints.fromAutomation, false),
+      ),
+    )
     .orderBy(webhookEndpoints.name);
+}
+
+/**
+ * The endpoint behind an automation's "Call webhook" address: reused per address, made on first
+ * use. Admins see these under Integrations (and can switch them off); they get no events of their own.
+ */
+export async function automationEndpoint(
+  tx: DbOrTx,
+  workspaceId: string,
+  createdBy: string,
+  rawUrl: string,
+  options: { create: boolean },
+) {
+  const url = checkWebhookUrl(rawUrl).toString();
+  const [found] = await tx
+    .select({ id: webhookEndpoints.id, enabled: webhookEndpoints.enabled })
+    .from(webhookEndpoints)
+    .where(
+      and(
+        eq(webhookEndpoints.workspaceId, workspaceId),
+        eq(webhookEndpoints.url, url),
+        eq(webhookEndpoints.fromAutomation, true),
+      ),
+    )
+    .limit(1);
+  if (found || !options.create) return found ?? null;
+  const [row] = await tx
+    .insert(webhookEndpoints)
+    .values({
+      workspaceId,
+      name: `Automation: ${new URL(url).host}`,
+      url,
+      secret: `whsec_${randomBytes(24).toString("base64url")}`,
+      events: [],
+      fromAutomation: true,
+      createdBy,
+    })
+    .returning({ id: webhookEndpoints.id, enabled: webhookEndpoints.enabled });
+  return row!;
 }
 
 /** Adds an endpoint. Returns its signing secret, shown to the person once. */

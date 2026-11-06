@@ -74,6 +74,7 @@ export function OutgoingWebhooks({
     events: string[];
     enabled: boolean;
     projectId: string | null;
+    fromAutomation?: boolean;
   }[];
   events: string[];
   projects: { id: string; name: string; key: string }[];
@@ -99,9 +100,11 @@ export function OutgoingWebhooks({
                 <div className="font-medium">{e.name}</div>
                 <div className="text-muted-foreground truncate font-mono text-[12px]">{e.url}</div>
                 <div className="text-muted-foreground text-[12px]">
-                  {e.events.length
-                    ? e.events.map((x) => EVENT_LABELS[x] ?? x).join(" · ")
-                    : "Only from automations"}
+                  {e.fromAutomation
+                    ? "Typed into an automation's “Call webhook” (switch it off here to stop it)"
+                    : e.events.length
+                      ? e.events.map((x) => EVENT_LABELS[x] ?? x).join(" · ")
+                      : "Only from automations"}
                   {e.projectId
                     ? ` · ${projects.find((p) => p.id === e.projectId)?.name ?? "one project"} only`
                     : ""}

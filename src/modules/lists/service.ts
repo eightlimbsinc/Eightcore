@@ -318,6 +318,7 @@ export async function getList(actor: ActorContext, listId: string) {
       updateTask: canProject(role, "task.update"),
       saveView: canSaveView(role, list.viewProtected),
       protectView: canProject(role, "view.protect"),
+      manageAutomations: canProject(role, "automation.manage"),
     },
   };
 }

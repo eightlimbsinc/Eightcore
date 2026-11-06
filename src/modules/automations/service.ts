@@ -4,6 +4,7 @@ import { db } from "@/server/db";
 import {
   automationRuns,
   automations,
+  customFields,
   listStatuses,
   tags,
   taskLists,
@@ -14,6 +15,7 @@ import { ForbiddenError, NotFoundError, ValidationError, assertId } from "@/serv
 import { recordActivity } from "@/modules/activity/service";
 import { loadProjectAccess } from "@/modules/projects/service";
 import { assignableUserIds } from "@/modules/tasks/service";
+import { automationEndpoint, checkWebhookUrl } from "@/modules/webhooks/service";
 import { automationInput, type AutomationInput } from "./rules";
 
 async function projectAccess(actor: ActorContext, projectId: string) {
@@ -41,6 +43,7 @@ async function checkReferences(
   const tagIds = new Set<string>();
   const userIds = new Set<string>();
   const endpointIds = new Set<string>();
+  const fieldIds = new Set<string>();
   const t = input.trigger;
   if (t.type === "status_changed") [t.fromStatusId, t.toStatusId].forEach((id) => id && statusIds.add(id));
   if (t.type === "assignee_added" && t.userId) userIds.add(t.userId);
@@ -48,12 +51,25 @@ async function checkReferences(
     if (c.type === "status_is") c.statusIds.forEach((id) => statusIds.add(id));
     if (c.type === "has_tag") tagIds.add(c.tagId);
     if (c.type === "assignee_is" && c.userId !== "none") userIds.add(c.userId);
+    if (c.type === "field_is") fieldIds.add(c.fieldId);
   }
   for (const a of input.actions) {
     if (a.type === "set_status") statusIds.add(a.statusId);
     if (a.type === "assign") userIds.add(a.userId);
     if (a.type === "add_tag") tagIds.add(a.tagId);
     if (a.type === "send_webhook") endpointIds.add(a.endpointId);
+    if (a.type === "update_assignees" || a.type === "update_followers")
+      [...a.add, ...a.remove, ...("reassign" in a ? a.reassign : [])].forEach((id) => userIds.add(id));
+    if (a.type === "call_url") checkWebhookUrl(a.url);
+  }
+  if (fieldIds.size) {
+    const rows = await db()
+      .select({ id: customFields.id, listId: customFields.listId })
+      .from(customFields)
+      .where(and(inArray(customFields.id, [...fieldIds]), eq(customFields.projectId, projectId)));
+    const fits = rows.every((r) => !r.listId || r.listId === input.listId);
+    if (rows.length !== fieldIds.size || !fits)
+      throw new NotFoundError("Custom field not found for these tasks");
   }
   if (statusIds.size) {
     const rows = await db()
@@ -174,6 +190,10 @@ export async function saveAutomation(
         .returning({ id: automations.id });
       id = row!.id;
     }
+    // Webhook addresses typed into the automation show to admins under Integrations at once.
+    for (const a of input.actions)
+      if (a.type === "call_url")
+        await automationEndpoint(tx, actor.workspaceId, actor.userId, a.url, { create: true });
     await recordActivity(tx, actor, {
       entityType: "automation",
       entityId: id,

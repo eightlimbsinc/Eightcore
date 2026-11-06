@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarDays, ChevronRight, Columns3, List, Settings2, CircleCheckBig } from "lucide-react";
+import { CalendarDays, ChevronRight, Columns3, List, Settings2, CircleCheckBig, Zap } from "lucide-react";
 import { viewQuery, type ViewSettings } from "@/modules/lists/view-settings";
 import { filterQuery, type TaskFilter } from "@/modules/tasks/filters";
 import { PageHeader } from "@/components/app/page-header";
@@ -47,6 +47,7 @@ export function ListHeader({
     saveView: boolean;
     protectView: boolean;
     createTask: boolean;
+    manageAutomations?: boolean;
   };
   /** For "Add task". */
   statuses: StatusOption[];
@@ -116,6 +117,13 @@ export function ListHeader({
               <Button asChild variant="outline">
                 <Link href={`${listPath}/statuses`}>
                   <Settings2 /> {can.manage ? "List settings & statuses" : "Status rules"}
+                </Link>
+              </Button>
+            ) : null}
+            {can.manageAutomations ? (
+              <Button asChild variant="outline" size="icon">
+                <Link href={`${listPath}/automations`} aria-label="Automations" title="Automations">
+                  <Zap />
                 </Link>
               </Button>
             ) : null}

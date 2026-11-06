@@ -12,7 +12,10 @@ export default async function ProjectAutomationsPage({
   params: Promise<{ slug: string; key: string }>;
 }) {
   const { slug, key } = await params;
-  const { project, automations, lists, tags, people, endpoints } = await getAutomationsPage(slug, key);
+  const { project, automations, lists, tags, people, endpoints, fields } = await getAutomationsPage(
+    slug,
+    key,
+  );
   return (
     <>
       <PageHeader
@@ -33,6 +36,7 @@ export default async function ProjectAutomationsPage({
           tags={tags}
           people={people}
           endpoints={endpoints}
+          fields={fields}
         />
       </div>
     </>

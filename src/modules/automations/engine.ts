@@ -7,6 +7,7 @@ import {
   listStatuses,
   projects,
   taskAssignees,
+  taskFieldValues,
   taskLists,
   taskTags,
   tasks,
@@ -17,10 +18,15 @@ import { resolveActorById } from "@/server/authz/actor";
 import { withCausationDepth } from "@/server/causation";
 import { env } from "@/server/env";
 import { DomainError } from "@/server/errors";
-import { getTaskByRef, setTaskAssignees, updateTask } from "@/modules/tasks/service";
+import { getTaskByRef, setTaskAssignees, setTaskWatchers, updateTask } from "@/modules/tasks/service";
 import { createComment } from "@/modules/comments/service";
 import { setTaskTags } from "@/modules/tags/service";
-import { deliverDueWebhooks, endpointsFor, queueDelivery } from "@/modules/webhooks/service";
+import {
+  automationEndpoint,
+  deliverDueWebhooks,
+  endpointsFor,
+  queueDelivery,
+} from "@/modules/webhooks/service";
 import { MAX_CHAIN_DEPTH, actionSchema, conditionSchema, triggerSchema, type Action } from "./rules";
 
 type OutboxRow = {
@@ -39,6 +45,7 @@ async function taskSnapshot(taskId: string) {
       id: tasks.id,
       number: tasks.number,
       title: tasks.title,
+      description: tasks.description,
       priority: tasks.priority,
       dueDate: tasks.dueDate,
       statusId: tasks.statusId,
@@ -60,13 +67,14 @@ async function taskSnapshot(taskId: string) {
     .innerJoin(workspaces, eq(workspaces.id, tasks.workspaceId))
     .where(eq(tasks.id, taskId));
   if (!t) return null;
-  const [assignees, tagRows] = await Promise.all([
+  const [assignees, tagRows, fieldRows] = await Promise.all([
     db()
       .select({ userId: users.id, name: users.name, email: users.email })
       .from(taskAssignees)
       .innerJoin(users, eq(users.id, taskAssignees.userId))
       .where(eq(taskAssignees.taskId, taskId)),
     db().select({ tagId: taskTags.tagId }).from(taskTags).where(eq(taskTags.taskId, taskId)),
+    db().select().from(taskFieldValues).where(eq(taskFieldValues.taskId, taskId)),
   ]);
   const ref = `${t.projectKey}-${t.number}`;
   return {
@@ -75,6 +83,7 @@ async function taskSnapshot(taskId: string) {
     url: new URL(`/w/${t.workspaceSlug}/t/${ref}`, env().BETTER_AUTH_URL).toString(),
     assignees,
     tagIds: tagRows.map((r) => r.tagId),
+    fields: new Map(fieldRows.map((f) => [f.fieldId, f])),
   };
 }
 type Snapshot = NonNullable<Awaited<ReturnType<typeof taskSnapshot>>>;
@@ -94,6 +103,7 @@ function webhookPayload(
       id: task.id,
       ref: task.ref,
       title: task.title,
+      description: task.description,
       url: task.url,
       status: { name: task.statusName, category: task.statusCategory },
       priority: task.priority,
@@ -142,6 +152,25 @@ function triggerMatches(rawTrigger: unknown, event: OutboxRow) {
   }
 }
 
+type FieldRow = typeof taskFieldValues.$inferSelect;
+
+/** Does a stored field value equal the condition's value? (null: the field is empty.) */
+export function fieldMatches(row: FieldRow | undefined, want: string | number | boolean | null) {
+  const stored = row
+    ? (row.valueOptionId ??
+      row.valueUserId ??
+      row.valueDate ??
+      row.valueBool ??
+      (row.valueNumber !== null ? Number(row.valueNumber) : null) ??
+      row.valueText)
+    : null;
+  if (want === null || want === "") return stored === null || stored === "";
+  if (stored === null) return false;
+  if (typeof want === "number" || typeof stored === "number") return Number(stored) === Number(want);
+  if (typeof want === "boolean" || typeof stored === "boolean") return String(stored) === String(want);
+  return String(stored).trim().toLowerCase() === want.trim().toLowerCase();
+}
+
 function conditionsHold(rawConditions: unknown[], task: Snapshot) {
   return rawConditions.every((raw) => {
     const parsed = conditionSchema.safeParse(raw);
@@ -158,6 +187,8 @@ function conditionsHold(rawConditions: unknown[], task: Snapshot) {
         return c.userId === "none"
           ? task.assignees.length === 0
           : task.assignees.some((a) => a.userId === c.userId);
+      case "field_is":
+        return fieldMatches(task.fields.get(c.fieldId), c.value);
     }
   });
 }
@@ -167,7 +198,7 @@ async function runAction(
   actor: Awaited<ReturnType<typeof resolveActorById>>,
   action: Action,
   task: Snapshot,
-  automation: { id: string; name: string },
+  automation: { id: string; name: string; createdBy: string },
   event: OutboxRow,
 ) {
   const version = async () => (await getTaskByRef(actor, task.ref)).task.version;
@@ -216,6 +247,38 @@ async function runAction(
         ),
       );
       return "webhook queued";
+    case "update_assignees": {
+      const current = task.assignees.map((a) => a.userId);
+      const base = action.reassign.length ? action.reassign : action.removeAll ? [] : current;
+      const next = [
+        ...new Set([
+          ...base.filter((id) => !action.remove.includes(id)),
+          ...(action.reassign.length ? [] : action.add),
+        ]),
+      ];
+      if (next.length === current.length && next.every((id) => current.includes(id)))
+        return "assignees unchanged";
+      await setTaskAssignees(actor, task.id, next);
+      return "assignees updated";
+    }
+    case "update_followers":
+      await setTaskWatchers(actor, task.id, { add: action.add, remove: action.remove });
+      return "followers updated";
+    case "call_url": {
+      const endpoint = await automationEndpoint(db(), task.workspaceId, automation.createdBy, action.url, {
+        create: true,
+      });
+      if (!endpoint?.enabled)
+        throw new DomainError("An admin switched this webhook off (Integrations)", "forbidden");
+      await queueDelivery(
+        db(),
+        task.workspaceId,
+        endpoint.id,
+        event.type,
+        webhookPayload(event.type, task, { automation: automation.name, ...event.payload }, event.created_at),
+      );
+      return "webhook queued";
+    }
   }
 }
 

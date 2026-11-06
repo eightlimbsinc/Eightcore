@@ -15,10 +15,12 @@ import {
   createWebhookEndpoint,
   isPrivateAddress,
   listWebhookDeliveries,
+  listWebhookEndpoints,
   retryWebhookDelivery,
 } from "@/modules/webhooks/service";
 import { handleInboundHook } from "@/modules/webhooks/inbound";
 import { changeMemberRole } from "@/modules/workspaces/service";
+import { createField, setTaskFieldValues } from "@/modules/fields/service";
 import { createWorkspaceWithRoles } from "../support/factories";
 
 const dns = vi.hoisted(() => ({ address: "93.184.216.34" }));
@@ -157,6 +159,70 @@ describe("automations", () => {
     expect((await getTaskByRef(actors.owner, task.ref)).assignees).toEqual([]);
     const [run] = await db().select().from(automationRuns).where(eq(automationRuns.automationId, rule.id));
     expect(run).toMatchObject({ status: "failed", message: expect.stringMatching(/not found/i) });
+  });
+});
+
+describe("ClickUp-style list automations", () => {
+  it("status → Merging with Designer = Mica: reassign Mica, swap followers; status → Live: call Make", async () => {
+    const { actors, users, project, list, statuses } = await setup();
+    const [, merging, live] = statuses;
+    const designer = await createField(actors.owner, project.id, {
+      name: "Designer",
+      type: "person",
+      listId: list.id,
+    });
+    await saveAutomation(actors.owner, project.id, {
+      name: "Merging, assign Mica",
+      listId: list.id,
+      trigger: { type: "status_changed", toStatusId: merging!.id },
+      conditions: [{ type: "field_is", fieldId: designer.id, value: users.member.id }],
+      actions: [
+        { type: "update_assignees", reassign: [users.member.id] },
+        { type: "update_followers", add: [users.member.id], remove: [users.owner.id] },
+      ],
+    });
+    await saveAutomation(actors.owner, project.id, {
+      name: "Live → Make",
+      listId: list.id,
+      trigger: { type: "status_changed", toStatusId: live!.id },
+      actions: [{ type: "call_url", url: "https://hook.us1.make.com/abc?type=LIVE" }],
+    });
+    // Made by an automation: admins see it under Integrations; it isn't offered as a saved webhook.
+    const [endpoint] = await listWebhookEndpoints(actors.owner);
+    expect(endpoint).toMatchObject({ fromAutomation: true, url: "https://hook.us1.make.com/abc?type=LIVE" });
+
+    const other = await createTask(actors.owner, list.id, {
+      title: "Someone else's",
+      assigneeIds: [users.admin.id],
+    });
+    const mine = await createTask(actors.owner, list.id, { title: "Hero", assigneeIds: [users.admin.id] });
+    await setTaskFieldValues(actors.owner, mine.id, { [designer.id]: users.member.id });
+    for (const t of [mine, other]) {
+      const { task } = await getTaskByRef(actors.owner, t.ref);
+      await updateTask(actors.owner, t.id, task.version, { statusId: merging!.id });
+    }
+    await processOutbox();
+    const after = await getTaskByRef(actors.owner, mine.ref);
+    expect(after.assignees.map((a) => a.userId)).toEqual([users.member.id]);
+    expect(after.watchers.map((w) => w.userId)).toContain(users.member.id);
+    expect(after.watchers.map((w) => w.userId)).not.toContain(users.owner.id);
+    // The condition didn't hold for the other task.
+    expect((await getTaskByRef(actors.owner, other.ref)).assignees.map((a) => a.userId)).toEqual([
+      users.admin.id,
+    ]);
+
+    await updateTask(actors.owner, mine.id, after.task.version, { statusId: live!.id });
+    await processOutbox();
+    expect(sent.map((x) => x.url)).toEqual(["https://hook.us1.make.com/abc?type=LIVE"]);
+    expect(JSON.parse(sent[0]!.body)).toMatchObject({ event: "task.updated", task: { title: "Hero" } });
+
+    await expect(
+      saveAutomation(actors.owner, project.id, {
+        name: "Bad",
+        trigger: { type: "task_created" },
+        actions: [{ type: "call_url", url: "http://10.0.0.1/x" }],
+      }),
+    ).rejects.toThrow(/https/);
   });
 });
 

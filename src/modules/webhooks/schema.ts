@@ -35,6 +35,8 @@ export const webhookEndpoints = pgTable(
       .notNull()
       .default(sql`'{}'::text[]`),
     enabled: boolean().notNull().default(true),
+    /** Made by an automation's "Call webhook" action (shown to admins, not offered as a saved webhook). */
+    fromAutomation: boolean().notNull().default(false),
     createdBy: uuid()
       .notNull()
       .references(() => users.id),

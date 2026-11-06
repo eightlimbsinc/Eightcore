@@ -9,6 +9,7 @@ import {
 import {
   ACTION_LABELS,
   CONDITION_LABELS,
+  EDITOR_ACTIONS,
   TRIGGER_LABELS,
   type Action,
   type Condition,
@@ -33,17 +34,23 @@ type Definition = {
 };
 type Run = { status: string; message: string; createdAt: Date };
 type Saved = { id: string; enabled: boolean; definition: Definition; recentRuns: Run[] };
+type FieldOption = Option & {
+  type: string;
+  listId: string | null;
+  options: { id: string; label: string }[];
+};
 interface Choices {
   lists: ListOption[];
   tags: Option[];
   people: Option[];
   endpoints: Option[];
+  fields: FieldOption[];
 }
 
 const PRIORITIES = ["urgent", "high", "normal", "low", "none"] as const;
-const blank = (): Definition => ({
+const blank = (listId: string | null = null): Definition => ({
   name: "",
-  listId: null,
+  listId,
   enabled: true,
   trigger: { type: "task_created" },
   conditions: [],
@@ -74,6 +81,8 @@ function defaultCondition(type: Condition["type"], c: Choices, statuses: Option[
       return { type, tagId: c.tags[0]?.id ?? "" };
     case "assignee_is":
       return { type, userId: "none" };
+    case "field_is":
+      return { type, fieldId: c.fields[0]?.id ?? "", value: null };
   }
 }
 function defaultAction(type: Action["type"], c: Choices, statuses: Option[]): Action {
@@ -94,7 +103,125 @@ function defaultAction(type: Action["type"], c: Choices, statuses: Option[]): Ac
       return { type, days: 1 };
     case "send_webhook":
       return { type, endpointId: c.endpoints[0]?.id ?? "" };
+    case "update_assignees":
+      return { type, add: [], remove: [], reassign: [], removeAll: false };
+    case "update_followers":
+      return { type, add: [], remove: [] };
+    case "call_url":
+      return { type, url: "" };
   }
+}
+
+/** Several people: chips with a remove button, and a menu to add one more. */
+function PeopleMulti({
+  label,
+  people,
+  value,
+  onChange,
+}: {
+  label: string;
+  people: Option[];
+  value: string[];
+  onChange: (ids: string[]) => void;
+}) {
+  const left = people.filter((p) => !value.includes(p.id));
+  return (
+    <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label={label}>
+      <span className="text-muted-foreground w-28 shrink-0 text-[12px]">{label}</span>
+      {value.map((id) => (
+        <span
+          key={id}
+          className="bg-surface-muted flex items-center gap-1 rounded-full py-0.5 pr-1 pl-2 text-[12px]"
+        >
+          {people.find((p) => p.id === id)?.name ?? "Someone"}
+          <button
+            type="button"
+            aria-label={`Remove ${people.find((p) => p.id === id)?.name ?? "person"} from ${label}`}
+            onClick={() => onChange(value.filter((v) => v !== id))}
+            className="hover:text-foreground text-muted-foreground"
+          >
+            <X className="size-3" />
+          </button>
+        </span>
+      ))}
+      {left.length ? (
+        <NativeSelect
+          aria-label={`${label}: add a person`}
+          value=""
+          onChange={(e) => e.target.value && onChange([...value, e.target.value])}
+          className="h-7 w-36 text-[12px]"
+        >
+          <option value="">Select a user…</option>
+          {left.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </NativeSelect>
+      ) : null}
+    </div>
+  );
+}
+
+/** The value a custom-field condition compares with, in the field's own terms. */
+function FieldValueInput({
+  field,
+  people,
+  value,
+  onChange,
+}: {
+  field: FieldOption | undefined;
+  people: Option[];
+  value: string | number | boolean | null;
+  onChange: (v: string | number | boolean | null) => void;
+}) {
+  if (!field) return null;
+  const cls = "h-8 min-w-40";
+  if (field.type === "dropdown" || field.type === "person") {
+    const items =
+      field.type === "dropdown" ? field.options.map((o) => ({ id: o.id, name: o.label })) : people;
+    return (
+      <NativeSelect
+        aria-label="Field value"
+        value={String(value ?? "")}
+        onChange={(e) => onChange(e.target.value || null)}
+        className={cls}
+      >
+        <option value="">is empty</option>
+        {items.map((o) => (
+          <option key={o.id} value={o.id}>
+            {o.name}
+          </option>
+        ))}
+      </NativeSelect>
+    );
+  }
+  if (field.type === "checkbox")
+    return (
+      <NativeSelect
+        aria-label="Field value"
+        value={String(value === true)}
+        onChange={(e) => onChange(e.target.value === "true")}
+        className={cls}
+      >
+        <option value="true">is ticked</option>
+        <option value="false">is not ticked</option>
+      </NativeSelect>
+    );
+  return (
+    <Input
+      aria-label="Field value"
+      type={field.type === "number" ? "number" : field.type === "date" ? "date" : "text"}
+      value={value === null ? "" : String(value)}
+      placeholder="Empty = no value"
+      onChange={(e) =>
+        onChange(
+          e.target.value === "" ? null : field.type === "number" ? Number(e.target.value) : e.target.value,
+        )
+      }
+      className={`${cls} w-48`}
+    />
+  );
 }
 
 /** Status options for the chosen list (or every list, grouped, when it applies to the whole project). */
@@ -180,6 +307,7 @@ function Editor({
   initial,
   automationId,
   onDone,
+  fixedListId,
 }: {
   workspaceSlug: string;
   projectId: string;
@@ -187,11 +315,14 @@ function Editor({
   initial: Definition;
   automationId?: string;
   onDone: () => void;
+  fixedListId?: string;
 }) {
   const [d, setD] = useState<Definition>(initial);
   const [result, setResult] = useState<ActionState>(undefined);
   const [pending, startTransition] = useTransition();
   const { lists, tags, people, endpoints } = choices;
+  // Fields for the tasks this automation sees: project-wide ones, and the chosen list's own.
+  const fields = choices.fields.filter((f) => !f.listId || f.listId === d.listId);
   const statuses = (d.listId ? lists.filter((l) => l.id === d.listId) : lists).flatMap((l) => l.statuses);
   const set = (patch: Partial<Definition>) => setD((prev) => ({ ...prev, ...patch }));
   const setCondition = (i: number, c: Condition) =>
@@ -219,21 +350,23 @@ function Editor({
             placeholder="e.g. Ping the client when it's ready for review"
           />
         </Field>
-        <Field label="Applies to" htmlFor="automation-list">
-          <NativeSelect
-            id="automation-list"
-            value={d.listId ?? ""}
-            onChange={(e) => set({ listId: e.target.value || null })}
-            className="w-full"
-          >
-            <option value="">Every list in this project</option>
-            {lists.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.name}
-              </option>
-            ))}
-          </NativeSelect>
-        </Field>
+        {fixedListId ? null : (
+          <Field label="Applies to" htmlFor="automation-list">
+            <NativeSelect
+              id="automation-list"
+              value={d.listId ?? ""}
+              onChange={(e) => set({ listId: e.target.value || null })}
+              className="w-full"
+            >
+              <option value="">Every list in this project</option>
+              {lists.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
+            </NativeSelect>
+          </Field>
+        )}
       </div>
 
       <section className="grid gap-2">
@@ -384,6 +517,30 @@ function Editor({
                 onChange={(id) => setCondition(i, { ...c, userId: id })}
               />
             ) : null}
+            {c.type === "field_is" ? (
+              <>
+                <NativeSelect
+                  aria-label="Custom field"
+                  value={c.fieldId}
+                  onChange={(e) => setCondition(i, { ...c, fieldId: e.target.value, value: null })}
+                  className="h-8"
+                >
+                  {fields.length === 0 ? <option value="">No custom fields here</option> : null}
+                  {fields.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.name}
+                    </option>
+                  ))}
+                </NativeSelect>
+                <span className="text-muted-foreground text-[13px]">is</span>
+                <FieldValueInput
+                  field={fields.find((f) => f.id === c.fieldId)}
+                  people={people}
+                  value={c.value}
+                  onChange={(v) => setCondition(i, { ...c, value: v })}
+                />
+              </>
+            ) : null}
             <Button
               type="button"
               variant="ghost"
@@ -421,11 +578,13 @@ function Editor({
               }
               className="h-8"
             >
-              {Object.entries(ACTION_LABELS).map(([k, v]) => (
-                <option key={k} value={k}>
-                  {v}
-                </option>
-              ))}
+              {EDITOR_ACTIONS.concat(EDITOR_ACTIONS.includes(a.type) ? [] : [a.type])
+                .map((k) => [k, ACTION_LABELS[k]] as const)
+                .map(([k, v]) => (
+                  <option key={k} value={k}>
+                    {v}
+                  </option>
+                ))}
             </NativeSelect>
             {a.type === "set_status" ? (
               <StatusSelect
@@ -498,6 +657,68 @@ function Editor({
                 />
                 days from then
               </span>
+            ) : null}
+            {a.type === "update_assignees" ? (
+              <div className="grid min-w-72 flex-1 gap-1.5">
+                <PeopleMulti
+                  label="Add"
+                  people={people}
+                  value={a.add}
+                  onChange={(v) => setAction(i, { ...a, add: v })}
+                />
+                <PeopleMulti
+                  label="Remove"
+                  people={people}
+                  value={a.remove}
+                  onChange={(v) => setAction(i, { ...a, remove: v })}
+                />
+                <PeopleMulti
+                  label="Reassign to"
+                  people={people}
+                  value={a.reassign}
+                  onChange={(v) => setAction(i, { ...a, reassign: v })}
+                />
+                <label className="flex items-center gap-2 text-[12px]">
+                  <input
+                    type="checkbox"
+                    checked={a.removeAll}
+                    onChange={(e) => setAction(i, { ...a, removeAll: e.target.checked })}
+                  />
+                  Remove all assignees
+                </label>
+              </div>
+            ) : null}
+            {a.type === "update_followers" ? (
+              <div className="grid min-w-72 flex-1 gap-1.5">
+                <PeopleMulti
+                  label="Add followers"
+                  people={people}
+                  value={a.add}
+                  onChange={(v) => setAction(i, { ...a, add: v })}
+                />
+                <PeopleMulti
+                  label="Remove followers"
+                  people={people}
+                  value={a.remove}
+                  onChange={(v) => setAction(i, { ...a, remove: v })}
+                />
+              </div>
+            ) : null}
+            {a.type === "call_url" ? (
+              <div className="grid min-w-72 flex-1 gap-1">
+                <Input
+                  aria-label="Webhook address"
+                  type="url"
+                  value={a.url}
+                  placeholder="https://hook.us1.make.com/…"
+                  onChange={(e) => setAction(i, { ...a, url: e.target.value })}
+                  className="h-8"
+                />
+                <span className="text-muted-foreground text-[12px]">
+                  We POST the task (ref, title, description, link, status, priority, due date, assignees) as
+                  JSON.
+                </span>
+              </div>
             ) : null}
             {a.type === "send_webhook" ? (
               <NativeSelect
@@ -590,6 +811,33 @@ function describe(d: Definition, c: Choices) {
           return "comment";
         case "unassign_all":
           return "unassign everyone";
+        case "update_assignees":
+          return a.reassign.length
+            ? `reassign to ${a.reassign.map(person).join(", ")}`
+            : [
+                a.removeAll ? "remove all assignees" : "",
+                a.add.length ? `assign ${a.add.map(person).join(", ")}` : "",
+                a.remove.length ? `unassign ${a.remove.map(person).join(", ")}` : "",
+              ]
+                .filter(Boolean)
+                .join(", ") || "update assignees";
+        case "update_followers":
+          return (
+            [
+              a.add.length ? `add followers ${a.add.map(person).join(", ")}` : "",
+              a.remove.length ? `remove followers ${a.remove.map(person).join(", ")}` : "",
+            ]
+              .filter(Boolean)
+              .join(", ") || "update followers"
+          );
+        case "call_url":
+          return `call webhook ${(() => {
+            try {
+              return new URL(a.url).host;
+            } catch {
+              return "";
+            }
+          })()}`;
       }
     })
     .join(", ");
@@ -601,8 +849,9 @@ export function AutomationManager({
   workspaceSlug,
   projectId,
   automations,
+  fixedListId,
   ...choices
-}: Choices & { workspaceSlug: string; projectId: string; automations: Saved[] }) {
+}: Choices & { workspaceSlug: string; projectId: string; automations: Saved[]; fixedListId?: string }) {
   const [editing, setEditing] = useState<string | "new" | null>(automations.length === 0 ? "new" : null);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -624,6 +873,7 @@ export function AutomationManager({
             choices={choices}
             initial={a.definition}
             automationId={a.id}
+            fixedListId={fixedListId}
             onDone={() => setEditing(null)}
           />
         ) : (
@@ -700,7 +950,8 @@ export function AutomationManager({
           workspaceSlug={workspaceSlug}
           projectId={projectId}
           choices={choices}
-          initial={blank()}
+          initial={blank(fixedListId ?? null)}
+          fixedListId={fixedListId}
           onDone={() => setEditing(null)}
         />
       ) : (
