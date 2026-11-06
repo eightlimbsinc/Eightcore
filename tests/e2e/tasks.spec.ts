@@ -349,4 +349,15 @@ test("an owner organises work into lists and tasks", async ({ page }) => {
     .click();
   await expect(qaHistory).toContainText("Round #2");
   await expect(qaHistory).toContainText("Passed");
+
+  // Repeating: weekly; marking it done creates the next one.
+  await page.getByRole("button", { name: "Repeat: doesn't repeat" }).click();
+  await page
+    .getByRole("dialog", { name: "Repeat" })
+    .getByRole("button", { name: /^Weekly on / })
+    .click();
+  await expect(page.getByRole("button", { name: /^Repeat: Every week on / })).toBeVisible();
+  await page.getByRole("button", { name: /^Status: / }).click();
+  await page.getByRole("menuitem", { name: "Accepted" }).click();
+  await expect(page.getByText(/was closed and repeats as WEB-\d+/)).toBeVisible();
 });

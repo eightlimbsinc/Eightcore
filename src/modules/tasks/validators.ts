@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { recurrenceSchema } from "@/lib/recurrence";
 
 export const TASK_PRIORITIES = ["urgent", "high", "normal", "low", "none"] as const;
 export type TaskPriority = (typeof TASK_PRIORITIES)[number];
@@ -32,6 +33,8 @@ export const updateTaskInput = z
     dueDate: optionalDate.optional(),
     /** Planned effort in minutes; null clears it. */
     timeEstimateMinutes: z.number().int().min(1).max(100_000).nullable().optional(),
+    /** How the task repeats; null stops it. */
+    recurrence: recurrenceSchema.nullable().optional(),
     /** A comment posted with a status change (needed when a rule asks for one). */
     comment: z.string().trim().max(10_000).optional(),
   })

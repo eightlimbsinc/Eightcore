@@ -8,6 +8,7 @@ import type { ActionState } from "@/lib/action-state";
 import { ValidationError } from "@/server/errors";
 import { viewerToday } from "@/server/today";
 import { EMPTY_FILTER } from "./filters";
+import type { Recurrence } from "@/lib/recurrence";
 import { searchTasks } from "./search";
 import { bulkUpdateTasks, type BulkOperation, type BulkResult } from "./bulk";
 import {
@@ -221,4 +222,17 @@ export async function bulkTaskAction(
     revalidatePath(`/w/${workspaceSlug}`, "layout");
   });
   return result?.ok === false ? { ok: false, message: result.message } : { ok: true, ...counts };
+}
+
+/** The task's repeat rule (null stops repeating). */
+export async function setTaskRecurrenceAction(
+  workspaceSlug: string,
+  taskId: string,
+  version: number,
+  recurrence: Recurrence | null,
+): Promise<ActionState> {
+  return runAction(async () => {
+    await updateTask(await actorFor(workspaceSlug), taskId, version, { recurrence });
+    revalidatePath(`/w/${workspaceSlug}`, "layout");
+  });
 }

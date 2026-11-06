@@ -30,6 +30,13 @@ import { loadProjectAccess } from "@/modules/projects/service";
 import { listStatusesFor, loadListAccess } from "@/modules/lists/service";
 import { isClosedCategory } from "@/modules/lists/templates";
 import { checkTransition } from "@/modules/lists/transitions";
+import {
+  addDaysIso,
+  daysBetween,
+  describeRecurrence,
+  nextOccurrence,
+  readRecurrence,
+} from "@/lib/recurrence";
 import { concludeQaCycleInTx, startQaCycleInTx } from "@/modules/qa/service";
 import { createComment } from "@/modules/comments/service";
 import { discardStored } from "@/server/storage";
@@ -274,6 +281,7 @@ const taskSummaryColumns = {
   // Correlated subquery: the outer table must be named explicitly ("tasks"."id"); an
   // interpolated column renders unqualified and would bind to the inner alias.
   createdBy: tasks.createdBy,
+  repeats: sql<boolean>`${tasks.recurrence} is not null`,
   subtaskCount: sql<number>`(select count(*)::int from ${tasks} c where c.parent_task_id = "tasks"."id" and c.archived_at is null)`,
 };
 
@@ -391,6 +399,102 @@ export async function listTaskActivity(tx: DbOrTx, actor: ActorContext, taskId: 
 
 type StatusRef = { id: string; name: string; category: Parameters<typeof isClosedCategory>[0] };
 
+/**
+ * Repeating tasks: closing one (done or closed, not cancelled) creates the next occurrence in
+ * the list's first status, with dates moved on by the rule. The rule moves to the new task, so
+ * reopening and closing the old one again doesn't make another.
+ */
+async function spawnIfRecurring(
+  tx: DbOrTx,
+  actor: ActorContext,
+  task: typeof tasks.$inferSelect,
+  project: { id: string; key: string },
+  moved: { from: StatusRef | undefined; to: StatusRef },
+) {
+  const rule = readRecurrence(task.recurrence);
+  const finished = moved.to.category === "done" || moved.to.category === "closed";
+  const wasOpen = !moved.from || !isClosedCategory(moved.from.category);
+  if (!rule || !finished || !wasOpen) return null;
+
+  const today = new Date().toISOString().slice(0, 10);
+  const base = task.dueDate ?? today;
+  let due = nextOccurrence(rule, base);
+  // Overdue repeats skip ahead to the next date that isn't already past.
+  for (let i = 0; due < today && i < 500; i++) due = nextOccurrence(rule, due);
+  const shift = daysBetween(base, due);
+  const statuses = await listStatusesFor(tx, task.listId);
+  const first = statuses[0]!;
+  const [counter] = await tx
+    .update(projects)
+    .set({ nextTaskNumber: sql`${projects.nextTaskNumber} + 1` })
+    .where(eq(projects.id, project.id))
+    .returning({ number: sql<number>`${projects.nextTaskNumber} - 1` });
+  const siblings = task.parentTaskId
+    ? eq(tasks.parentTaskId, task.parentTaskId)
+    : and(eq(tasks.listId, task.listId), isNull(tasks.parentTaskId));
+  const [last] = await tx
+    .select({ position: tasks.position })
+    .from(tasks)
+    .where(siblings)
+    .orderBy(desc(tasks.position))
+    .limit(1);
+  const [next] = await tx
+    .insert(tasks)
+    .values({
+      workspaceId: task.workspaceId,
+      projectId: task.projectId,
+      listId: task.listId,
+      statusId: first.id,
+      parentTaskId: task.parentTaskId,
+      number: counter!.number,
+      title: task.title,
+      description: task.description,
+      priority: task.priority,
+      startDate: task.startDate ? addDaysIso(task.startDate, shift) : null,
+      dueDate: due,
+      timeEstimateMinutes: task.timeEstimateMinutes,
+      recurrence: task.recurrence,
+      position: generateKeyBetween(last?.position ?? null, null),
+      createdBy: actor.userId,
+    })
+    .returning({ id: tasks.id, number: tasks.number });
+  const ref = `${project.key}-${next!.number}`;
+  // Same people, tags and field values.
+  await tx.execute(sql`
+    insert into task_assignees (workspace_id, task_id, user_id, assigned_by)
+    select workspace_id, ${next!.id}::uuid, user_id, ${actor.userId}::uuid from task_assignees where task_id = ${task.id}::uuid`);
+  await tx.execute(sql`
+    insert into task_watchers (workspace_id, task_id, user_id)
+    select workspace_id, ${next!.id}::uuid, user_id from task_watchers where task_id = ${task.id}::uuid
+    on conflict do nothing`);
+  await tx.execute(sql`
+    insert into task_tags (workspace_id, project_id, task_id, tag_id)
+    select workspace_id, project_id, ${next!.id}::uuid, tag_id from task_tags where task_id = ${task.id}::uuid`);
+  await tx.execute(sql`
+    insert into task_field_values (workspace_id, project_id, task_id, field_id, value_text, value_number, value_date,
+                                   value_bool, value_option_id, value_user_id, updated_by)
+    select workspace_id, project_id, ${next!.id}::uuid, field_id, value_text, value_number, value_date,
+           value_bool, value_option_id, value_user_id, ${actor.userId}::uuid
+      from task_field_values where task_id = ${task.id}::uuid`);
+  await recordStatusChange(tx, actor, next!.id, null, first);
+  // The rule now lives on the new task.
+  await tx.update(tasks).set({ recurrence: null }).where(eq(tasks.id, task.id));
+  await recordActivity(tx, actor, {
+    entityType: "task",
+    entityId: next!.id,
+    action: "created",
+    metadata: { title: task.title, status: first.name, recurringFrom: `${project.key}-${task.number}` },
+  });
+  await recordActivity(tx, actor, {
+    entityType: "task",
+    entityId: task.id,
+    action: "recurred",
+    metadata: { next: ref, dueDate: due },
+  });
+  await enqueueOutbox(tx, actor.workspaceId, "task.created", { taskId: next!.id, listId: task.listId });
+  return { id: next!.id, ref };
+}
+
 /** What a status rule does to QA when the move happens: open a round, or pass/fail the open one. */
 async function applyQaAction(
   tx: DbOrTx,
@@ -507,6 +611,16 @@ export async function updateTask(
           (set as Record<string, unknown>)[field] = next;
         }
       }
+      if (input.recurrence !== undefined) {
+        const before = readRecurrence(task.recurrence);
+        if (JSON.stringify(before) !== JSON.stringify(input.recurrence)) {
+          changes.repeat = [
+            before ? describeRecurrence(before) : null,
+            input.recurrence ? describeRecurrence(input.recurrence) : null,
+          ];
+          set.recurrence = input.recurrence;
+        }
+      }
       let moved: ReturnType<typeof applyStatusChange> | null = null;
       let qa: Awaited<ReturnType<typeof checkTransition>> | null = null;
       if (input.statusId !== undefined && input.statusId !== task.statusId) {
@@ -536,6 +650,7 @@ export async function updateTask(
       await recordActivity(tx, actor, { entityType: "task", entityId: taskId, action: "updated", changes });
       if (moved) await recordStatusChange(tx, actor, taskId, moved.from, moved.to);
       await applyQaAction(tx, actor, taskId, qa?.qa ?? null, input.comment);
+      if (moved) await spawnIfRecurring(tx, actor, { ...task, ...set }, project, moved);
       if (changes.status) {
         await notifyInTx(tx, actor, {
           taskId,
@@ -728,6 +843,7 @@ export async function moveTask(
     // Reordering alone isn't worth a history line; a status change is.
     if (moved) await recordStatusChange(tx, actor, taskId, moved.from, moved.to);
     await applyQaAction(tx, actor, taskId, qa?.qa ?? null, move.comment);
+    if (moved) await spawnIfRecurring(tx, actor, task, project, moved);
     if (changes.status) {
       await recordActivity(tx, actor, { entityType: "task", entityId: taskId, action: "updated", changes });
       await notifyInTx(tx, actor, {

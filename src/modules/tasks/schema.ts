@@ -6,6 +6,7 @@ import {
   foreignKey,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   primaryKey,
@@ -41,6 +42,8 @@ export const tasks = pgTable(
     dueDate: date({ mode: "string" }),
     /** Planned effort ("Time estimate"), in minutes. */
     timeEstimateMinutes: integer(),
+    /** Repeat rule (src/lib/recurrence.ts); closing the task creates the next one, which takes the rule over. */
+    recurrence: jsonb().$type<Record<string, unknown>>(),
     position: text().notNull(),
     /** Optimistic concurrency: every update must name the version it read. */
     version: integer().notNull().default(1),

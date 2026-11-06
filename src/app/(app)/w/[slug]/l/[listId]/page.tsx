@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ListChecks } from "lucide-react";
+import { ListChecks, Repeat } from "lucide-react";
 import { getListView } from "@/modules/lists/queries";
 import { canProject } from "@/server/authz/policy";
 import { ListHeader } from "@/components/lists/list-header";
@@ -117,6 +117,9 @@ export default async function ListPage({
               >
                 {task.title}
               </Link>
+              {task.repeats ? (
+                <Repeat className="text-muted-foreground size-3.5" aria-label="Repeats" />
+              ) : null}
               {task.subtaskCount > 0 ? (
                 <span className="text-muted-foreground text-[12px]">
                   {task.subtaskCount} {task.subtaskCount === 1 ? "subtask" : "subtasks"}

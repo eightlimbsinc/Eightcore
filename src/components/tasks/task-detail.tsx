@@ -10,6 +10,7 @@ import {
   Hourglass,
   Timer,
   FlaskConical,
+  Repeat,
 } from "lucide-react";
 import { getTaskPage } from "@/modules/tasks/queries";
 import { describeActivity } from "@/lib/task-format";
@@ -17,6 +18,8 @@ import { cn } from "@/lib/utils";
 import { TaskSidePanel } from "@/components/tasks/task-side-panel";
 import { TaskTime, TimeEstimate } from "@/components/time/task-time";
 import { QaPanel } from "@/components/qa/qa-panel";
+import { RepeatPicker } from "@/components/tasks/repeat-picker";
+import { readRecurrence } from "@/lib/recurrence";
 import { NewTaskForm } from "@/components/tasks/new-task-form";
 import { ArchiveTaskButton, TaskForm, TaskTitleInput } from "@/components/tasks/task-forms";
 import { AssigneePicker } from "@/components/tasks/assignee-picker";
@@ -185,6 +188,19 @@ export async function TaskDetail({
                   taskTagIds={tags.map((t) => t.id)}
                   canEdit={can.update}
                   canManage={can.manageTags}
+                />
+              </dd>
+              <dt className="text-muted-foreground flex items-center gap-2 pt-1.5">
+                <Repeat className="size-4" aria-hidden /> Repeat
+              </dt>
+              <dd>
+                <RepeatPicker
+                  workspaceSlug={slug}
+                  taskId={task.id}
+                  version={task.version}
+                  recurrence={readRecurrence(task.recurrence)}
+                  dueDate={task.dueDate}
+                  canEdit={can.update}
                 />
               </dd>
               <dt className="text-muted-foreground flex items-center gap-2 pt-1.5">

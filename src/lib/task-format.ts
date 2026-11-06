@@ -50,6 +50,7 @@ const FIELD_LABELS: Record<string, string> = {
   startDate: "start date",
   dueDate: "due date",
   timeEstimateMinutes: "time estimate",
+  repeat: "repeat",
 };
 
 function show(field: string, value: unknown): string {
@@ -130,6 +131,8 @@ export function describeActivity(
         `tracked ${formatMinutes(minutes)}${event.metadata.source === "timer" ? " with the timer" : ""}`,
       ];
     }
+    case "recurred":
+      return [`was closed and repeats as ${String(event.metadata.next ?? "a new task")}`];
     case "qa_started":
       return [`started QA round #${String(event.metadata.cycle ?? "")}`];
     case "qa_concluded":
