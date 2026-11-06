@@ -16,6 +16,7 @@ export interface RuleView {
   minRole: "editor" | "manager";
   requireComment: boolean;
   requiredFieldIds: string[];
+  qaAction: "start" | "pass" | "fail" | null;
 }
 
 const select = "border-input bg-surface h-8 rounded-md border px-2 text-[13px]";
@@ -179,6 +180,21 @@ function RuleRow({
           </select>
         </label>
         <label className="flex items-center gap-2">
+          QA
+          <select
+            value={rule.qaAction ?? ""}
+            disabled={!canEdit || pending}
+            onChange={(e) => save({ qaAction: (e.target.value || null) as RuleView["qaAction"] })}
+            aria-label={`QA for the move ${label}`}
+            className={select}
+          >
+            <option value="">No QA step</option>
+            <option value="start">Starts a QA round</option>
+            <option value="pass">Passes QA</option>
+            <option value="fail">Fails QA (asks what failed)</option>
+          </select>
+        </label>
+        <label className="flex items-center gap-2">
           <input
             type="checkbox"
             checked={rule.requireComment}
@@ -248,6 +264,7 @@ function NewRule({
           minRole: "editor",
           requireComment: false,
           requiredFieldIds: [],
+          qaAction: null,
         });
       }}
     >

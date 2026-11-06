@@ -130,6 +130,12 @@ export function describeActivity(
         `tracked ${formatMinutes(minutes)}${event.metadata.source === "timer" ? " with the timer" : ""}`,
       ];
     }
+    case "qa_started":
+      return [`started QA round #${String(event.metadata.cycle ?? "")}`];
+    case "qa_concluded":
+      return [
+        `${event.metadata.result === "pass" ? "passed" : "failed"} QA round #${String(event.metadata.cycle ?? "")}`,
+      ];
     case "time_removed":
       return [`removed ${formatMinutes(Number(event.metadata.minutes ?? 0))} of tracked time`];
     default:

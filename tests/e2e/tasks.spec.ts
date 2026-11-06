@@ -329,4 +329,24 @@ test("an owner organises work into lists and tasks", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Status of WEB-1: Final Review" })).toBeVisible();
   await page.goto(page.url().replace(/\/l\/[^/?]+.*$/, "/t/WEB-1"));
   await expect(page.getByText("On staging now")).toBeVisible();
+
+  // QA rounds: fail one with a note, pass the retest; the history keeps both.
+  await page.getByLabel("Test environment URL").fill("https://staging.example.test");
+  await page.getByRole("button", { name: "Start QA round #1" }).click();
+  const round = page.getByRole("region", { name: "QA round 1, in progress" });
+  await expect(round).toBeVisible();
+  await expect(round.getByRole("button", { name: "Fail" })).toBeDisabled();
+  await round.getByLabel("QA notes").fill("Hero image is blurry on retina");
+  await round.getByRole("button", { name: "Fail" }).click();
+  const qaHistory = page.getByRole("list", { name: "QA history" });
+  await expect(qaHistory).toContainText("Round #1");
+  await expect(qaHistory).toContainText("Failed");
+  await expect(qaHistory).toContainText("Hero image is blurry on retina");
+  await page.getByRole("button", { name: "Start QA round #2" }).click();
+  await page
+    .getByRole("region", { name: "QA round 2, in progress" })
+    .getByRole("button", { name: "Pass" })
+    .click();
+  await expect(qaHistory).toContainText("Round #2");
+  await expect(qaHistory).toContainText("Passed");
 });

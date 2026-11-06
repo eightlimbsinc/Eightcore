@@ -9,12 +9,14 @@ import {
   UserRound,
   Hourglass,
   Timer,
+  FlaskConical,
 } from "lucide-react";
 import { getTaskPage } from "@/modules/tasks/queries";
 import { describeActivity } from "@/lib/task-format";
 import { cn } from "@/lib/utils";
 import { TaskSidePanel } from "@/components/tasks/task-side-panel";
 import { TaskTime, TimeEstimate } from "@/components/time/task-time";
+import { QaPanel } from "@/components/qa/qa-panel";
 import { NewTaskForm } from "@/components/tasks/new-task-form";
 import { ArchiveTaskButton, TaskForm, TaskTitleInput } from "@/components/tasks/task-forms";
 import { AssigneePicker } from "@/components/tasks/assignee-picker";
@@ -70,6 +72,7 @@ export async function TaskDetail({
     dependencies,
     fields,
     time,
+    qa,
   } = await getTaskPage(slug, reference);
   const fieldsHref = fields.canManage ? `/w/${slug}/p/${project.key}/fields` : null;
   const mentionable = assignable.map((a) => ({ userId: a.userId, name: a.name }));
@@ -277,6 +280,43 @@ export async function TaskDetail({
                   placeholder="Add a subtask…"
                 />
               ) : null}
+            </section>
+
+            <section aria-labelledby="qa-heading" className="grid gap-3 border-t pt-5">
+              <h2 id="qa-heading" className="flex items-center gap-2 text-[13px] font-semibold">
+                <FlaskConical className="size-4" aria-hidden /> QA{" "}
+                {qa.rounds.length ? (
+                  <span className="text-muted-foreground font-normal">
+                    ({qa.rounds.length} {qa.rounds.length === 1 ? "round" : "rounds"})
+                  </span>
+                ) : null}
+              </h2>
+              <QaPanel
+                workspaceSlug={slug}
+                taskId={task.id}
+                canConduct={qa.can.conduct}
+                maxMb={Math.floor(env().MAX_UPLOAD_BYTES / (1024 * 1024))}
+                rounds={qa.rounds.map((r) => ({
+                  id: r.id,
+                  cycleNumber: r.cycleNumber,
+                  result: r.result,
+                  environmentUrl: r.environmentUrl,
+                  buildRef: r.buildRef,
+                  summary: r.summary,
+                  startedAt: r.startedAt.toISOString(),
+                  concludedAt: r.concludedAt ? r.concludedAt.toISOString() : null,
+                  startedByName: r.startedByName,
+                  concludedByName: r.concludedByName,
+                  evidence: r.evidence.map((e) => ({
+                    id: e.id,
+                    originalName: e.originalName,
+                    mimeType: e.mimeType,
+                    sizeBytes: e.sizeBytes,
+                    uploaderName: e.uploaderName,
+                    canDelete: e.canDelete,
+                  })),
+                }))}
+              />
             </section>
 
             <section aria-labelledby="fields-heading" className="grid gap-3 border-t pt-5">

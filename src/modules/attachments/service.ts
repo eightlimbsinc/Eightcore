@@ -3,9 +3,9 @@ import { createHash, randomUUID } from "node:crypto";
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { fileTypeFromBuffer } from "file-type";
 import { db, type DbOrTx } from "@/server/db";
-import { attachments, users } from "@/server/db/schema";
+import { attachments, users, qaCycles } from "@/server/db/schema";
 import { canProject, type ActorContext } from "@/server/authz/policy";
-import { ForbiddenError, NotFoundError, ValidationError, assertId } from "@/server/errors";
+import { ForbiddenError, NotFoundError, ValidationError, assertId, ConflictError } from "@/server/errors";
 import { env } from "@/server/env";
 import { discardStored, storage } from "@/server/storage";
 import { recordActivity } from "@/modules/activity/service";
@@ -244,6 +244,16 @@ export async function deleteAttachment(actor: ActorContext, attachmentId: string
   const removed = await db().transaction(async (tx) => {
     const { attachment, role } = await loadAttachmentAccess(tx, actor, attachmentId);
     if (!canDeleteAttachment(actor, role, attachment)) throw new ForbiddenError();
+    if (attachment.qaCycleId) {
+      // Evidence of a concluded QA round is part of the record.
+      const [round] = await tx
+        .select({ result: qaCycles.result })
+        .from(qaCycles)
+        .where(eq(qaCycles.id, attachment.qaCycleId));
+      if (round && round.result !== "pending") {
+        throw new ConflictError("Evidence of a concluded QA round can't be removed.");
+      }
+    }
     await tx.delete(attachments).where(eq(attachments.id, attachmentId));
     await recordActivity(tx, actor, {
       entityType: "task",

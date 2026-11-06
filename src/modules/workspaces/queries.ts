@@ -13,7 +13,7 @@ import { readFilter } from "@/modules/tasks/filters";
 import { searchTasks } from "@/modules/tasks/search";
 import { visibleTagNames } from "@/modules/tags/service";
 import { viewerTimeZone, viewerToday } from "@/server/today";
-import { getDashboard, getFlowReport } from "@/modules/dashboard/service";
+import { getDashboard, getFlowReport, getQaReport } from "@/modules/dashboard/service";
 import {
   getWorkspace,
   listMembers,
@@ -133,9 +133,10 @@ export async function getDashboardPage(slug: string, params: Record<string, stri
     listVisibleProjects(actor),
   ]);
   const project = await focusProject(actor, params.project);
-  const [data, flow] = await Promise.all([
+  const [data, flow, qa] = await Promise.all([
     getDashboard(actor, { today, timeZone, projectId: project?.id }),
     getFlowReport(actor, { projectId: project?.id }),
+    getQaReport(actor, { projectId: project?.id }),
   ]);
   return {
     actor,
@@ -144,6 +145,7 @@ export async function getDashboardPage(slug: string, params: Record<string, stri
     projects: projects.map((p) => ({ key: p.key, name: p.name })),
     ...data,
     flow,
+    qa,
   };
 }
 

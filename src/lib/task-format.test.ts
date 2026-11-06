@@ -24,6 +24,15 @@ describe("dueState", () => {
 });
 
 describe("describeActivity", () => {
+  it("describes time tracking and QA rounds", () => {
+    const line = (action: string, metadata: Record<string, unknown>) =>
+      describeActivity({ action, changes: {}, metadata })[0];
+    expect(line("time_logged", { minutes: 90, source: "timer" })).toBe("tracked 1h 30m with the timer");
+    expect(line("qa_started", { cycle: 2 })).toBe("started QA round #2");
+    expect(line("qa_concluded", { cycle: 2, result: "fail" })).toBe("failed QA round #2");
+    expect(line("qa_concluded", { cycle: 3, result: "pass" })).toBe("passed QA round #3");
+  });
+
   it("describes field changes in plain words", () => {
     expect(
       describeActivity({

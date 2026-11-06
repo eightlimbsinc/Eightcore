@@ -14,6 +14,7 @@ import {
   startQaCycle,
   updateQaCycle,
 } from "@/modules/qa/service";
+import { getQaReport } from "@/modules/dashboard/service";
 import { adminPool } from "../support/db";
 import { actorFor, createWorkspaceWithRoles } from "../support/factories";
 
@@ -59,6 +60,10 @@ describe("QA rounds", () => {
       environmentUrl: "https://staging.example.test",
     });
     expect(rounds[1]!.evidence.map((e) => e.originalName)).toEqual(["screenshot.png"]);
+
+    const report = await getQaReport(actors.member, {});
+    expect(report).toMatchObject({ passed: 1, failed: 1, firstTimePassRate: 0 });
+    expect(report.mostFailed).toEqual([expect.objectContaining({ ref: task.ref, fails: 1, rounds: 2 })]);
   });
 
   it("locks concluded rounds, in the service and in the database", async () => {

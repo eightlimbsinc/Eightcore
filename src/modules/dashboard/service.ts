@@ -307,3 +307,55 @@ export async function getFlowReport(
     })),
   };
 }
+
+export interface QaReport {
+  passed: number;
+  failed: number;
+  /** Of tasks whose first round concluded in the period: share that passed it. Null when none. */
+  firstTimePassRate: number | null;
+  /** Tasks with the most failed rounds in the period. */
+  mostFailed: { ref: string; title: string; fails: number; rounds: number }[];
+}
+
+/** QA results over the flow period, in the same scope as the dashboard. */
+export async function getQaReport(actor: ActorContext, options: { projectId?: string }): Promise<QaReport> {
+  if (options.projectId) assertId(options.projectId, "Project not found");
+  const s = scoped(actor, options.projectId);
+  const visible = s.from(db().select({ id: tasks.id })).where(s.where());
+  const since = sql`now() - make_interval(days => ${FLOW_DAYS})`;
+  const [totals, worst] = await Promise.all([
+    db().execute<{ passed: number; failed: number; first_total: number; first_passed: number }>(sql`
+      with v as (${visible})
+      select count(*) filter (where q.result = 'pass')::int as passed,
+             count(*) filter (where q.result = 'fail')::int as failed,
+             count(*) filter (where q.cycle_number = 1)::int as first_total,
+             count(*) filter (where q.cycle_number = 1 and q.result = 'pass')::int as first_passed
+        from qa_cycles q
+       where q.task_id in (select id from v) and q.result <> 'pending' and q.concluded_at >= ${since}`),
+    db().execute<{ ref: string; title: string; fails: number; rounds: number }>(sql`
+      with v as (${visible})
+      select p.key || '-' || t.number as ref, t.title,
+             count(*) filter (where q.result = 'fail')::int as fails, count(*)::int as rounds
+        from qa_cycles q
+        join tasks t on t.id = q.task_id
+        join projects p on p.id = t.project_id
+       where q.task_id in (select id from v) and q.result <> 'pending' and q.concluded_at >= ${since}
+       group by p.key, t.number, t.title
+      having count(*) filter (where q.result = 'fail') > 0
+       order by fails desc, rounds desc
+       limit 6`),
+  ]);
+  const t = totals.rows[0];
+  const firstTotal = Number(t?.first_total ?? 0);
+  return {
+    passed: Number(t?.passed ?? 0),
+    failed: Number(t?.failed ?? 0),
+    firstTimePassRate: firstTotal ? Number(t?.first_passed ?? 0) / firstTotal : null,
+    mostFailed: worst.rows.map((r) => ({
+      ref: r.ref,
+      title: r.title,
+      fails: Number(r.fails),
+      rounds: Number(r.rounds),
+    })),
+  };
+}
