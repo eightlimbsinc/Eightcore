@@ -127,6 +127,20 @@
       "when": 1793976086109,
       "tag": "0017_task_recurrence",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1793976740605,
+      "tag": "0018_automations_webhooks",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1793977162462,
+      "tag": "0019_guest_list_access",
+      "breakpoints": true
     }
   ]
 }

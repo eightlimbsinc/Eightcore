@@ -13,3 +13,5 @@ export * from "@/modules/dependencies/schema";
 export * from "@/modules/fields/schema";
 export * from "@/modules/time/schema";
 export * from "@/modules/qa/schema";
+export * from "@/modules/automations/schema";
+export * from "@/modules/webhooks/schema";

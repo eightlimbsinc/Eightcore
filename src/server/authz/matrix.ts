@@ -22,6 +22,8 @@ export const WORKSPACE_ACTIONS = {
   "project.create": ["owner", "admin", "member"],
   "project.view_all": ["owner", "admin"],
   "audit_log.view": ["owner", "admin"],
+  /** Outgoing and incoming webhooks (Make and other integrations). */
+  "integration.manage": ["owner", "admin"],
 } as const satisfies Record<string, readonly WorkspaceRole[]>;
 export type WorkspaceAction = keyof typeof WORKSPACE_ACTIONS;
 
@@ -59,6 +61,8 @@ export const PROJECT_ACTIONS = {
   "custom_field.manage": ["manager"],
   /** Set a list's status transition rules (who may move where, required comments and fields). */
   "transition.manage": ["manager", "editor"],
+  /** Create, edit, switch off and delete the project's automations; read their run log. */
+  "automation.manage": ["manager"],
   /** Start QA rounds, pass or fail them, add evidence. */
   "qa.conduct": ["manager", "editor"],
   /** Track time on tasks (timer or manual entries); edit or delete your own entries. */

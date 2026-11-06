@@ -25,6 +25,10 @@ async function loadTaskByRef(tx: DbOrTx, actor: ActorContext, ref: string) {
     .from(tasks)
     .where(and(eq(tasks.projectId, project.id), eq(tasks.number, parsed.number)));
   if (!row || row.archivedAt) throw missing();
+  // Also the task's list: a guest may be limited to some lists of the project.
+  await loadTaskAccess(tx, actor, row.id).catch((error: unknown) => {
+    throw error instanceof NotFoundError ? missing() : error;
+  });
   return { id: row.id, ref: `${project.key}-${parsed.number}` };
 }
 
@@ -168,7 +172,7 @@ async function linked(tx: DbOrTx, actor: ActorContext, taskId: string, direction
       and(
         eq(taskDependencies.workspaceId, actor.workspaceId),
         isNull(other.archivedAt),
-        visibleProjectCondition(actor),
+        visibleProjectCondition(actor, other.listId),
       ),
     )
     .orderBy(asc(projects.key), asc(other.number));
@@ -207,7 +211,7 @@ export async function openBlockerCounts(tx: DbOrTx, actor: ActorContext, taskIds
         inArray(taskDependencies.blockedTaskId, taskIds),
         isNull(other.completedAt),
         isNull(other.archivedAt),
-        visibleProjectCondition(actor),
+        visibleProjectCondition(actor, other.listId),
       ),
     )
     .groupBy(taskDependencies.blockedTaskId);

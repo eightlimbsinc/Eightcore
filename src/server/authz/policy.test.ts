@@ -33,3 +33,17 @@ describe("effectiveProjectRole", () => {
     expect(effectiveProjectRole("guest", "private", "commenter")).toBe("commenter");
   });
 });
+
+describe("guest list scope", () => {
+  it("limits only guests, and only when lists were chosen", async () => {
+    const { listScopeFor, canSeeList } = await import("./policy");
+    expect(listScopeFor("guest", ["a"])).toEqual(["a"]);
+    expect(listScopeFor("guest", null)).toBeNull();
+    expect(listScopeFor("member", ["a"])).toBeNull();
+    expect(listScopeFor("admin", ["a"])).toBeNull();
+    expect(canSeeList(null, "b")).toBe(true);
+    expect(canSeeList(["a"], "a")).toBe(true);
+    expect(canSeeList(["a"], "b")).toBe(false);
+    expect(canSeeList([], "a")).toBe(false);
+  });
+});

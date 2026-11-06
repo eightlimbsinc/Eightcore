@@ -98,6 +98,12 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
               projectId={project.id}
               members={members}
               candidates={workspaceMembers}
+              lists={[
+                ...tree.rootLists.map((l) => ({ id: l.id, name: l.name, folder: null })),
+                ...tree.folders.flatMap((f) =>
+                  f.lists.map((l) => ({ id: l.id, name: l.name, folder: f.name })),
+                ),
+              ]}
               canManage={project.can.manageMembers}
               currentUserId={actor.userId}
             />

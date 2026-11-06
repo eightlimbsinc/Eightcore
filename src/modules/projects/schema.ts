@@ -57,6 +57,8 @@ export const projectMembers = pgTable(
     projectId: uuid().notNull(),
     userId: uuid().notNull(),
     role: projectRole().notNull(),
+    /** Guests only: the lists they may see. Null = every list in the project. */
+    listIds: uuid().array(),
     addedBy: uuid().references(() => users.id),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },

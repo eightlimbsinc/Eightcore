@@ -40,6 +40,8 @@ import { createField } from "@/modules/fields/service";
 import { deleteAttachment, uploadTaskAttachments } from "@/modules/attachments/service";
 import { addTimeEntry, deleteTimeEntry } from "@/modules/time/service";
 import { startQaCycle } from "@/modules/qa/service";
+import { saveAutomation } from "@/modules/automations/service";
+import { createInboundHook } from "@/modules/webhooks/service";
 import { actorFor, createUser, createWorkspaceWithRoles } from "../support/factories";
 
 type Fixture = Awaited<ReturnType<typeof createWorkspaceWithRoles>> & {
@@ -88,6 +90,7 @@ const workspaceProbes: Partial<
     const visible = await listVisibleProjects(actor);
     if (!visible.some((p) => p.id === f.privateProject.id)) throw new ForbiddenError();
   },
+  "integration.manage": (actor) => createInboundHook(actor, "Make scenario"),
 };
 
 /** Matrix actions with no service yet. Each needs a probe once its feature ships. */
@@ -160,6 +163,12 @@ const projectProbes: Record<ProjectAction, (actor: ActorContext, f: Fixture) => 
     const entry = await addTimeEntry(f.actors.owner, f.ownerTask.id, { minutes: 15, date: "2026-10-01" });
     await deleteTimeEntry(actor, entry.id);
   },
+  "automation.manage": (actor, f) =>
+    saveAutomation(actor, f.privateProject.id, {
+      name: "Welcome",
+      trigger: { type: "task_created" },
+      actions: [{ type: "add_comment", body: "Thanks!" }],
+    }),
 };
 
 describe("project actions through services", () => {

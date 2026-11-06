@@ -36,3 +36,29 @@ export async function resolveActor(userId: string, workspaceSlug: string): Promi
 
 /** Per-request memoized variant for Server Components. */
 export const resolveActorCached = cache(resolveActor);
+
+/**
+ * The actor for work done on someone's behalf (an automation they created, an incoming webhook
+ * they set up): their role and permissions, marked as not a person acting directly.
+ */
+export async function resolveActorById(
+  userId: string,
+  workspaceId: string,
+  actorKind: ActorContext["actorKind"],
+): Promise<ActorContext> {
+  const [row] = await db()
+    .select({ slug: workspaces.slug, role: workspaceMembers.role })
+    .from(workspaces)
+    .innerJoin(
+      workspaceMembers,
+      and(
+        eq(workspaceMembers.workspaceId, workspaces.id),
+        eq(workspaceMembers.userId, userId),
+        eq(workspaceMembers.status, "active"),
+      ),
+    )
+    .where(eq(workspaces.id, workspaceId))
+    .limit(1);
+  if (!row) throw new NotFoundError("Workspace not found");
+  return { userId, workspaceId, workspaceSlug: row.slug, workspaceRole: row.role, actorKind };
+}

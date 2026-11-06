@@ -108,7 +108,7 @@ export async function listNotifications(actor: ActorContext, options: { unreadOn
         eq(notifications.userId, actor.userId),
         eq(notifications.workspaceId, actor.workspaceId),
         options.unreadOnly ? isNull(notifications.readAt) : undefined,
-        visibleProjectCondition(actor),
+        visibleProjectCondition(actor, tasks.listId),
       ),
     )
     .orderBy(desc(notifications.createdAt), desc(notifications.id))
@@ -132,7 +132,7 @@ export async function countUnread(actor: ActorContext): Promise<number> {
         eq(notifications.userId, actor.userId),
         eq(notifications.workspaceId, actor.workspaceId),
         isNull(notifications.readAt),
-        visibleProjectCondition(actor),
+        visibleProjectCondition(actor, tasks.listId),
       ),
     );
   return row?.n ?? 0;

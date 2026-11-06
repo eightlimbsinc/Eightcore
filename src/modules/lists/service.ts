@@ -2,8 +2,8 @@ import "server-only";
 import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { generateKeyBetween, generateNKeysBetween } from "fractional-indexing";
 import { db, type DbOrTx } from "@/server/db";
-import { folders, listStatuses, projects, taskLists, tasks } from "@/server/db/schema";
-import { canProject, type ActorContext } from "@/server/authz/policy";
+import { folders, listStatuses, projectMembers, projects, taskLists, tasks } from "@/server/db/schema";
+import { canProject, canSeeList, listScopeFor, type ActorContext } from "@/server/authz/policy";
 import type { ProjectAction, ProjectRole } from "@/server/authz/matrix";
 import {
   ConflictError,
@@ -48,14 +48,16 @@ export async function loadListAccess(tx: DbOrTx, actor: ActorContext, listId: st
     .from(taskLists)
     .where(and(eq(taskLists.id, listId), eq(taskLists.workspaceId, actor.workspaceId)));
   if (!list) throw new NotFoundError("List not found");
-  const { project, role } = await loadProjectAccess(tx, actor, { id: list.projectId });
+  const { project, role, listScope } = await loadProjectAccess(tx, actor, { id: list.projectId });
+  // A guest limited to some lists gets "not found" for the others, as for invisible projects.
+  if (!canSeeList(listScope, list.id)) throw new NotFoundError("List not found");
   return { list, project, role };
 }
 
 // ── Project tree ──────────────────────────────────────────────────────────────────────────
 
 export async function getProjectTree(actor: ActorContext, projectId: string) {
-  const { role } = await loadProjectAccess(db(), actor, { id: projectId });
+  const { role, listScope } = await loadProjectAccess(db(), actor, { id: projectId });
   const [folderRows, listRows] = await Promise.all([
     db()
       .select({
@@ -85,9 +87,12 @@ export async function getProjectTree(actor: ActorContext, projectId: string) {
       .where(and(eq(taskLists.projectId, projectId), isNull(taskLists.archivedAt)))
       .orderBy(asc(taskLists.position)),
   ]);
+  const visible = listRows.filter((l) => canSeeList(listScope, l.id));
+  const tree = folderRows.map((f) => ({ ...f, lists: visible.filter((l) => l.folderId === f.id) }));
   return {
-    folders: folderRows.map((f) => ({ ...f, lists: listRows.filter((l) => l.folderId === f.id) })),
-    rootLists: listRows.filter((l) => l.folderId === null),
+    // A guest limited to some lists doesn't see the folders that hold none of them.
+    folders: listScope ? tree.filter((f) => f.lists.length > 0) : tree,
+    rootLists: visible.filter((l) => l.folderId === null),
     can: { manage: canProject(role, "list.manage") },
   };
 }
@@ -106,7 +111,7 @@ export async function getSidebarTree(actor: ActorContext, projectIds: string[]) 
       inArray(table.projectId, projectIds),
       isNull(table.archivedAt),
     );
-  const [folderRows, listRows] = await Promise.all([
+  const [folderRows, allListRows, scopes] = await Promise.all([
     db()
       .select({
         id: folders.id,
@@ -130,17 +135,27 @@ export async function getSidebarTree(actor: ActorContext, projectIds: string[]) 
       .from(taskLists)
       .where(scope(taskLists))
       .orderBy(asc(taskLists.position)),
+    actor.workspaceRole === "guest"
+      ? db()
+          .select({ projectId: projectMembers.projectId, listIds: projectMembers.listIds })
+          .from(projectMembers)
+          .where(and(eq(projectMembers.userId, actor.userId), inArray(projectMembers.projectId, projectIds)))
+      : Promise.resolve([]),
   ]);
+  const scopeOf = new Map(scopes.map((r) => [r.projectId, listScopeFor(actor.workspaceRole, r.listIds)]));
+  const listRows = allListRows.filter((l) => canSeeList(scopeOf.get(l.projectId) ?? null, l.id));
   const item = ({ id, name, icon, color }: Item) => ({ id, name, icon, color });
   for (const id of projectIds) {
     const lists = listRows.filter((l) => l.projectId === id);
+    const limited = Boolean(scopeOf.get(id));
     tree.set(id, {
       folders: folderRows
         .filter((f) => f.projectId === id)
         .map(({ projectId: _p, ...f }) => ({
           ...f,
           lists: lists.filter((l) => l.folderId === f.id).map(item),
-        })),
+        }))
+        .filter((f) => !limited || f.lists.length > 0),
       rootLists: lists.filter((l) => l.folderId === null).map(item),
     });
   }

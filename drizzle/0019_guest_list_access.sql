@@ -1,0 +1,1 @@
+ALTER TABLE "project_members" ADD COLUMN "list_ids" uuid[];

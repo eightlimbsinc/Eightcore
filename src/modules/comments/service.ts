@@ -100,7 +100,7 @@ export async function createComment(
         if (parent.parentCommentId) throw new ValidationError("Replies can't have replies of their own");
       }
 
-      const allowed = await assignableUserIds(tx, actor, project.id, project.visibility);
+      const allowed = await assignableUserIds(tx, actor, project.id, project.visibility, task.listId);
       const mentioned = await resolveMentions(tx, input.body, input.mentionIds, allowed);
 
       const [comment] = await tx
@@ -161,11 +161,11 @@ export async function createComment(
 export async function updateComment(actor: ActorContext, commentId: string, raw: CommentEditInput) {
   const input = commentEditInput.parse(raw);
   await db().transaction(async (tx) => {
-    const { comment, project, role } = await loadCommentAccess(tx, actor, commentId);
+    const { comment, task, project, role } = await loadCommentAccess(tx, actor, commentId);
     if (!canEditComment(actor, role, comment)) throw new ForbiddenError();
     if (comment.body === input.body) return;
 
-    const allowed = await assignableUserIds(tx, actor, project.id, project.visibility);
+    const allowed = await assignableUserIds(tx, actor, project.id, project.visibility, task.listId);
     const previous = await mentionIdsOf(tx, commentId);
     const mentioned = await resolveMentions(tx, input.body, [...input.mentionIds, ...previous], allowed);
     const added = mentioned.filter((id) => !previous.includes(id));

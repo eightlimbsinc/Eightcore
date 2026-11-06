@@ -32,6 +32,7 @@ const workspaceExpectations: Record<WorkspaceAction, Row<WorkspaceRole>> = {
   "project.create": { owner: Y, admin: Y, member: Y, guest: N },
   "project.view_all": { owner: Y, admin: Y, member: N, guest: N },
   "audit_log.view": { owner: Y, admin: Y, member: N, guest: N },
+  "integration.manage": { owner: Y, admin: Y, member: N, guest: N },
 };
 
 const projectExpectations: Record<ProjectAction, Row<ProjectRole>> = {
@@ -58,6 +59,7 @@ const projectExpectations: Record<ProjectAction, Row<ProjectRole>> = {
   "qa.conduct": { manager: Y, editor: Y, commenter: N, viewer: N },
   "time.track": { manager: Y, editor: Y, commenter: N, viewer: N },
   "time.manage": { manager: Y, editor: N, commenter: N, viewer: N },
+  "automation.manage": { manager: Y, editor: N, commenter: N, viewer: N },
 };
 
 describe("workspace permission matrix", () => {

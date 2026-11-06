@@ -25,6 +25,8 @@ export type UpdateProjectInput = z.input<typeof updateProjectInput>;
 export const setProjectMemberInput = z.object({
   userId: z.uuid(),
   role: z.enum(PROJECT_ROLES).nullable(),
+  /** Guests only. Null: every list; an array: only these; left out: unchanged (new guests: every list). */
+  listIds: z.array(z.uuid()).max(500).nullable().optional(),
 });
 
 /** Suggests a project key from its name: "Acme Website" → "AW", "Platform" → "PLAT". */

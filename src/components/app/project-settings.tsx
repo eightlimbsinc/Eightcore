@@ -1,6 +1,7 @@
 "use client";
 import { useActionState, useTransition, useState } from "react";
-import { Archive, UserPlus, X } from "lucide-react";
+import { Archive, ChevronDown, UserPlus, X } from "lucide-react";
+import { Popover } from "radix-ui";
 import {
   setProjectArchivedAction,
   setProjectMemberAction,
@@ -69,6 +70,96 @@ interface Member {
   email: string;
   role: (typeof PROJECT_ROLES)[number];
   workspaceRole: string;
+  /** Guests: the lists they can see (null = all). */
+  listIds: string[] | null;
+}
+
+type ListOption = { id: string; name: string; folder: string | null };
+
+/** "All lists", or the lists a guest can see. `value` null = every list. */
+function GuestListsPicker({
+  label,
+  lists,
+  value,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  lists: ListOption[];
+  value: string[] | null;
+  disabled?: boolean;
+  onChange: (next: string[] | null) => void;
+}) {
+  const [draft, setDraft] = useState<string[] | null>(value);
+  const chosen = new Set(draft ?? []);
+  const summary =
+    value === null
+      ? "All lists"
+      : value.length === 0
+        ? "No lists"
+        : value.length === 1
+          ? (lists.find((l) => l.id === value[0])?.name ?? "1 list")
+          : `${value.length} lists`;
+  const changed =
+    JSON.stringify(draft === null ? null : [...draft].sort()) !==
+    JSON.stringify(value === null ? null : [...value].sort());
+  return (
+    <Popover.Root onOpenChange={(open) => open && setDraft(value)}>
+      <Popover.Trigger
+        type="button"
+        disabled={disabled}
+        aria-label={`${label}: ${summary}`}
+        className="border-input bg-surface hover:bg-muted flex h-8 max-w-44 items-center gap-1 rounded-md border px-2 text-[13px] disabled:opacity-50"
+      >
+        <span className="truncate">{summary}</span>
+        <ChevronDown className="text-muted-foreground size-3.5 shrink-0" aria-hidden />
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content
+          align="end"
+          sideOffset={6}
+          className="bg-surface text-foreground z-50 grid w-72 gap-2 rounded-lg border p-3 shadow-lg"
+        >
+          <p className="text-[13px] font-medium">Lists this guest can see</p>
+          <label className="flex items-center gap-2 text-[13px]">
+            <input
+              type="checkbox"
+              checked={draft === null}
+              onChange={(e) => setDraft(e.target.checked ? null : [])}
+            />
+            All lists in this project (including new ones)
+          </label>
+          {draft !== null ? (
+            <div className="grid max-h-64 gap-1 overflow-y-auto border-t pt-2">
+              {lists.length === 0 ? (
+                <p className="text-muted-foreground text-[12px]">This project has no lists yet.</p>
+              ) : null}
+              {lists.map((l) => (
+                <label key={l.id} className="flex items-center gap-2 text-[13px]">
+                  <input
+                    type="checkbox"
+                    checked={chosen.has(l.id)}
+                    onChange={(e) =>
+                      setDraft(e.target.checked ? [...chosen, l.id] : [...chosen].filter((id) => id !== l.id))
+                    }
+                  />
+                  <span className="truncate">
+                    {l.folder ? <span className="text-muted-foreground">{l.folder} / </span> : null}
+                    {l.name}
+                  </span>
+                </label>
+              ))}
+            </div>
+          ) : null}
+          <Popover.Close asChild>
+            <Button type="button" size="sm" disabled={!changed} onClick={() => onChange(draft)}>
+              Save
+            </Button>
+          </Popover.Close>
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
+  );
 }
 
 export function ProjectMembers({
@@ -76,12 +167,14 @@ export function ProjectMembers({
   projectId,
   members,
   candidates,
+  lists,
   canManage,
   currentUserId,
 }: {
   workspaceSlug: string;
   projectId: string;
   members: Member[];
+  lists: ListOption[];
   candidates: { userId: string; name: string; email: string; role: string }[];
   canManage: boolean;
   currentUserId: string;
@@ -93,9 +186,13 @@ export function ProjectMembers({
     (c) => !memberIds.has(c.userId) && c.role !== "owner" && c.role !== "admin",
   );
 
-  function run(userId: string, role: string | null) {
+  const [addId, setAddId] = useState(addable[0]?.userId ?? "");
+  const addingGuest = addable.find((c) => c.userId === (addId || addable[0]?.userId))?.role === "guest";
+  const [addLists, setAddLists] = useState<string[] | null>([]);
+
+  function run(userId: string, role: string | null, listIds?: string[] | null) {
     startTransition(async () => {
-      setResult(await setProjectMemberAction(workspaceSlug, projectId, userId, role));
+      setResult(await setProjectMemberAction(workspaceSlug, projectId, userId, role, listIds));
     });
   }
 
@@ -113,6 +210,15 @@ export function ProjectMembers({
               <div className="text-muted-foreground truncate text-[12px]">{m.email}</div>
             </div>
             {m.workspaceRole === "guest" ? <Badge variant="outline">Guest</Badge> : null}
+            {m.workspaceRole === "guest" && canManage ? (
+              <GuestListsPicker
+                label={`Lists ${m.name} can see`}
+                lists={lists}
+                value={m.listIds}
+                disabled={pending}
+                onChange={(next) => run(m.userId, m.role, next)}
+              />
+            ) : null}
             {canManage ? (
               <>
                 <NativeSelect
@@ -152,18 +258,41 @@ export function ProjectMembers({
           onSubmit={(e) => {
             e.preventDefault();
             const form = new FormData(e.currentTarget);
-            run(String(form.get("userId")), String(form.get("role")));
+            if (addingGuest && addLists !== null && addLists.length === 0) {
+              setResult({ ok: false, message: "Choose the lists this guest can see" });
+              return;
+            }
+            run(String(form.get("userId")), String(form.get("role")), addingGuest ? addLists : undefined);
+            setAddLists([]);
           }}
         >
           <Field label="Add person" htmlFor="add-member">
-            <NativeSelect id="add-member" name="userId" required className="w-full">
+            <NativeSelect
+              id="add-member"
+              name="userId"
+              required
+              className="w-full"
+              value={addId || addable[0]?.userId}
+              onChange={(e) => setAddId(e.target.value)}
+            >
               {addable.map((c) => (
                 <option key={c.userId} value={c.userId}>
-                  {c.name} ({c.email})
+                  {c.name} ({c.email}){c.role === "guest" ? " · guest" : ""}
                 </option>
               ))}
             </NativeSelect>
           </Field>
+          {addingGuest ? (
+            <div className="flex items-center justify-between gap-2 text-[13px]">
+              <span>Lists this guest can see</span>
+              <GuestListsPicker
+                label="Lists the new guest can see"
+                lists={lists}
+                value={addLists}
+                onChange={setAddLists}
+              />
+            </div>
+          ) : null}
           <div className="flex items-end gap-2">
             <div className="flex-1">
               <Field label="Role" htmlFor="add-role">
@@ -183,7 +312,8 @@ export function ProjectMembers({
         </form>
       ) : null}
       <p className="text-muted-foreground text-[12px]">
-        Workspace owners and admins always manage every project. Guests can be at most editors.
+        Workspace owners and admins always manage every project. Guests can be at most editors, and see only
+        the lists you choose for them.
       </p>
     </div>
   );

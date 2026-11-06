@@ -8,6 +8,8 @@ const schema = z.object({
   BETTER_AUTH_URL: z.url(),
   SMTP_URL: z.preprocess((v) => (v === "" ? undefined : v), z.url({ protocol: /^smtps?$/ }).optional()),
   MAIL_FROM: z.string().min(3).default("Eightcore <no-reply@eightcore.local>"),
+  /** Bearer token for /api/cron/outbox (a scheduler calls it to catch up on events). Unset: disabled. */
+  CRON_SECRET: z.preprocess((v) => (v === "" ? undefined : v), z.string().min(24).optional()),
   MAIL_OUTBOX_DIR: z.string().default(".mail"),
   /**
    * Who may create an account. "invite-only" allows emails in SIGNUP_ALLOWED_EMAILS and

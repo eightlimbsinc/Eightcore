@@ -186,7 +186,7 @@ export async function visibleTagNames(actor: ActorContext): Promise<string[]> {
       and(
         eq(tags.workspaceId, actor.workspaceId),
         isNull(projects.archivedAt),
-        visibleProjectCondition(actor),
+        visibleProjectCondition(actor, null),
       ),
     )
     .orderBy(tags.name)

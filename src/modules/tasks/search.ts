@@ -88,7 +88,7 @@ export async function searchTasks(
     isNull(taskLists.archivedAt),
     isNull(projects.archivedAt),
     options.projectId ? eq(projects.id, options.projectId) : undefined,
-    visibleProjectCondition(actor),
+    visibleProjectCondition(actor, tasks.listId),
     ...filterConditions(filter, { userId: actor.userId, today: options.today }),
   );
   const rows = await db()

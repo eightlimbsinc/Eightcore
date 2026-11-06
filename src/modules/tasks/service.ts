@@ -15,7 +15,13 @@ import {
   users,
   workspaceMembers,
 } from "@/server/db/schema";
-import { canProject, effectiveProjectRole, type ActorContext } from "@/server/authz/policy";
+import {
+  canProject,
+  canSeeList,
+  effectiveProjectRole,
+  listScopeFor,
+  type ActorContext,
+} from "@/server/authz/policy";
 import type { ProjectAction, ProjectRole } from "@/server/authz/matrix";
 import {
   ConflictError,
@@ -82,18 +88,21 @@ export async function loadTaskAccess(tx: DbOrTx, actor: ActorContext, taskId: st
 /**
  * Users who may be assigned in a project: active workspace members who can see it
  * (owners/admins always; members on workspace-visible projects or when added; guests when added).
+ * With `listId`, guests limited to other lists of the project are left out.
  */
 export async function assignableUserIds(
   tx: DbOrTx,
   actor: ActorContext,
   projectId: string,
   visibility: "workspace" | "private",
+  listId?: string | null,
 ) {
   const rows = await tx
     .select({
       userId: workspaceMembers.userId,
       role: workspaceMembers.role,
       explicitRole: projectMembers.role,
+      listIds: projectMembers.listIds,
     })
     .from(workspaceMembers)
     .leftJoin(
@@ -104,13 +113,14 @@ export async function assignableUserIds(
   return new Set(
     rows
       .filter((r) => effectiveProjectRole(r.role, visibility, r.explicitRole) !== null)
+      .filter((r) => !listId || canSeeList(listScopeFor(r.role, r.listIds), listId))
       .map((r) => r.userId),
   );
 }
 
-export async function listAssignableMembers(actor: ActorContext, projectId: string) {
+export async function listAssignableMembers(actor: ActorContext, projectId: string, listId?: string) {
   const { project } = await loadProjectAccess(db(), actor, { id: projectId });
-  const ids = [...(await assignableUserIds(db(), actor, projectId, project.visibility))];
+  const ids = [...(await assignableUserIds(db(), actor, projectId, project.visibility, listId))];
   if (ids.length === 0) return [];
   return db()
     .select({ userId: users.id, name: users.name, email: users.email })
@@ -122,13 +132,13 @@ export async function listAssignableMembers(actor: ActorContext, projectId: stri
 async function setAssigneesInTx(
   tx: DbOrTx,
   actor: ActorContext,
-  task: { id: string; projectId: string },
+  task: { id: string; projectId: string; listId: string },
   visibility: "workspace" | "private",
   userIds: string[],
 ) {
   const wanted = [...new Set(userIds)];
   wanted.forEach((id) => assertId(id, "Member not found"));
-  const allowed = await assignableUserIds(tx, actor, task.projectId, visibility);
+  const allowed = await assignableUserIds(tx, actor, task.projectId, visibility, task.listId);
   if (wanted.some((id) => !allowed.has(id)))
     throw new NotFoundError("One of those people can't be assigned to this project");
   const current = (
@@ -223,7 +233,7 @@ export async function createTask(actor: ActorContext, listId: string, raw: Creat
         ({ added: assigned } = await setAssigneesInTx(
           tx,
           actor,
-          { id: task!.id, projectId: project.id },
+          { id: task!.id, projectId: project.id, listId: list.id },
           project.visibility,
           input.assigneeIds,
         ));
@@ -338,7 +348,7 @@ export async function getTaskByRef(actor: ActorContext, ref: string) {
           .where(eq(tasks.id, task.parentTaskId))
       : Promise.resolve([]),
     listTaskActivity(db(), actor, task.id),
-    listAssignableMembers(actor, project.id),
+    listAssignableMembers(actor, project.id, list.id),
     listWatchers(db(), task.id),
   ]);
   const subtaskAssignees = await assigneesFor(
@@ -656,11 +666,16 @@ export async function updateTask(
           taskId,
           type: "status_changed",
           userIds: await watcherIds(tx, taskId),
-          allowed: await assignableUserIds(tx, actor, task.projectId, project.visibility),
+          allowed: await assignableUserIds(tx, actor, task.projectId, project.visibility, task.listId),
           data: { from: changes.status[0], to: changes.status[1] },
         });
       }
-      await enqueueOutbox(tx, actor.workspaceId, "task.updated", { taskId, fields: Object.keys(changes) });
+      await enqueueOutbox(tx, actor.workspaceId, "task.updated", {
+        taskId,
+        fields: Object.keys(changes),
+        ...(moved ? { fromStatusId: moved.from?.id ?? null, toStatusId: moved.to.id } : {}),
+        ...(changes.priority ? { priority: changes.priority[1] } : {}),
+      });
       return { version: updated.version, moved: Boolean(moved) };
     });
     // The comment a rule asked for, posted once the move has happened.
@@ -850,10 +865,15 @@ export async function moveTask(
         taskId,
         type: "status_changed",
         userIds: await watcherIds(tx, taskId),
-        allowed: await assignableUserIds(tx, actor, task.projectId, project.visibility),
+        allowed: await assignableUserIds(tx, actor, task.projectId, project.visibility, task.listId),
         data: { from: changes.status[0], to: changes.status[1] },
       });
-      await enqueueOutbox(tx, actor.workspaceId, "task.updated", { taskId, fields: ["status"] });
+      await enqueueOutbox(tx, actor.workspaceId, "task.updated", {
+        taskId,
+        fields: ["status"],
+        fromStatusId: moved?.from?.id ?? null,
+        toStatusId: moved?.to.id ?? null,
+      });
     }
     return { version: updated.version, moved: Boolean(moved) };
   });

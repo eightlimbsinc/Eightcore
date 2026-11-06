@@ -54,7 +54,7 @@ function scoped(actor: ActorContext, projectId?: string) {
         isNull(taskLists.archivedAt),
         isNull(projects.archivedAt),
         projectId ? eq(projects.id, projectId) : undefined,
-        visibleProjectCondition(actor),
+        visibleProjectCondition(actor, tasks.listId),
         ...extra,
       ),
   };

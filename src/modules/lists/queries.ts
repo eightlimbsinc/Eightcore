@@ -27,7 +27,7 @@ export async function getListPage(slug: string, listId: string) {
       tagsForTasks(db(), ids),
       openBlockerCounts(db(), actor, ids),
       fieldValuesForTasks(db(), ids),
-      listAssignableMembers(actor, detail.list.projectId),
+      listAssignableMembers(actor, detail.list.projectId, listId),
       timeTotalsForTasks(db(), ids),
     ]);
     return {

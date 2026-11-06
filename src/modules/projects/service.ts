@@ -1,12 +1,13 @@
 import "server-only";
-import { and, asc, eq, isNull, or, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { db, type DbOrTx } from "@/server/db";
-import { projectMembers, projects, users, workspaceMembers } from "@/server/db/schema";
+import { projectMembers, projects, taskLists, users, workspaceMembers } from "@/server/db/schema";
 import {
   assertWorkspace,
   canProject,
   canWorkspace,
   effectiveProjectRole,
+  listScopeFor,
   type ActorContext,
 } from "@/server/authz/policy";
 import {
@@ -45,7 +46,7 @@ export async function loadProjectAccess(
 ) {
   if ("id" in where) assertId(where.id, "Project not found");
   const [row] = await tx
-    .select({ ...projectColumns, explicitRole: projectMembers.role })
+    .select({ ...projectColumns, explicitRole: projectMembers.role, listIds: projectMembers.listIds })
     .from(projects)
     .leftJoin(
       projectMembers,
@@ -58,10 +59,12 @@ export async function loadProjectAccess(
       ),
     );
   if (!row) throw new NotFoundError("Project not found");
-  const { explicitRole, ...project } = row;
+  const { explicitRole, listIds, ...project } = row;
   const role = effectiveProjectRole(actor.workspaceRole, project.visibility, explicitRole);
   if (!role) throw new NotFoundError("Project not found");
-  return { project, role };
+  /** Null: every list. Otherwise the only lists the actor (a guest) may see. */
+  const listScope = listScopeFor(actor.workspaceRole, listIds);
+  return { project, role, listScope };
 }
 
 function assertProject(role: ProjectRole, action: ProjectAction): void {
@@ -193,6 +196,7 @@ export async function listProjectMembers(actor: ActorContext, projectId: string)
       name: users.name,
       email: users.email,
       role: projectMembers.role,
+      listIds: projectMembers.listIds,
       workspaceRole: workspaceMembers.role,
     })
     .from(projectMembers)
@@ -212,7 +216,7 @@ export async function listProjectMembers(actor: ActorContext, projectId: string)
 export async function setProjectMember(
   actor: ActorContext,
   projectId: string,
-  raw: { userId: string; role: ProjectRole | null },
+  raw: { userId: string; role: ProjectRole | null; listIds?: string[] | null },
 ) {
   const input = setProjectMemberInput.parse(raw);
   await db().transaction(async (tx) => {
@@ -239,8 +243,20 @@ export async function setProjectMember(
           and(eq(workspaceMembers.workspaceId, actor.workspaceId), eq(workspaceMembers.userId, input.userId)),
         );
       if (!target || target.status !== "active") throw new NotFoundError("Member not found");
-      const granted =
-        target.role === "guest" ? projectRoleAtMost(input.role, GUEST_MAX_PROJECT_ROLE) : input.role;
+      const guest = target.role === "guest";
+      const granted = guest ? projectRoleAtMost(input.role, GUEST_MAX_PROJECT_ROLE) : input.role;
+      // Only guests can be limited to some lists; the lists must be this project's.
+      let listIds: string[] | null | undefined = guest ? input.listIds : null;
+      if (listIds) {
+        listIds = [...new Set(listIds)];
+        const found = listIds.length
+          ? await tx
+              .select({ id: taskLists.id })
+              .from(taskLists)
+              .where(and(eq(taskLists.projectId, projectId), inArray(taskLists.id, listIds)))
+          : [];
+        if (found.length !== listIds.length) throw new NotFoundError("List not found in this project");
+      }
       await tx
         .insert(projectMembers)
         .values({
@@ -248,24 +264,25 @@ export async function setProjectMember(
           projectId,
           userId: input.userId,
           role: granted,
+          listIds: listIds ?? null,
           addedBy: actor.userId,
         })
         .onConflictDoUpdate({
           target: [projectMembers.projectId, projectMembers.userId],
-          set: { role: granted },
+          set: listIds === undefined ? { role: granted } : { role: granted, listIds },
         });
     }
     await recordActivity(tx, actor, {
       entityType: "project_member",
       entityId: projectId,
       action: input.role === null ? "member_removed" : "member_set",
-      metadata: { userId: input.userId, role: input.role },
+      metadata: { userId: input.userId, role: input.role, listIds: input.listIds },
     });
     await recordAudit(tx, {
       event: "project.member_changed",
       workspaceId: actor.workspaceId,
       actorId: actor.userId,
-      metadata: { projectId, userId: input.userId, role: input.role },
+      metadata: { projectId, userId: input.userId, role: input.role, listIds: input.listIds },
     });
   });
 }

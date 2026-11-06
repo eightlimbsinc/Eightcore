@@ -50,6 +50,21 @@ export function effectiveProjectRole(
   }
 }
 
+/**
+ * The lists a user is limited to inside a project they can see. `null` = every list.
+ * Only guests can be limited; for everyone else the stored scope is ignored.
+ */
+export function listScopeFor(
+  workspaceRole: WorkspaceRole,
+  listIds: string[] | null | undefined,
+): string[] | null {
+  return workspaceRole === "guest" && listIds ? listIds : null;
+}
+
+export function canSeeList(scope: string[] | null, listId: string): boolean {
+  return scope === null || scope.includes(listId);
+}
+
 export function canProject(role: ProjectRole | null, action: ProjectAction): boolean {
   return role !== null && (PROJECT_ACTIONS[action] as readonly ProjectRole[]).includes(role);
 }

@@ -72,6 +72,7 @@ export async function setProjectMemberAction(
   projectId: string,
   userId: string,
   role: string | null,
+  listIds?: string[] | null,
 ): Promise<ActionState> {
   return runAction(async () => {
     if (role !== null && !PROJECT_ROLES.includes(role as ProjectRole))
@@ -79,6 +80,7 @@ export async function setProjectMemberAction(
     await setProjectMember(await actorFor(workspaceSlug), projectId, {
       userId,
       role: role as ProjectRole | null,
+      listIds,
     });
     revalidatePath(`/w/${workspaceSlug}`, "layout");
   });

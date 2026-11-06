@@ -408,7 +408,7 @@ export async function setTaskFieldValues(
       ),
     );
     const assignable = fields.some((f) => f.type === "person")
-      ? await assignableUserIds(tx, actor, project.id, project.visibility)
+      ? await assignableUserIds(tx, actor, project.id, project.visibility, task.listId)
       : new Set<string>();
 
     const errors: Record<string, string> = {};

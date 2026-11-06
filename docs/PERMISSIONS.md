@@ -38,6 +38,17 @@ Status: **implemented in Phase 2** for the workspace and project actions below (
 - Member on a `private` project → explicit project role or **no access**.
 - Guest → explicit project role or list share, otherwise **no access**. Maximum for guests: Editor (configurable down to Commenter).
 
+**Guest list sharing** (`project_members.list_ids`): when a manager adds a guest to a project they choose
+**All lists** (null, including lists made later) or specific lists. A guest limited to some lists:
+
+- sees only those lists in the project page and sidebar (folders holding none of them are hidden);
+- gets **404** for every other list and its tasks, comments, files, time and QA (checked in `loadListAccess`, which every task operation goes through);
+- never gets the other lists' tasks from search, My Work, calendar, the dashboard, notifications or dependencies (`visibleProjectCondition(actor, listColumn)` adds the list check in SQL);
+- can't be assigned, @mentioned or picked in a person field on tasks in other lists.
+
+The limit applies to guests only: for owners, admins and members the stored list is ignored (and not saved).
+Changing a guest's role keeps their lists.
+
 ## 3. Permission matrix (initial)
 
 ✅ allowed · ◐ own items only · ❌ denied. Project-scoped rows use the **effective project role**.
@@ -137,7 +148,7 @@ Composite FKs already prevent cross-workspace *references*. RLS would also preve
 
 1. **Matrix tests (generated).** For every action × role, an integration test asserts allow or deny against a real Postgres. The suite fails if a new action is added without matrix coverage.
 2. **IDOR tests.** For every mutation and read endpoint: actor in workspace A, resource ID from workspace B → 404, with no row changed.
-3. **Guest scoping.** A guest sees only shared projects or lists. Search, My Work, notifications, and calendar never return unshared tasks.
+3. **Guest scoping.** A guest sees only shared projects or lists. Search, My Work, notifications, and calendar never return unshared tasks (`tests/integration/guest-lists.test.ts`).
 4. **Private project tests.** A member without a project role gets 404 on every route touching the project.
 5. **DB-level tests.** Direct inserts that violate composite FKs (cross-workspace assignee, parent, status, tag) fail at the database.
 6. **Session tests.** Revoked or expired sessions are rejected. A role downgrade takes effect on the next request.
