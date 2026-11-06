@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Lock, SlidersHorizontal, Zap } from "lucide-react";
+import { FileText, Lock, SlidersHorizontal, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getProjectPage } from "@/modules/projects/queries";
 import { PageHeader } from "@/components/app/page-header";
@@ -44,6 +44,11 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
         description={project.description || undefined}
         actions={
           <>
+            <Button asChild variant="outline">
+              <Link href={`/w/${slug}/p/${project.key}/docs`}>
+                <FileText /> Docs
+              </Link>
+            </Button>
             {project.can.manageFields ? (
               <Button asChild variant="outline">
                 <Link href={`/w/${slug}/p/${project.key}/fields`}>

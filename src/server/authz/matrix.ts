@@ -69,6 +69,10 @@ export const PROJECT_ACTIONS = {
   "time.track": ["manager", "editor"],
   /** Edit or delete anyone's time entries. */
   "time.manage": ["manager"],
+  /** Create docs and edit any doc in the project; delete your own. */
+  "doc.edit": ["manager", "editor"],
+  /** Delete anyone's doc. */
+  "doc.delete": ["manager"],
 } as const satisfies Record<string, readonly ProjectRole[]>;
 export type ProjectAction = keyof typeof PROJECT_ACTIONS;
 

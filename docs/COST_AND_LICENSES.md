@@ -39,7 +39,7 @@ Licences and versions below were checked against the npm registry and project si
 | date-fns / @date-fns/tz | 4.4.0 / 1.5.0 | MIT | ✅ | — | — | None |
 | react-day-picker | 10.0.2 | MIT | ✅ | — | — | None |
 | fractional-indexing | 4.0.0 | CC0-1.0 | ✅ (public domain) | — | — | None |
-| Tiptap (`@tiptap/core`, `@tiptap/pm`, OSS extensions) | 3.32.0 | MIT | ✅ | — | **Tiptap Pro extensions, Tiptap Cloud/Collab are commercial. Do not install `@tiptap-pro/*`** | None if only OSS packages are used |
+| Tiptap (`@tiptap/react`, `@tiptap/pm`, `@tiptap/starter-kit`, `@tiptap/extension-list`, `@tiptap/extensions`; used by Docs) | 3.32.0 (installed) | MIT | ✅ | — | **Tiptap Pro extensions, Tiptap Cloud/Collab are commercial. Do not install `@tiptap-pro/*`** | None if only OSS packages are used |
 | sanitize-html | 2.18.0 | MIT | ✅ | — | — | None |
 | recharts (dashboards) | 3.10.1 | MIT | ✅ | — | — | None |
 | FullCalendar (alternative to an in-house calendar), **only** `core`, `daygrid`, `timegrid`, `interaction` | 6.1.x / 7.x | MIT | ✅ | — | **FullCalendar Premium (`resource-*`, `timeline`, `scheduler`) is commercial. Do not install** | None if only MIT packages are used |

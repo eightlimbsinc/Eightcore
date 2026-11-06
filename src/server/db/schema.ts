@@ -15,3 +15,4 @@ export * from "@/modules/time/schema";
 export * from "@/modules/qa/schema";
 export * from "@/modules/automations/schema";
 export * from "@/modules/webhooks/schema";
+export * from "@/modules/docs/schema";

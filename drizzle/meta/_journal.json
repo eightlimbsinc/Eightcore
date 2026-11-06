@@ -141,6 +141,13 @@
       "when": 1793977162462,
       "tag": "0019_guest_list_access",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1793978268671,
+      "tag": "0020_docs",
+      "breakpoints": true
     }
   ]
 }

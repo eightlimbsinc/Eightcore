@@ -6,6 +6,7 @@ import { Command } from "cmdk";
 import { Dialog } from "radix-ui";
 import {
   CircleUserRound,
+  FileText,
   FolderPlus,
   Home,
   Inbox,
@@ -17,6 +18,7 @@ import {
   Users,
 } from "lucide-react";
 import { quickFindTasksAction } from "@/modules/tasks/actions";
+import { quickFindDocsAction } from "@/modules/docs/actions";
 import type { ItemAppearance } from "@/lib/appearance";
 import { cn } from "@/lib/utils";
 import { ItemIcon } from "./item-icon";
@@ -30,6 +32,7 @@ interface PaletteProject extends ItemAppearance {
 type PaletteList = ItemAppearance & { id: string; name: string };
 
 type FoundTask = Awaited<ReturnType<typeof quickFindTasksAction>>[number];
+type FoundDoc = Awaited<ReturnType<typeof quickFindDocsAction>>[number];
 
 /** A task item's value: starts with the typed text so the server's matches rank first. */
 const taskValue = (query: string, t: FoundTask) => `${query} ${t.ref} ${t.title}`;
@@ -56,7 +59,11 @@ export function CommandPalette({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   /** Server results, with the text they were found for (stale results are never shown). */
-  const [found, setFound] = useState<{ query: string; tasks: FoundTask[] }>({ query: "", tasks: [] });
+  const [found, setFound] = useState<{ query: string; tasks: FoundTask[]; docs: FoundDoc[] }>({
+    query: "",
+    tasks: [],
+    docs: [],
+  });
   /** The highlighted item (cmdk's value). */
   const [selected, setSelected] = useState("");
   const [searching, startSearch] = useTransition();
@@ -86,9 +93,12 @@ export function CommandPalette({
     if (q.length < 2) return;
     const timer = setTimeout(() => {
       startSearch(async () => {
-        const tasks = await quickFindTasksAction(workspaceSlug, q);
+        const [tasks, docs] = await Promise.all([
+          quickFindTasksAction(workspaceSlug, q),
+          quickFindDocsAction(workspaceSlug, q).catch(() => []),
+        ]);
         if (id !== latest.current) return;
-        setFound({ query: q, tasks });
+        setFound({ query: q, tasks, docs });
         // Results arrive after typing: highlight the best task match, so Enter opens it.
         if (tasks[0]) setSelected(taskValue(q, tasks[0]));
       });
@@ -100,7 +110,9 @@ export function CommandPalette({
     setOpen(false);
     router.push(href);
   };
-  const shownTasks = query.trim().length >= 2 && found.query === query.trim() ? found.tasks : [];
+  const fresh = query.trim().length >= 2 && found.query === query.trim();
+  const shownTasks = fresh ? found.tasks : [];
+  const shownDocs = fresh ? found.docs : [];
 
   return (
     <Dialog.Root
@@ -109,7 +121,7 @@ export function CommandPalette({
         setOpen(o);
         if (!o) {
           setQuery("");
-          setFound({ query: "", tasks: [] });
+          setFound({ query: "", tasks: [], docs: [] });
         }
       }}
     >
@@ -126,7 +138,7 @@ export function CommandPalette({
               <Command.Input
                 value={query}
                 onValueChange={setQuery}
-                placeholder="Search tasks, projects and lists, or type a command…"
+                placeholder="Search tasks, docs, projects and lists, or type a command…"
                 className="h-12 w-full bg-transparent text-[14px] outline-none"
               />
               <kbd className="text-muted-foreground rounded border px-1.5 text-[10px]">Esc</kbd>
@@ -164,6 +176,26 @@ export function CommandPalette({
                       </span>
                       <span className="text-muted-foreground hidden max-w-48 truncate text-[11px] sm:block">
                         {t.where}
+                      </span>
+                    </Command.Item>
+                  ))}
+                </Command.Group>
+              ) : null}
+
+              {shownDocs.length ? (
+                <Command.Group heading="Docs" forceMount className={groupClass}>
+                  {shownDocs.map((d) => (
+                    <Command.Item
+                      key={d.id}
+                      value={`doc ${d.id} ${query.trim()}`}
+                      forceMount
+                      onSelect={() => go(`${base}/p/${d.projectKey}/docs/${d.id}`)}
+                      className={itemClass}
+                    >
+                      <FileText aria-hidden />
+                      <span className="min-w-0 flex-1 truncate">{d.title || "Untitled"}</span>
+                      <span className="text-muted-foreground hidden max-w-48 truncate text-[11px] sm:block">
+                        {d.projectName}
                       </span>
                     </Command.Item>
                   ))}

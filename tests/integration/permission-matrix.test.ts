@@ -41,6 +41,7 @@ import { deleteAttachment, uploadTaskAttachments } from "@/modules/attachments/s
 import { addTimeEntry, deleteTimeEntry } from "@/modules/time/service";
 import { startQaCycle } from "@/modules/qa/service";
 import { saveAutomation } from "@/modules/automations/service";
+import { createDoc, deleteDoc } from "@/modules/docs/service";
 import { createInboundHook } from "@/modules/webhooks/service";
 import { actorFor, createUser, createWorkspaceWithRoles } from "../support/factories";
 
@@ -169,6 +170,12 @@ const projectProbes: Record<ProjectAction, (actor: ActorContext, f: Fixture) => 
       trigger: { type: "task_created" },
       actions: [{ type: "add_comment", body: "Thanks!" }],
     }),
+  "doc.edit": (actor, f) => createDoc(actor, f.privateProject.id, { title: "Brief" }),
+  // Someone else's doc: only doc.delete may remove it.
+  "doc.delete": async (actor, f) => {
+    const doc = await createDoc(f.actors.owner, f.privateProject.id, { title: "Owner's doc" });
+    await deleteDoc(actor, doc.id);
+  },
 };
 
 describe("project actions through services", () => {

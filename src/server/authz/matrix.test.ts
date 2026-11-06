@@ -60,6 +60,8 @@ const projectExpectations: Record<ProjectAction, Row<ProjectRole>> = {
   "time.track": { manager: Y, editor: Y, commenter: N, viewer: N },
   "time.manage": { manager: Y, editor: N, commenter: N, viewer: N },
   "automation.manage": { manager: Y, editor: N, commenter: N, viewer: N },
+  "doc.edit": { manager: Y, editor: Y, commenter: N, viewer: N },
+  "doc.delete": { manager: Y, editor: N, commenter: N, viewer: N },
 };
 
 describe("workspace permission matrix", () => {

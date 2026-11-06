@@ -397,4 +397,32 @@ test("an owner organises work into lists and tasks", async ({ page }) => {
     })
     .toBeGreaterThan(0);
   await expect(page.getByText("From the support form").first()).toBeVisible();
+
+  // Docs: write one (it saves itself), add a sub-page, find it from the search palette.
+  await page.goto(`${base}/p/WEB`);
+  await page.getByRole("link", { name: "Docs" }).click();
+  await expect(page.getByRole("heading", { name: "Docs" })).toBeVisible();
+  await page.getByRole("button", { name: "New doc" }).click();
+  await expect(page).toHaveURL(/\/docs\/[0-9a-f-]{36}$/);
+  await page.getByLabel("Doc title").fill("Launch brief");
+  const body = page.getByLabel("Doc content");
+  await expect(page.getByRole("toolbar", { name: "Formatting" })).toBeVisible();
+  await body.click();
+  await page.getByRole("button", { name: "Heading 2" }).click();
+  await page.keyboard.type("Goals");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("Ship the hero by Friday.");
+  await expect(page.getByRole("status").filter({ hasText: /^Saved / })).toBeVisible();
+  await page.reload();
+  await expect(page.getByLabel("Doc title")).toHaveValue("Launch brief");
+  await expect(page.getByLabel("Doc content").getByRole("heading", { name: "Goals" })).toBeVisible();
+  await page.getByRole("button", { name: "Add sub-page" }).click();
+  await expect(page.getByRole("navigation", { name: "Breadcrumb" })).toContainText("Launch brief");
+  await page.getByLabel("Doc title").fill("Copy deck");
+  await expect(page.getByRole("status").filter({ hasText: /^Saved / })).toBeVisible();
+  await page.keyboard.press("Control+k");
+  await page.getByPlaceholder(/Search tasks, docs/).fill("hero by friday");
+  await page.getByRole("option", { name: /Launch brief/ }).click();
+  await expect(page.getByLabel("Doc title")).toHaveValue("Launch brief");
+  await expect(page.getByRole("region", { name: "Sub-pages" })).toContainText("Copy deck");
 });
