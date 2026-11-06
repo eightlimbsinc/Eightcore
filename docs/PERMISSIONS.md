@@ -88,6 +88,7 @@ Status: **implemented in Phase 2** for the workspace and project actions below (
 | `attachment.delete` | ✅ | ◐ | ◐ | ❌ |
 | `qa_cycle.conclude` | ✅ | ✅ | ❌ | ❌ |
 | `custom_field.manage` (project/list scope) | ✅ | ❌ | ❌ | ❌ |
+| `transition.manage` (a list's status rules and strict mode; the rules themselves can require a manager for a move) | ✅ | ✅ | ❌ | ❌ |
 | `time.track` (timer and manual entries; edit or delete your own; set estimates is `task.update`) | ✅ | ✅ | ❌ | ❌ |
 | `time.manage` (edit or delete anyone's time entries) | ✅ | ❌ | ❌ | ❌ |
 | `automation.manage` (project scope) | ✅ | ❌ | ❌ | ❌ |

@@ -64,7 +64,9 @@ Status: Phase 1 approved. **Phase 2 complete** (pending your review). Phases run
 **Scope:** final Eightcore design system (tokens, typography, light/dark), sidebar with project/folder/list tree, workspace switcher, list view (grouping, inline edit, bulk actions, keyboard navigation), Kanban (dnd-kit, fractional ordering), calendar (month/week, drag to reschedule), task detail drawer (deep link), command palette (`cmdk`), full-text search, filter builder, saved views, My Work, notification centre, settings screens.
 **Acceptance:** E2E journeys 2, 3, 4, 6, 7, 8 green. 1,000-task list renders in < 1.5 s locally. Zero serious axe violations. Every visible control persists its action (manual checklist + E2E).
 
-## Phase 5 — Agency workflows and QA handoffs
+## Phase 5 — Agency workflows and QA handoffs (in progress)
+
+**Done:** 5a status history (`task_status_changes`, backfilled from the activity log) and a Flow section on the dashboard (cycle and lead time, time in status, work sitting still); 5b status transition rules per list (from/any → to, managers-only moves, required comments asked for at the move, required custom fields, optional strict mode), enforced on every status change; members can set them. **Next:** 5c QA cycles.
 
 **Scope:** strict transition rules editor (allowed pairs, `min_project_role`, required comment and fields), QA cycles with notes and evidence, retest history UI, deployment metadata fields, workflow assignment per list with status remapping on move, `task_status_changes` + cycle-time and QA failure reports, dashboard v1.
 **Acceptance:** E2E journey 5 green. Transition rules enforced server-side (tests bypass the UI). Concluded QA cycles are immutable. Reports match fixture data.

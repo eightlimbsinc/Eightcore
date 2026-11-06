@@ -25,6 +25,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { GitBranch } from "lucide-react";
 import { moveTaskAction } from "@/modules/tasks/actions";
+import { needsComment, useCommentPrompt } from "./comment-prompt";
 import type { TaskPriority } from "@/modules/tasks/validators";
 import { cn } from "@/lib/utils";
 import { AssigneeStack, BlockedBadge, DueDateLabel, PriorityLabel, TagList } from "./task-bits";
@@ -118,6 +119,7 @@ export function Board({
   const [activeId, setActiveId] = useState<string | null>(null);
   const [startColumns, setStartColumns] = useState<Columns | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { ask, prompt } = useCommentPrompt();
   const [, startTransition] = useTransition();
 
   const columnOf = (id: string, cols = columns): string | undefined =>
@@ -220,11 +222,20 @@ export function Board({
       return;
     }
     startTransition(async () => {
-      const result = await moveTaskAction(workspaceSlug, id, task.version, {
+      const move = {
         statusId: from !== to ? to : undefined,
         afterTaskId: list[index - 1] ?? null,
         beforeTaskId: list[index + 1] ?? null,
-      });
+      };
+      let result = await moveTaskAction(workspaceSlug, id, task.version, move);
+      if (needsComment(result) && target) {
+        const comment = await ask(target.name, result && !result.ok ? result.message : "");
+        if (comment === null) {
+          setColumns(() => before);
+          return;
+        }
+        result = await moveTaskAction(workspaceSlug, id, task.version, { ...move, comment });
+      }
       if (result && !result.ok) {
         setColumns(() => before);
         setError(result.message);
@@ -241,6 +252,7 @@ export function Board({
           {error}
         </p>
       ) : null}
+      {prompt}
       <DndContext
         id={dndId}
         sensors={sensors}

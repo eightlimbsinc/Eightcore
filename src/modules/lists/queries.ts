@@ -10,7 +10,9 @@ import { getWorkspaceContext } from "@/modules/workspaces/queries";
 import { listAssignableMembers, listTasks } from "@/modules/tasks/service";
 import { tagsForTasks } from "@/modules/tags/service";
 import { openBlockerCounts } from "@/modules/dependencies/service";
-import { fieldValuesForTasks } from "@/modules/fields/service";
+import { fieldValuesForTasks, listProjectFields } from "@/modules/fields/service";
+import { listTransitions } from "./transitions";
+import { listStatusTemplates } from "./status-templates";
 import { db } from "@/server/db";
 import { getList, getProjectTree } from "./service";
 
@@ -130,5 +132,25 @@ export async function getListView(
     groups,
     shown,
     closedCount,
+  };
+}
+
+/** The list settings page: statuses, templates and transition rules (members see the rules only). */
+export async function getListSettingsPage(slug: string, listId: string) {
+  const data = await getListPage(slug, listId);
+  if (!data.can.manage && !data.can.manageTransitions) notFound();
+  const [transitions, templates, fields] = await Promise.all([
+    listTransitions(data.actor, listId),
+    data.can.manage ? listStatusTemplates(data.actor) : Promise.resolve([]),
+    listProjectFields(data.actor, data.list.projectId),
+  ]);
+  return {
+    ...data,
+    transitions,
+    templates,
+    // Fields that apply to this list (project-wide, or this list only).
+    listFields: fields.fields
+      .filter((f) => f.listId === null || f.listId === listId)
+      .map((f) => ({ id: f.id, name: f.name })),
   };
 }

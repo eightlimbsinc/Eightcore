@@ -41,7 +41,13 @@ export function ListHeader({
   filter: TaskFilter;
   savedFilter: TaskFilter;
   filtering: boolean;
-  can: { manage: boolean; saveView: boolean; protectView: boolean; createTask: boolean };
+  can: {
+    manage: boolean;
+    manageTransitions: boolean;
+    saveView: boolean;
+    protectView: boolean;
+    createTask: boolean;
+  };
   /** For "Add task". */
   statuses: StatusOption[];
   /** Tasks in "closed" statuses (shown on the Closed toggle). */
@@ -106,10 +112,10 @@ export function ListHeader({
               filterChanges={changes}
               layout={layout}
             />
-            {can.manage ? (
+            {can.manage || can.manageTransitions ? (
               <Button asChild variant="outline">
                 <Link href={`${listPath}/statuses`}>
-                  <Settings2 /> List settings & statuses
+                  <Settings2 /> {can.manage ? "List settings & statuses" : "Status rules"}
                 </Link>
               </Button>
             ) : null}

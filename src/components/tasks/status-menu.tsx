@@ -2,6 +2,7 @@
 import { useState, useTransition } from "react";
 import { Check, ChevronDown } from "lucide-react";
 import { setTaskStatusAction } from "@/modules/tasks/actions";
+import { needsComment, useCommentPrompt } from "./comment-prompt";
 import { isClosedCategory, type StatusCategory } from "@/modules/lists/templates";
 import {
   DropdownMenu,
@@ -105,6 +106,7 @@ export function StatusMenu({
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const { ask, prompt } = useCommentPrompt();
   const current = statuses.find((s) => s.id === statusId);
   if (!current) return null;
 
@@ -152,7 +154,12 @@ export function StatusMenu({
                 if (s.id === statusId) return;
                 if (!confirmCloseWhileBlocked(openBlockers, s, current)) return;
                 startTransition(async () => {
-                  const result = await setTaskStatusAction(workspaceSlug, taskId, version, s.id);
+                  let result = await setTaskStatusAction(workspaceSlug, taskId, version, s.id);
+                  if (needsComment(result)) {
+                    const comment = await ask(s.name, result && !result.ok ? result.message : "");
+                    if (comment === null) return setError(null);
+                    result = await setTaskStatusAction(workspaceSlug, taskId, version, s.id, comment);
+                  }
                   setError(result && !result.ok ? result.message : null);
                 });
               }}
@@ -169,6 +176,7 @@ export function StatusMenu({
           {error}
         </span>
       ) : null}
+      {prompt}
     </span>
   );
 }

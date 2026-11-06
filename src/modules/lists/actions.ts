@@ -21,6 +21,12 @@ import {
   updateStatus,
 } from "./service";
 import type { ItemAppearance, ItemKind } from "@/lib/appearance";
+import {
+  deleteTransition,
+  saveTransition,
+  setTransitionsStrict,
+  type TransitionRuleInput,
+} from "./transitions";
 import { statusInput } from "./validators";
 import {
   applyStatusTemplate,
@@ -271,6 +277,40 @@ export async function deleteStatusTemplateAction(
 ): Promise<ActionState> {
   return runAction(async () => {
     await deleteStatusTemplate(await actorFor(workspaceSlug), templateId);
+    revalidatePath(`/w/${workspaceSlug}`, "layout");
+  });
+}
+
+/** Status rules on the list settings page. */
+export async function saveTransitionAction(
+  workspaceSlug: string,
+  listId: string,
+  rule: TransitionRuleInput,
+): Promise<ActionState> {
+  return runAction(async () => {
+    await saveTransition(await actorFor(workspaceSlug), listId, rule);
+    revalidatePath(`/w/${workspaceSlug}`, "layout");
+    return { ok: true, message: "Rule saved" };
+  });
+}
+
+export async function deleteTransitionAction(
+  workspaceSlug: string,
+  transitionId: string,
+): Promise<ActionState> {
+  return runAction(async () => {
+    await deleteTransition(await actorFor(workspaceSlug), transitionId);
+    revalidatePath(`/w/${workspaceSlug}`, "layout");
+  });
+}
+
+export async function setTransitionsStrictAction(
+  workspaceSlug: string,
+  listId: string,
+  strict: boolean,
+): Promise<ActionState> {
+  return runAction(async () => {
+    await setTransitionsStrict(await actorFor(workspaceSlug), listId, strict);
     revalidatePath(`/w/${workspaceSlug}`, "layout");
   });
 }

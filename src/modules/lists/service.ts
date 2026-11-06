@@ -297,6 +297,8 @@ export async function getList(actor: ActorContext, listId: string) {
     view: readViewSettings(list.viewSettings),
     can: {
       manage: canProject(role, "list.manage"),
+      /** Status transition rules (members can set them too). */
+      manageTransitions: canProject(role, "transition.manage"),
       createTask: canProject(role, "task.create"),
       updateTask: canProject(role, "task.update"),
       saveView: canSaveView(role, list.viewProtected),

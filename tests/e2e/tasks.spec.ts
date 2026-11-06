@@ -310,4 +310,23 @@ test("an owner organises work into lists and tasks", async ({ page }) => {
   await page.getByRole("button", { name: "Task actions for WEB-2" }).click();
   await page.getByRole("menuitem", { name: "Delete" }).click();
   await expect(page.getByRole("link", { name: "Pick hero video" })).toHaveCount(0);
+
+  // Status rules: moving to "Final Review" needs a comment, asked for when the move happens.
+  await page.getByRole("link", { name: /List settings/ }).click();
+  await page.getByLabel("From status").selectOption({ label: "Any status" });
+  await page.getByLabel("To status").selectOption({ label: "Final Review" });
+  await page.getByRole("button", { name: "Add rule" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Rule saved" })).toBeVisible();
+  await page.getByLabel("Needs a comment: Any status to Final Review").check();
+  await expect(page.getByLabel("Needs a comment: Any status to Final Review")).toBeChecked();
+  await page.getByRole("link", { name: /Back to Build/ }).click();
+  await page.getByRole("button", { name: /^Status of WEB-1:/ }).click();
+  await page.getByRole("menuitem", { name: "Final Review" }).click();
+  const ask = page.getByRole("dialog", { name: "Add a comment" });
+  await expect(ask).toContainText("needs a comment");
+  await ask.getByLabel("Comment").fill("On staging now");
+  await ask.getByRole("button", { name: "Move to Final Review" }).click();
+  await expect(page.getByRole("button", { name: "Status of WEB-1: Final Review" })).toBeVisible();
+  await page.goto(page.url().replace(/\/l\/[^/?]+.*$/, "/t/WEB-1"));
+  await expect(page.getByText("On staging now")).toBeVisible();
 });

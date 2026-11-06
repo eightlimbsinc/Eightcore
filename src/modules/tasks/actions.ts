@@ -75,15 +75,16 @@ export async function updateTaskAction(
   });
 }
 
-/** Quick status change from a list row (uses the row's version). */
+/** Quick status change from a list row (uses the row's version); `comment` when a rule needs one. */
 export async function setTaskStatusAction(
   workspaceSlug: string,
   taskId: string,
   version: number,
   statusId: string,
+  comment?: string,
 ): Promise<ActionState> {
   return runAction(async () => {
-    await updateTask(await actorFor(workspaceSlug), taskId, version, { statusId });
+    await updateTask(await actorFor(workspaceSlug), taskId, version, { statusId, comment });
     revalidatePath(`/w/${workspaceSlug}`, "layout");
   });
 }
@@ -176,7 +177,7 @@ export async function moveTaskAction(
   workspaceSlug: string,
   taskId: string,
   version: number,
-  move: { statusId?: string; afterTaskId?: string | null; beforeTaskId?: string | null },
+  move: { statusId?: string; afterTaskId?: string | null; beforeTaskId?: string | null; comment?: string },
 ): Promise<ActionState> {
   return runAction(async () => {
     await moveTask(await actorFor(workspaceSlug), taskId, version, move);
