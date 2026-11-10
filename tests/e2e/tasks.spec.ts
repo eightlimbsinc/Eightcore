@@ -473,6 +473,7 @@ test("an owner organises work into lists and tasks", async ({ page }) => {
   await page.getByRole("menuitem", { name: /Form/ }).click();
   await expect(page.getByRole("heading", { name: "Build request form" })).toBeVisible();
   await page.getByLabel("Add a question").selectOption({ label: "Priority" });
+  await page.getByLabel("Add a question").selectOption({ label: "Files" });
   await page.getByLabel("Thank-you message").fill("Got it, thanks!");
   await page.getByRole("button", { name: "Save form" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Saved" })).toBeVisible();
@@ -485,6 +486,20 @@ test("an owner organises work into lists and tasks", async ({ page }) => {
   await client.getByLabel("Request title").fill("Footer link is broken");
   await client.getByLabel("Details").fill("The privacy link 404s");
   await client.getByLabel("Priority").selectOption("high");
+  // Too big for the host: caught before sending, and the answers stay.
+  await client.getByLabel("Files").setInputFiles({
+    name: "recording.mov",
+    mimeType: "video/quicktime",
+    buffer: Buffer.alloc(3.5 * 1024 * 1024),
+  });
+  await client.getByRole("button", { name: "Submit" }).click();
+  await expect(client.getByRole("alert").filter({ hasText: /at most 3 MB together/ })).toBeVisible();
+  await expect(client.getByLabel("Request title")).toHaveValue("Footer link is broken");
+  await client.getByLabel("Files").setInputFiles({
+    name: "screenshot.png",
+    mimeType: "image/png",
+    buffer: Buffer.from("tiny png"),
+  });
   await client.getByRole("button", { name: "Submit" }).click();
   await expect(client.getByRole("status")).toContainText("Got it, thanks!");
   await visitor.close();

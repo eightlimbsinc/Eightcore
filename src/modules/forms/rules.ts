@@ -62,8 +62,11 @@ export const FORM_KIND_LABELS: Record<FormFieldKind, string> = {
   question: "Extra question (added to the details)",
 };
 
-/** Files a response may carry (the whole request must stay under about 5 MB). */
+/**
+ * Files a response may carry. The host accepts about 6 MB per request and uploads grow by about
+ * a third on the way, so files stay under 3 MB together (bigger videos: paste a link instead).
+ */
 export const FORM_MAX_FILES = 5;
-export const FORM_MAX_TOTAL_BYTES = 4 * 1024 * 1024;
+export const FORM_MAX_TOTAL_BYTES = 3 * 1024 * 1024;
 
 export const newFieldKey = () => Math.random().toString(36).slice(2, 10).padEnd(6, "0");

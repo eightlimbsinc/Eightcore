@@ -1,5 +1,6 @@
 "use client";
-import { useActionState, useState } from "react";
+import { useActionState, useState, useTransition } from "react";
+import { FORM_MAX_FILES, FORM_MAX_TOTAL_BYTES } from "@/modules/forms/rules";
 import { submitFormAction, type SubmitFormState } from "@/modules/forms/actions";
 import { Button } from "@/components/ui/button";
 import { Input, NativeSelect, Textarea } from "@/components/ui/input";
@@ -50,7 +51,16 @@ function Control({ q }: { q: Question }) {
       </NativeSelect>
     );
   if (q.kind === "due_date") return <Input {...common} type="date" />;
-  if (q.kind === "attachments") return <Input {...common} type="file" multiple />;
+  if (q.kind === "attachments")
+    return (
+      <>
+        <Input {...common} type="file" multiple />
+        <span className="text-muted-foreground text-[12px]">
+          Up to {FORM_MAX_FILES} files, {FORM_MAX_TOTAL_BYTES / 1024 / 1024} MB in total. For bigger videos,
+          paste a link instead.
+        </span>
+      </>
+    );
   if (q.kind === "custom_field") {
     switch (q.type) {
       case "dropdown":
@@ -91,10 +101,31 @@ export function PublicForm({ token, form }: { token: string; form: Form }) {
 }
 
 function FormRound({ token, form, onAgain }: { token: string; form: Form; onAgain: () => void }) {
-  const [state, action, pending] = useActionState<SubmitFormState, FormData>(
-    submitFormAction.bind(null, token),
-    undefined,
-  );
+  const [state, action, pending] = useActionState<SubmitFormState, FormData>(async (prev, data) => {
+    // Too-big files never reach us (the host refuses them), so check here first.
+    const errors: Record<string, string> = {};
+    for (const q of form.fields.filter((f) => f.kind === "attachments")) {
+      const files = data.getAll(q.key).filter((v): v is File => v instanceof File && v.size > 0);
+      const total = files.reduce((sum, f) => sum + f.size, 0);
+      if (files.length > FORM_MAX_FILES) errors[q.key] = `At most ${FORM_MAX_FILES} files`;
+      else if (total > FORM_MAX_TOTAL_BYTES)
+        errors[q.key] =
+          `Files can be at most ${FORM_MAX_TOTAL_BYTES / 1024 / 1024} MB together (these are ${(total / 1024 / 1024).toFixed(1)} MB). For a bigger video, paste a link (Loom, Google Drive…) instead.`;
+    }
+    if (Object.keys(errors).length)
+      return { ok: false, errors, message: "Please check the highlighted answers." };
+    try {
+      return await submitFormAction(token, prev, data);
+    } catch {
+      return {
+        ok: false,
+        errors: {},
+        message:
+          "We couldn't send your response. Check your connection (and keep files small), then try again.",
+      };
+    }
+  }, undefined);
+  const [, startTransition] = useTransition();
   if (state?.ok)
     return (
       <div className="bg-surface rounded-xl border p-8 text-center" role="status">
@@ -106,7 +137,16 @@ function FormRound({ token, form, onAgain }: { token: string; form: Form; onAgai
     );
   const errors = state && !state.ok ? state.errors : {};
   return (
-    <form action={action} className="bg-surface grid gap-5 rounded-xl border p-6 sm:p-8" noValidate>
+    <form
+      // Sent by hand (not as the form's action) so answers stay filled in if something needs fixing.
+      onSubmit={(e) => {
+        e.preventDefault();
+        const data = new FormData(e.currentTarget);
+        startTransition(() => action(data));
+      }}
+      className="bg-surface grid gap-5 rounded-xl border p-6 sm:p-8"
+      noValidate
+    >
       <div className="grid gap-1">
         <p className="text-muted-foreground text-[12px] tracking-wide uppercase">{form.workspaceName}</p>
         <h1 className="text-2xl font-semibold tracking-tight">{form.name}</h1>
