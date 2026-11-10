@@ -1,4 +1,5 @@
 "use client";
+import { withDirectUploads, type StartUploads } from "@/lib/direct-upload";
 import { PersonAvatar } from "@/components/app/person-avatar";
 import { startTransition, useActionState, useId, useRef, useState } from "react";
 import { Paperclip } from "lucide-react";
@@ -30,6 +31,7 @@ export function CommentComposer({
   defaultBody = "",
   defaultMentionIds = [],
   allowFiles = false,
+  startUploads,
   autoFocus = false,
   onDone,
   onCancel,
@@ -42,11 +44,16 @@ export function CommentComposer({
   defaultBody?: string;
   defaultMentionIds?: string[];
   allowFiles?: boolean;
+  /** Sends attached files straight to storage (bigger files than the app can take itself). */
+  startUploads?: StartUploads;
   autoFocus?: boolean;
   onDone?: () => void;
   onCancel?: () => void;
 }) {
-  const [state, action, pending] = useActionState(serverAction, undefined);
+  const [state, action, pending] = useActionState(
+    startUploads ? withDirectUploads(serverAction, "files", startUploads) : serverAction,
+    undefined,
+  );
   const [body, setBody] = useState(defaultBody);
   const [mentionIds, setMentionIds] = useState<string[]>(defaultMentionIds);
   const [query, setQuery] = useState<{ start: number; query: string } | null>(null);

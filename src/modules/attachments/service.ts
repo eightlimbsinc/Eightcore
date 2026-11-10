@@ -25,10 +25,8 @@ export function isImageType(mimeType: string): boolean {
 }
 
 /** A file as received from a form: name, browser-claimed type and bytes. */
-export interface IncomingFile {
-  name: string;
-  bytes: Uint8Array;
-}
+/** A file sent with the request, or one the browser already uploaded straight to storage. */
+export type IncomingFile = { name: string; bytes: Uint8Array } | { name: string; uploadId: string };
 
 export interface PreparedUpload {
   storageKey: string;
@@ -36,7 +34,8 @@ export interface PreparedUpload {
   mimeType: string;
   sizeBytes: number;
   sha256: string;
-  bytes: Uint8Array;
+  /** Null when the file is already in storage (a direct upload). */
+  bytes: Uint8Array | null;
 }
 
 /** Keeps the last path segment, drops control characters, caps the length. */
@@ -75,7 +74,25 @@ export async function detectMimeType(bytes: Uint8Array): Promise<string> {
 }
 
 /** Validates files and stores their bytes. Returns what to record in the database. */
-export async function storeUploads(actor: ActorContext, files: IncomingFile[]): Promise<PreparedUpload[]> {
+export async function storeUploads(
+  actor: ActorContext,
+  incoming: IncomingFile[],
+  options: { formId?: string } = {},
+): Promise<PreparedUpload[]> {
+  const direct = incoming.filter((f): f is { name: string; uploadId: string } => "uploadId" in f);
+  const files = incoming.filter((f): f is { name: string; bytes: Uint8Array } => "bytes" in f);
+  if (direct.length + files.length > MAX_FILES_PER_UPLOAD) {
+    throw new ValidationError(`Attach at most ${MAX_FILES_PER_UPLOAD} files at a time`);
+  }
+  const claimed = direct.length
+    ? await (
+        await import("./direct")
+      ).claimUploads(
+        actor,
+        direct.map((d) => d.uploadId),
+        options,
+      )
+    : [];
   const real = files.filter((f) => f.bytes.byteLength > 0 || f.name);
   if (real.length > MAX_FILES_PER_UPLOAD) {
     throw new ValidationError(`Attach at most ${MAX_FILES_PER_UPLOAD} files at a time`);
@@ -100,14 +117,14 @@ export async function storeUploads(actor: ActorContext, files: IncomingFile[]): 
   const stored: PreparedUpload[] = [];
   try {
     for (const upload of prepared) {
-      await storage().put(upload.storageKey, upload.bytes, upload.mimeType);
+      await storage().put(upload.storageKey, upload.bytes!, upload.mimeType);
       stored.push(upload);
     }
   } catch (error) {
-    await discardUploads(stored);
+    await discardUploads([...claimed, ...stored]);
     throw error;
   }
-  return prepared;
+  return [...claimed, ...prepared];
 }
 
 /** Removes stored bytes whose database rows were never written (or were deleted). */
@@ -151,13 +168,18 @@ export async function insertAttachmentsInTx(
 }
 
 /** Stores bytes first, then the rows; if the rows fail, the bytes are removed again. */
-export async function uploadTaskAttachments(actor: ActorContext, taskId: string, files: IncomingFile[]) {
+export async function uploadTaskAttachments(
+  actor: ActorContext,
+  taskId: string,
+  files: IncomingFile[],
+  options: { formId?: string } = {},
+) {
   // Check permissions before accepting any bytes.
   const { role } = await loadTaskAccess(db(), actor, taskId);
   if (!canProject(role, "attachment.upload") || !canProject(role, "task.update")) {
     throw new ForbiddenError();
   }
-  const uploads = await storeUploads(actor, files);
+  const uploads = await storeUploads(actor, files, options);
   if (!uploads.length) throw new ValidationError("Choose a file to attach");
   try {
     return await db().transaction(async (tx) => {

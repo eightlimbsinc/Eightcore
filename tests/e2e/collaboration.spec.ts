@@ -374,6 +374,8 @@ test("bulk actions change and archive many tasks at once", async ({ page }) => {
   await expect(page.getByRole("checkbox", { name: /^Select BRD-\d+ Bulk one$/ })).not.toBeChecked();
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/\/t\/BRD-\d+$/);
+  // Wait for the task window to be ready (it takes focus) before Escape closes it.
+  await expect(page.getByRole("dialog").getByRole("button", { name: "Copy link" })).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(page).toHaveURL(/\/l\//);
   await page.keyboard.press("?");

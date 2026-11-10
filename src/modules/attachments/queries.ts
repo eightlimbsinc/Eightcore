@@ -1,4 +1,9 @@
 import "server-only";
+import { getStorageUsage } from "./usage";
+import { canWorkspace } from "@/server/authz/policy";
+import { getWorkspaceContext } from "@/modules/workspaces/queries";
+import { notFound } from "next/navigation";
+
 import { getSession } from "@/server/auth/session";
 import { resolveActor } from "@/server/authz/actor";
 import { NotFoundError } from "@/server/errors";
@@ -36,4 +41,11 @@ export async function resolveDownload(
   const bytes = await store.read(attachment.storageKey);
   if (!bytes) return { kind: "not_found" };
   return { kind: "bytes", bytes, mimeType: attachment.mimeType, fileName: attachment.originalName, inline };
+}
+
+/** The Storage page: owners and admins (others get a 404). */
+export async function getStoragePage(slug: string) {
+  const { actor } = await getWorkspaceContext(slug);
+  if (!canWorkspace(actor.workspaceRole, "workspace.update_settings")) notFound();
+  return getStorageUsage(actor);
 }

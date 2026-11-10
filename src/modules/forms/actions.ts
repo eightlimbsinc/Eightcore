@@ -9,8 +9,10 @@ import { runAction } from "@/server/action";
 import { env } from "@/server/env";
 import type { ActionState } from "@/lib/action-state";
 import type { FormInput } from "./rules";
+import type { FileMeta } from "@/modules/attachments/direct";
 import {
   FormClosedError,
+  startFormFileUploads,
   createForm,
   deleteForm,
   regenerateFormLink,
@@ -74,16 +76,20 @@ export async function submitFormAction(
 ): Promise<SubmitFormState> {
   const answers: Record<string, string> = {};
   const files: Record<string, File[]> = {};
+  const uploads: Record<string, { uploadId: string; name: string }[]> = {};
   for (const [key, value] of data.entries()) {
-    if (typeof value === "string") answers[key] = value;
+    if (typeof value === "string" && key.endsWith("__upload") && value.includes("|")) {
+      const at = value.indexOf("|");
+      (uploads[key.slice(0, -"__upload".length)] ??= []).push({
+        uploadId: value.slice(0, at),
+        name: value.slice(at + 1),
+      });
+    } else if (typeof value === "string") answers[key] = value;
     else (files[key] ??= []).push(value);
   }
-  const h = await headers();
-  const configured = env().AUTH_IP_HEADERS;
-  const ipHeaders = configured.length ? configured : ["x-forwarded-for"];
-  const ip = ipHeaders.map((name) => h.get(name)?.split(",")[0]?.trim()).find(Boolean) ?? "";
+  const ip = await clientIp();
   try {
-    const result = await submitForm(token, answers, files, ip);
+    const result = await submitForm(token, answers, files, ip, uploads);
     if (result.ok)
       after(() =>
         import("@/modules/automations/engine").then((m) => m.processOutbox()).catch(() => undefined),
@@ -94,5 +100,32 @@ export async function submitFormAction(
       return { ok: false, errors: {}, message: "This form isn't taking responses right now." };
     console.error("[form] submit failed", error);
     return { ok: false, errors: {}, message: "Something went wrong. Please try again." };
+  }
+}
+
+async function clientIp() {
+  const h = await headers();
+  const configured = env().AUTH_IP_HEADERS;
+  const ipHeaders = configured.length ? configured : ["x-forwarded-for"];
+  return ipHeaders.map((name) => h.get(name)?.split(",")[0]?.trim()).find(Boolean) ?? "";
+}
+
+export type StartUploadsResult =
+  { ok: true; uploads: { id: string; url: string }[] } | { ok: false; message: string };
+
+/** Upload addresses for a public form's files (no sign-in). */
+export async function startFormUploadsAction(
+  token: string,
+  questionKey: string,
+  files: FileMeta[],
+): Promise<StartUploadsResult> {
+  try {
+    return { ok: true, uploads: await startFormFileUploads(token, questionKey, files, await clientIp()) };
+  } catch (error) {
+    if (error instanceof FormClosedError)
+      return { ok: false, message: "This form isn't taking responses right now." };
+    if (error instanceof Error && "code" in error) return { ok: false, message: error.message };
+    console.error("[form] start uploads failed", error);
+    return { ok: false, message: "Couldn't start the upload. Please try again." };
   }
 }

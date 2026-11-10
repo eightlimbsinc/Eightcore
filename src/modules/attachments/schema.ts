@@ -52,3 +52,32 @@ export const attachments = pgTable(
     index().on(t.taskId, t.createdAt),
   ],
 );
+
+/**
+ * A file the browser is uploading straight to storage (bigger than the host lets through the app).
+ * It becomes an attachment once used; unused ones are removed after they expire.
+ */
+export const pendingUploads = pgTable(
+  "pending_uploads",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    workspaceId: uuid()
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    storageKey: text().notNull().unique(),
+    originalName: text().notNull(),
+    /** What the browser said; checked against the stored object when used. */
+    sizeBytes: bigint({ mode: "number" }).notNull(),
+    /** Who may use it: the uploader (or, for a public form, the form's owner). */
+    createdBy: uuid()
+      .notNull()
+      .references(() => users.id),
+    /** Uploaded through this public form (no signed-in person). */
+    formId: uuid(),
+    ipHash: text(),
+    usedAt: timestamp({ withTimezone: true }),
+    expiresAt: timestamp({ withTimezone: true }).notNull(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index().on(t.expiresAt), index().on(t.ipHash, t.createdAt)],
+);

@@ -13,6 +13,7 @@ import { createTask, listAssignableMembers } from "@/modules/tasks/service";
 import { listProjectFields, setTaskFieldValues } from "@/modules/fields/service";
 import { parseFieldValue, type FieldType } from "@/modules/fields/validators";
 import { uploadTaskAttachments } from "@/modules/attachments/service";
+import { formUploadsReady, startFormUploads, type FileMeta } from "@/modules/attachments/direct";
 import { isClosedCategory } from "@/modules/lists/templates";
 import {
   FORM_MAX_FILES,
@@ -227,6 +228,8 @@ export async function submitForm(
   answers: Record<string, string>,
   files: Record<string, File[]>,
   ip: string,
+  /** Files the browser already uploaded straight to storage, per question. */
+  uploads: Record<string, { uploadId: string; name: string }[]> = {},
 ): Promise<{ ok: true; message: string } | { ok: false; errors: Record<string, string>; message?: string }> {
   const [form] = await db().select().from(listForms).where(eq(listForms.token, token));
   const shown = form ? await getPublicForm(token) : null;
@@ -268,6 +271,7 @@ export async function submitForm(
   let dueDate: string | undefined;
   const fieldValues: Record<string, string> = {};
   const upload: File[] = [];
+  const direct: { uploadId: string; name: string }[] = [];
 
   for (const f of shown.fields) {
     const v = text(f.key);
@@ -311,11 +315,21 @@ export async function submitForm(
         break;
       case "attachments": {
         const list = (files[f.key] ?? []).filter((x) => x.size > 0);
-        if (f.required && !list.length) errors[f.key] = "Add at least one file";
-        else if (list.length > FORM_MAX_FILES) errors[f.key] = `At most ${FORM_MAX_FILES} files`;
+        const sent = uploads[f.key] ?? [];
+        if (f.required && !list.length && !sent.length) errors[f.key] = "Add at least one file";
+        else if (list.length + sent.length > FORM_MAX_FILES)
+          errors[f.key] = `At most ${FORM_MAX_FILES} files`;
         else if (list.reduce((s, x) => s + x.size, 0) > FORM_MAX_TOTAL_BYTES)
           errors[f.key] = `Files can be at most ${FORM_MAX_TOTAL_BYTES / 1024 / 1024} MB together`;
+        else if (
+          !(await formUploadsReady(
+            form.id,
+            sent.map((u) => u.uploadId),
+          ))
+        )
+          errors[f.key] = "A file didn't finish uploading. Add it again.";
         upload.push(...list);
+        direct.push(...sent);
         break;
       }
     }
@@ -350,15 +364,39 @@ export async function submitForm(
   for (const [fieldId, value] of Object.entries(fieldValues)) {
     await setTaskFieldValues(owner, task.id, { [fieldId]: value }).catch(() => undefined);
   }
-  if (upload.length) {
+  if (upload.length || direct.length) {
     await uploadTaskAttachments(
       owner,
       task.id,
-      await Promise.all(
-        upload.map(async (f) => ({ name: f.name, bytes: new Uint8Array(await f.arrayBuffer()) })),
-      ),
-    ).catch(() => undefined);
+      [
+        ...direct,
+        ...(await Promise.all(
+          upload.map(async (f) => ({ name: f.name, bytes: new Uint8Array(await f.arrayBuffer()) })),
+        )),
+      ],
+      { formId: form.id },
+    ).catch((error: Error) => console.error("[form] attaching files failed", form.id, error.message));
   }
   await db().insert(formSubmissions).values({ formId: form.id, taskId: task.id, ipHash });
   return { ok: true, message: form.submitMessage || "Thanks! We got your request." };
+}
+
+/** Upload addresses for a form's files question (the browser sends the files straight to storage). */
+export async function startFormFileUploads(
+  token: string,
+  questionKey: string,
+  files: FileMeta[],
+  ip: string,
+) {
+  const [form] = await db().select().from(listForms).where(eq(listForms.token, token));
+  const shown = form ? await getPublicForm(token) : null;
+  if (!form || !shown) throw new FormClosedError();
+  if (!shown.fields.some((f) => f.key === questionKey && f.kind === "attachments"))
+    throw new ValidationError("That question doesn't take files");
+  return startFormUploads(
+    { id: form.id, workspaceId: form.workspaceId, createdBy: form.createdBy },
+    files,
+    hashIp(ip || "unknown"),
+    FORM_MAX_FILES,
+  );
 }

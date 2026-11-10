@@ -73,6 +73,16 @@ test("an owner organises work into lists and tasks", async ({ page }) => {
   await expect(win.getByText("Saved", { exact: true })).toBeVisible();
   await expect(win.getByText("changed status from To Do to In Development")).toBeVisible();
 
+  // A long description shows a few lines with "Expand" (and grows while editing).
+  const description = win.getByLabel("Description");
+  await description.fill(Array.from({ length: 30 }, (_, i) => `Step ${i + 1}: check the hero`).join("\n"));
+  await expect(win.getByRole("button", { name: "Collapse", exact: true })).toBeVisible();
+  await win.getByRole("button", { name: "Collapse", exact: true }).click();
+  await expect(win.getByRole("button", { name: "Expand", exact: true })).toBeVisible();
+  await win.getByRole("button", { name: "Expand", exact: true }).click();
+  await expect(win.getByRole("button", { name: "Collapse", exact: true })).toBeVisible();
+  await description.fill("Hero with video background.");
+
   // Assign it to myself, add a subtask.
   await win.getByRole("button", { name: "Assignees: nobody" }).click();
   await page.getByLabel("Search people").fill("tess");
@@ -486,19 +496,20 @@ test("an owner organises work into lists and tasks", async ({ page }) => {
   await client.getByLabel("Request title").fill("Footer link is broken");
   await client.getByLabel("Details").fill("The privacy link 404s");
   await client.getByLabel("Priority").selectOption("high");
-  // Too big for the host: caught before sending, and the answers stay.
+  // Over 25 MB: caught before sending, and the answers stay.
   await client.getByLabel("Files").setInputFiles({
     name: "recording.mov",
     mimeType: "video/quicktime",
-    buffer: Buffer.alloc(3.5 * 1024 * 1024),
+    buffer: Buffer.alloc(26 * 1024 * 1024),
   });
   await client.getByRole("button", { name: "Submit" }).click();
-  await expect(client.getByRole("alert").filter({ hasText: /at most 3 MB together/ })).toBeVisible();
+  await expect(client.getByRole("alert").filter({ hasText: /at most 25 MB each/ })).toBeVisible();
   await expect(client.getByLabel("Request title")).toHaveValue("Footer link is broken");
+  // A 6 MB recording: more than the host lets through the app, so it goes straight to storage.
   await client.getByLabel("Files").setInputFiles({
-    name: "screenshot.png",
-    mimeType: "image/png",
-    buffer: Buffer.from("tiny png"),
+    name: "recording.mp4",
+    mimeType: "video/mp4",
+    buffer: Buffer.alloc(6 * 1024 * 1024, 1),
   });
   await client.getByRole("button", { name: "Submit" }).click();
   await expect(client.getByRole("status")).toContainText("Got it, thanks!");
@@ -515,5 +526,7 @@ test("an owner organises work into lists and tasks", async ({ page }) => {
   expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(/\/t\/WEB-\d+$/);
   await page.getByRole("link", { name: "Footer link is broken" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Copy link" }).click();
+  // The client's 6 MB recording arrived with the ticket.
+  await expect(page.getByRole("dialog").getByRole("link", { name: "recording.mp4" }).first()).toBeVisible();
   await expect(page.getByRole("status").filter({ hasText: "Link copied" })).toBeVisible();
 });

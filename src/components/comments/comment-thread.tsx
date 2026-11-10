@@ -1,4 +1,5 @@
 "use client";
+import { startTaskUploadsAction } from "@/modules/attachments/actions";
 import { LinkPreviews, LinkifiedText } from "@/components/app/link-previews";
 import { PersonAvatar } from "@/components/app/person-avatar";
 import { useState, useTransition } from "react";
@@ -216,6 +217,7 @@ export function CommentsSection({
                             placeholder="Write a reply…"
                             submitLabel="Reply"
                             allowFiles={canAttach}
+                            startUploads={(files) => startTaskUploadsAction(workspaceSlug, taskId, files)}
                             autoFocus
                             onDone={() => setReplyTo(null)}
                             onCancel={() => setReplyTo(null)}
@@ -242,6 +244,7 @@ export function CommentsSection({
             label="New comment"
             submitLabel="Comment"
             allowFiles={canAttach}
+            startUploads={(files) => startTaskUploadsAction(workspaceSlug, taskId, files)}
           />
         </div>
       ) : null}

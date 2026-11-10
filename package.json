@@ -35,7 +35,8 @@
     "import:clickup": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/import/clickup-csv.ts",
     "import:clickup:supabase": "tsx --env-file=.env.netlify --conditions=react-server --tsconfig tsconfig.json scripts/import/clickup-csv.ts",
     "import:clickup-api": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/import/clickup-api.ts",
-    "import:clickup-api:supabase": "tsx --env-file=.env.netlify --conditions=react-server --tsconfig tsconfig.json scripts/import/clickup-api.ts"
+    "import:clickup-api:supabase": "tsx --env-file=.env.netlify --conditions=react-server --tsconfig tsconfig.json scripts/import/clickup-api.ts",
+    "storage:check:supabase": "tsx --env-file=.env.netlify --conditions=react-server --tsconfig tsconfig.json scripts/storage-upload-check.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "6.3.1",

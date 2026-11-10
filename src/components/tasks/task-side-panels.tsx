@@ -1,4 +1,6 @@
 "use client";
+import { withDirectUploads } from "@/lib/direct-upload";
+import { startTaskUploadsAction } from "@/modules/attachments/actions";
 import { useActionState, useOptimistic, useState, useTransition } from "react";
 import { Popover } from "radix-ui";
 import {
@@ -307,7 +309,9 @@ export function AttachmentsPanel({
   maxMb: number;
 }) {
   const [state, action, pending] = useActionState(
-    uploadAttachmentsAction.bind(null, workspaceSlug, taskId),
+    withDirectUploads(uploadAttachmentsAction.bind(null, workspaceSlug, taskId), "files", (files) =>
+      startTaskUploadsAction(workspaceSlug, taskId, files),
+    ),
     undefined,
   );
   return (

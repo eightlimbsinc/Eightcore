@@ -4,6 +4,14 @@ import { getSessionCookie } from "better-auth/cookies";
 const PROTECTED_PREFIXES = ["/w", "/account"];
 const FILE_ROUTE = /^\/w\/[^/]+\/files\/[^/]+$/;
 
+function storageOrigin(): string {
+  try {
+    return process.env.S3_ENDPOINT ? ` ${new URL(process.env.S3_ENDPOINT).origin}` : "";
+  } catch {
+    return "";
+  }
+}
+
 /**
  * Per-request CSP nonce, and a fast redirect for signed-out visitors on app pages.
  * The cookie check is only an optimisation: every page and action still verifies the
@@ -36,7 +44,8 @@ export function proxy(request: NextRequest) {
     "img-src 'self' blob: data: https:",
     "media-src 'self' blob: https:",
     "font-src 'self'",
-    `connect-src 'self'${isDev ? " ws: wss:" : ""}`,
+    // Direct uploads go from the browser to file storage.
+    `connect-src 'self'${storageOrigin()}${isDev ? " ws: wss:" : ""}`,
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",

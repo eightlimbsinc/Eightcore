@@ -37,6 +37,8 @@ const schema = z.object({
     ),
   /** File storage: "local" folder (development, tests) or any S3-compatible service (Supabase Storage). */
   STORAGE_DRIVER: z.enum(["local", "s3"]).optional(),
+  /** The file storage plan's size, for the Storage page (Supabase free: 1 GB). */
+  STORAGE_QUOTA_MB: z.coerce.number().int().positive().default(1024),
   STORAGE_LOCAL_DIR: z.string().default("storage"),
   S3_ENDPOINT: z.preprocess((v) => (v === "" ? undefined : v), z.url().optional()),
   S3_REGION: z.string().default("us-east-1"),

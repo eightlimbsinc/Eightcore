@@ -23,7 +23,9 @@ async function handle(request: Request) {
     deliveries += r.deliveries;
     if (!r.events && !r.deliveries) break;
   }
-  return Response.json({ ok: true, events, deliveries });
+  const { cleanupPendingUploads } = await import("@/modules/attachments/direct");
+  const uploadsCleared = await cleanupPendingUploads().catch(() => 0);
+  return Response.json({ ok: true, events, deliveries, uploadsCleared });
 }
 
 export const GET = handle;

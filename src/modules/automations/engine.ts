@@ -372,5 +372,10 @@ export async function processOutbox(options: { limit?: number } = {}) {
     }
   }
   const sent = await deliverDueWebhooks();
+  // Now and then: remove direct uploads nobody used (also done by the scheduler, when set up).
+  if (Math.random() < 0.05)
+    await import("@/modules/attachments/direct")
+      .then((m) => m.cleanupPendingUploads())
+      .catch(() => undefined);
   return { events: events.length, deliveries: sent };
 }

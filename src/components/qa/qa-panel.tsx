@@ -1,4 +1,6 @@
 "use client";
+import { withDirectUploads } from "@/lib/direct-upload";
+import { startTaskUploadsAction } from "@/modules/attachments/actions";
 import { useActionState, useState } from "react";
 import { CheckCircle2, CircleDashed, FlaskConical, XCircle } from "lucide-react";
 import { addQaEvidenceAction, concludeQaAction, startQaAction } from "@/modules/qa/actions";
@@ -168,7 +170,9 @@ function OpenRound({
     undefined,
   );
   const [evidenceState, addEvidence, adding] = useActionState(
-    addQaEvidenceAction.bind(null, workspaceSlug, round.id),
+    withDirectUploads(addQaEvidenceAction.bind(null, workspaceSlug, round.id), "evidence", (files) =>
+      startTaskUploadsAction(workspaceSlug, taskId, files),
+    ),
     undefined,
   );
   const [summary, setSummary] = useState("");

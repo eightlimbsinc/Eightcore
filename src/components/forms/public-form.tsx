@@ -1,7 +1,8 @@
 "use client";
 import { useActionState, useState, useTransition } from "react";
-import { FORM_MAX_FILES, FORM_MAX_TOTAL_BYTES } from "@/modules/forms/rules";
-import { submitFormAction, type SubmitFormState } from "@/modules/forms/actions";
+import { FORM_MAX_FILES } from "@/modules/forms/rules";
+import { DIRECT_UPLOAD_MAX_BYTES, UploadError, moveFilesToStorage } from "@/lib/direct-upload";
+import { startFormUploadsAction, submitFormAction, type SubmitFormState } from "@/modules/forms/actions";
 import { Button } from "@/components/ui/button";
 import { Input, NativeSelect, Textarea } from "@/components/ui/input";
 import { Alert } from "@/components/ui/alert";
@@ -56,8 +57,7 @@ function Control({ q }: { q: Question }) {
       <>
         <Input {...common} type="file" multiple />
         <span className="text-muted-foreground text-[12px]">
-          Up to {FORM_MAX_FILES} files, {FORM_MAX_TOTAL_BYTES / 1024 / 1024} MB in total. For bigger videos,
-          paste a link instead.
+          Up to {FORM_MAX_FILES} files, 25 MB each. For bigger videos, paste a link instead.
         </span>
       </>
     );
@@ -101,27 +101,40 @@ export function PublicForm({ token, form }: { token: string; form: Form }) {
 }
 
 function FormRound({ token, form, onAgain }: { token: string; form: Form; onAgain: () => void }) {
-  const [state, action, pending] = useActionState<SubmitFormState, FormData>(async (prev, data) => {
-    // Too-big files never reach us (the host refuses them), so check here first.
+  const [state, action, pending] = useActionState<SubmitFormState, FormData>(async (prev, sent) => {
+    let data = sent;
     const errors: Record<string, string> = {};
     for (const q of form.fields.filter((f) => f.kind === "attachments")) {
       const files = data.getAll(q.key).filter((v): v is File => v instanceof File && v.size > 0);
-      const total = files.reduce((sum, f) => sum + f.size, 0);
+      const big = files.find((f) => f.size > DIRECT_UPLOAD_MAX_BYTES);
       if (files.length > FORM_MAX_FILES) errors[q.key] = `At most ${FORM_MAX_FILES} files`;
-      else if (total > FORM_MAX_TOTAL_BYTES)
+      else if (big)
         errors[q.key] =
-          `Files can be at most ${FORM_MAX_TOTAL_BYTES / 1024 / 1024} MB together (these are ${(total / 1024 / 1024).toFixed(1)} MB). For a bigger video, paste a link (Loom, Google Drive…) instead.`;
+          `“${big.name}” is ${(big.size / 1024 / 1024).toFixed(1)} MB; files can be at most 25 MB each. For a bigger video, paste a link (Loom, Google Drive…) instead.`;
     }
     if (Object.keys(errors).length)
       return { ok: false, errors, message: "Please check the highlighted answers." };
+    // Files go straight to storage (up to 25 MB each); the form then carries references to them.
+    for (const q of form.fields.filter((f) => f.kind === "attachments")) {
+      try {
+        data = await moveFilesToStorage(data, q.key, (files) => startFormUploadsAction(token, q.key, files));
+      } catch (error) {
+        if (error instanceof UploadError)
+          return {
+            ok: false,
+            errors: { [q.key]: error.message },
+            message: "Please check the highlighted answers.",
+          };
+        throw error;
+      }
+    }
     try {
       return await submitFormAction(token, prev, data);
     } catch {
       return {
         ok: false,
         errors: {},
-        message:
-          "We couldn't send your response. Check your connection (and keep files small), then try again.",
+        message: "We couldn't send your response. Check your connection, then try again.",
       };
     }
   }, undefined);

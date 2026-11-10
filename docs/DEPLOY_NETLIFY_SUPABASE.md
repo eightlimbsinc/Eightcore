@@ -56,6 +56,21 @@ Note: Eightcore's tables belong to `eightcore_migrator`, so Supabase's Table Edi
 
 The bucket stays private: Eightcore checks permissions on every download and then hands the browser a link that works for 5 minutes.
 
+## 3c. Bigger files (direct uploads, up to 25 MB)
+
+Netlify only lets about 6 MB through the app per request, so files go from the browser straight to
+Supabase Storage through a short-lived signed address (the app checks each file's real type and
+size before it becomes an attachment). Check once that your storage allows it, from the Codespace
+(`.env.netlify` needs the same `S3_*` values as Netlify):
+
+```bash
+npm run storage:check:supabase
+```
+
+It should end with "All good". Supabase's free plan holds 1 GB in total; the **Storage** page (owners
+and admins) shows what's left. If you move to a bigger plan, set `STORAGE_QUOTA_MB` on Netlify
+(e.g. `102400` for 100 GB) so the page shows the right limit.
+
 ## 4. Netlify site
 
 1. https://app.netlify.com → **Add new project → Import an existing project → GitHub** → `eightlimbsinc/Eightcore`.

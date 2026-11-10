@@ -1,5 +1,5 @@
 import "server-only";
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, open, readFile, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { assertStorageKey, type StorageAdapter } from "./index";
 
@@ -30,6 +30,29 @@ export class LocalFsStorage implements StorageAdapter {
 
   async signedDownloadUrl(): Promise<null> {
     return null;
+  }
+
+  async signedUploadUrl(): Promise<null> {
+    return null;
+  }
+
+  async stat(key: string): Promise<{ size: number; etag: null } | null> {
+    try {
+      return { size: (await stat(this.pathFor(key))).size, etag: null };
+    } catch {
+      return null;
+    }
+  }
+
+  async readStart(key: string, length: number): Promise<Uint8Array> {
+    const handle = await open(this.pathFor(key), "r");
+    try {
+      const buf = Buffer.alloc(length);
+      const { bytesRead } = await handle.read(buf, 0, length, 0);
+      return new Uint8Array(buf.subarray(0, bytesRead));
+    } finally {
+      await handle.close();
+    }
   }
 
   async delete(key: string): Promise<void> {

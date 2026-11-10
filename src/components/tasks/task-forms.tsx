@@ -1,11 +1,12 @@
 "use client";
+import { DescriptionField } from "./description-field";
 import { LinkPreviews } from "@/components/app/link-previews";
 import { useActionState, useState, useTransition } from "react";
 import { Archive } from "lucide-react";
 import { archiveTaskAction, updateTaskAction } from "@/modules/tasks/actions";
 import { PRIORITY_META } from "@/lib/task-format";
 import { Button } from "@/components/ui/button";
-import { Input, NativeSelect, Textarea } from "@/components/ui/input";
+import { Input, NativeSelect } from "@/components/ui/input";
 import { Field } from "@/components/ui/label";
 import { Alert } from "@/components/ui/alert";
 
@@ -77,12 +78,11 @@ export function TaskForm({
         </Field>
       </div>
       <Field label="Description" htmlFor="task-description" error={errors?.description}>
-        <Textarea
+        <DescriptionField
           id="task-description"
           name="description"
           defaultValue={task.description}
           disabled={!canEdit}
-          rows={6}
           placeholder={canEdit ? "Add details, acceptance criteria, links…" : "No description"}
         />
       </Field>
