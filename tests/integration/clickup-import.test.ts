@@ -95,6 +95,16 @@ function fakeClickUp(owner: { email: string }, member: { email: string }) {
       custom_fields: [{ ...fields[0]!, value: "o-1" }],
     },
   ];
+  const otherTasks = [
+    {
+      ...base,
+      list: { id: "L3" },
+      id: "t-other",
+      name: "Shared field task",
+      status: statuses[0]!,
+      custom_fields: [{ ...fields[0]!, value: "o-2" }],
+    },
+  ];
   const archived = [{ ...base, id: "t-old", name: "Old idea", status: statuses[0]!, archived: true }];
   const routes: Record<string, unknown> = {
     "/team": {
@@ -116,6 +126,11 @@ function fakeClickUp(owner: { email: string }, member: { email: string }) {
     "/list/L2": { id: "L2", statuses: statuses.slice(0, 1).concat(statuses[4]!) },
     "/list/L1/field": { fields },
     "/list/L2/field": { fields: [] },
+    // Another space whose list uses the same (workspace-wide) "Stage" field.
+    "/space/S2/folder?archived=false": { folders: [] },
+    "/space/S2/list?archived=false": { lists: [{ id: "L3", name: "Inbox" }] },
+    "/list/L3": { id: "L3", statuses: statuses.slice(0, 1) },
+    "/list/L3/field": { fields: [fields[0]] },
     "/task/t-parent/comment": {
       comments: [
         {
@@ -154,11 +169,14 @@ function fakeClickUp(owner: { email: string }, member: { email: string }) {
                 : listTasks
               : arch === "true"
                 ? []
-                : opsTasks;
+                : list === "L3"
+                  ? otherTasks
+                  : opsTasks;
         return { tasks: items, last_page: true } as T;
       }
       const detail = /^\/task\/([\w-]+)\?/.exec(path);
-      if (detail) return [...listTasks, ...archived, ...opsTasks].find((t) => t.id === detail[1]) as T;
+      if (detail)
+        return [...listTasks, ...archived, ...opsTasks, ...otherTasks].find((t) => t.id === detail[1]) as T;
       if (/^\/task\/[\w-]+\/comment$/.test(path)) return (routes[path] ?? { comments: [] }) as T;
       if (!(path in routes)) throw new Error(`unexpected ${path}`);
       return routes[path] as T;
@@ -189,8 +207,10 @@ describe("ClickUp import", () => {
 
     const outboxBefore = (await db().select({ n: count() }).from(outboxEvents))[0]!.n;
     const result = await runClickUpImport({ ...opts, apply: true });
-    // The bad link skips only that field; the task's other values are kept.
-    expect(result.warnings).toEqual([expect.stringMatching(/^Field "Site": a value didn't fit/)]);
+    // A value that isn't a web address turns that link field into text, keeping it.
+    expect(result.warnings).toEqual([
+      expect.stringMatching(/^Field "Site": some values aren't single web addresses/),
+    ]);
     expect(result.created).toMatchObject({
       projects: 1,
       folders: 1,
@@ -243,7 +263,7 @@ describe("ClickUp import", () => {
     expect(fields.map((f) => [f.name, f.display?.text])).toEqual([
       ["Stage", "Build"],
       ["Designer", users.member.name],
-      ["Site", undefined], // the bad link was left empty
+      ["Site", "not a web address"], // kept: the field became text
     ]);
     // A field ClickUp uses on another list too is widened to the whole project.
     const ops = byTitle.get("Invoices")!;
@@ -269,5 +289,14 @@ describe("ClickUp import", () => {
     expect(
       (await db().select({ n: count() }).from(tasks).where(eq(tasks.projectId, project!.id)))[0]!.n,
     ).toBe(5);
+
+    // The other space shares the "Stage" field: it gets its own copy, and the value lands.
+    const other = await runClickUpImport({ ...opts, spaces: ["Other"], apply: true });
+    expect(other.warnings).toEqual([]);
+    const [otherProject] = await db().select().from(projects).where(eq(projects.name, "Other"));
+    const [shared] = await db().select().from(tasks).where(eq(tasks.projectId, otherProject!.id));
+    expect(
+      (await getTaskFields(actors.owner, shared!.id)).fields.map((f) => [f.name, f.display?.text]),
+    ).toEqual([["Stage", "Build"]]);
   });
 });

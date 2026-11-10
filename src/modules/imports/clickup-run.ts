@@ -52,6 +52,8 @@ import {
 } from "./clickup-api";
 
 const SOURCE = "clickup";
+/** Bumped when field handling improves, so a re-run applies every task's field values again. */
+const FIELD_PASS = "fieldvalues-v2";
 
 export interface ClickUpClient {
   get<T>(path: string): Promise<T>;
@@ -291,6 +293,8 @@ export async function runClickUpImport(options: ImportOptions): Promise<ImportRe
   };
   const find = (type: string, externalId: string) => mapped.get(`${type}:${externalId}`);
   const skippedValues = new Map<string, number>();
+  const fieldProjects = new Map<string, string>();
+  const textified = new Set<string>();
 
   await withoutOutbox(async () => {
     for (const plan of planned) {
@@ -385,10 +389,26 @@ export async function runClickUpImport(options: ImportOptions): Promise<ImportRe
     return list.id;
   }
 
-  async function ensureField(f: CuField, projectId: string, listId: string | null) {
-    if (find("field", f.id)) return;
+  /**
+   * The Eightcore field for a ClickUp field in this project, created on first use. ClickUp fields
+   * can be shared by several spaces, so mappings are per project ("<field id>@<project id>").
+   * Runs before per-project keys reuse their single mapping when it's in this project.
+   */
+  async function ensureField(f: CuField, projectId: string, listId: string | null): Promise<string | null> {
+    const key = `${f.id}@${projectId}`;
+    const mappedHere = find("field", key);
+    if (mappedHere) return mappedHere;
     const kind = fieldKind(f.type);
-    if (!kind) return;
+    if (!kind) return null;
+    const legacy = find("field", f.id);
+    if (legacy && (await fieldProject(legacy)) === projectId) {
+      await remember("field", key, legacy);
+      for (const o of f.type_config?.options ?? []) {
+        const opt = find("option", o.id);
+        if (opt) await remember("option", `${o.id}@${projectId}`, opt);
+      }
+      return legacy;
+    }
     const existing = (await listProjectFields(actor, projectId)).fields;
     let name = f.name.trim().slice(0, 60) || "Field";
     for (let i = 2; existing.some((e) => e.name.toLowerCase() === name.toLowerCase()); i++)
@@ -407,16 +427,30 @@ export async function runClickUpImport(options: ImportOptions): Promise<ImportRe
       listId,
       options: labels.slice(0, 50),
     });
-    await remember("field", f.id, field.id);
+    fieldProjects.set(field.id, projectId);
+    await remember("field", key, field.id);
+    if (!legacy) await remember("field", f.id, field.id);
     bump("custom fields");
     if (opts.length) {
       const created = (await listProjectFields(actor, projectId)).fields.find((x) => x.id === field.id);
       for (const [i, o] of opts.entries()) {
         const target = created?.options[i];
-        if (target) await remember("option", o.id, target.id);
+        if (target) await remember("option", `${o.id}@${projectId}`, target.id);
       }
       if (opts.length > 50) warn(`${f.name}: only the first 50 dropdown options were kept`);
     }
+    return field.id;
+  }
+
+  async function fieldProject(fieldId: string) {
+    if (!fieldProjects.has(fieldId)) {
+      const [row] = await db()
+        .select({ projectId: customFields.projectId })
+        .from(customFields)
+        .where(eq(customFields.id, fieldId));
+      fieldProjects.set(fieldId, row?.projectId ?? "");
+    }
+    return fieldProjects.get(fieldId);
   }
 
   async function importTasks(pl: PlannedList, projectId: string, tagIds: Map<string, string>) {
@@ -447,7 +481,7 @@ export async function runClickUpImport(options: ImportOptions): Promise<ImportRe
       if (done) {
         // Imported before: fill in custom field values an earlier run couldn't set (from the list
         // payload, so no extra ClickUp requests).
-        if (!find("fieldvalues", listed.id)) await applyFields(listed, done, listId, assignable);
+        if (!find(FIELD_PASS, listed.id)) await applyFields(listed, done, listId, assignable, projectId);
         continue;
       }
       try {
@@ -508,7 +542,7 @@ export async function runClickUpImport(options: ImportOptions): Promise<ImportRe
         }
         if (tags.length) await setTaskTags(actor, created.id, tags);
 
-        await applyFields(t, created.id, listId, assignable);
+        await applyFields(t, created.id, listId, assignable, projectId);
 
         if (options.comments !== false) await importComments(t, created.id, assignable);
         const files = attachmentsComment(t);
@@ -534,13 +568,25 @@ export async function runClickUpImport(options: ImportOptions): Promise<ImportRe
    * Sets a task's custom field values one field at a time (a value that doesn't fit skips only
    * that field). A field ClickUp uses on more lists than seen is widened to the whole project.
    */
-  async function applyFields(t: CuTask, taskId: string, listId: string, assignable: Set<string>) {
+  /**
+   * Sets a task's custom field values one field at a time (a value that doesn't fit skips only
+   * that field). A field ClickUp uses on more lists than seen is widened to the whole project;
+   * a link field whose values aren't single web addresses becomes a text field, so nothing is lost.
+   */
+  async function applyFields(
+    t: CuTask,
+    taskId: string,
+    listId: string,
+    assignable: Set<string>,
+    projectId: string,
+  ) {
     for (const f of t.custom_fields ?? []) {
-      const target = find("field", f.id);
+      if (f.value === null || f.value === undefined || f.value === "") continue;
+      const target = await ensureField(f, projectId, null);
       if (!target) continue;
       const optionIds = new Map(
         (f.type_config?.options ?? [])
-          .map((o) => [o.id, find("option", o.id)] as const)
+          .map((o) => [o.id, find("option", `${o.id}@${projectId}`) ?? find("option", o.id)] as const)
           .filter((e): e is [string, string] => !!e[1]),
       );
       const v = fieldValue(f, { timeZone: options.timeZone, options: optionIds, people });
@@ -558,6 +604,19 @@ export async function runClickUpImport(options: ImportOptions): Promise<ImportRe
       try {
         await setTaskFieldValues(actor, taskId, { [target]: v });
       } catch (error) {
+        if (f.type === "url") {
+          // Links and text are stored alike: switching the field to text keeps every value.
+          await db().update(customFields).set({ type: "text" }).where(eq(customFields.id, target));
+          if (!textified.has(target)) {
+            textified.add(target);
+            warn(`Field "${f.name}": some values aren't single web addresses, so it's now a text field`);
+          }
+          const ok = await setTaskFieldValues(actor, taskId, { [target]: v }).then(
+            () => true,
+            () => false,
+          );
+          if (ok) continue;
+        }
         skippedValues.set(f.name, (skippedValues.get(f.name) ?? 0) + 1);
         if (skippedValues.get(f.name) === 1)
           warn(
@@ -565,7 +624,7 @@ export async function runClickUpImport(options: ImportOptions): Promise<ImportRe
           );
       }
     }
-    await remember("fieldvalues", t.id, taskId);
+    await remember(FIELD_PASS, t.id, taskId);
   }
 
   async function importComments(t: CuTask, taskId: string, assignable: Set<string>) {
