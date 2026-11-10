@@ -2,13 +2,18 @@ import type { Metadata } from "next";
 import { getMembersPage } from "@/modules/workspaces/queries";
 import { PageHeader } from "@/components/app/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { InviteForm, MembersTable, PendingInvitations } from "@/components/app/members-manager";
+import {
+  GuestInviterDomains,
+  InviteForm,
+  MembersTable,
+  PendingInvitations,
+} from "@/components/app/members-manager";
 
 export const metadata: Metadata = { title: "Members" };
 
 export default async function MembersPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const { user, members, invitations, can } = await getMembersPage(slug);
+  const { user, members, invitations, can, guestInviterDomains } = await getMembersPage(slug);
   return (
     <>
       <PageHeader title="Members" description="People in this workspace and what they can do." />
@@ -28,6 +33,29 @@ export default async function MembersPage({ params }: { params: Promise<{ slug: 
                 <h3 className="text-[13px] font-medium">Pending invitations</h3>
                 <PendingInvitations workspaceSlug={slug} invitations={invitations} />
               </div>
+            </CardContent>
+          </Card>
+        ) : can.inviteGuests ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Invite a guest</CardTitle>
+              <CardDescription>
+                Guests only see the projects and lists shared with them. Invitations expire after 7 days.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <InviteForm workspaceSlug={slug} canInviteAdmin={false} guestsOnly />
+            </CardContent>
+          </Card>
+        ) : null}
+        {can.editSettings ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Who can invite guests</CardTitle>
+              <CardDescription>Owners and admins always can.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <GuestInviterDomains workspaceSlug={slug} domains={guestInviterDomains} />
             </CardContent>
           </Card>
         ) : null}

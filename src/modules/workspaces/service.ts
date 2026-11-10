@@ -1,6 +1,7 @@
 import "server-only";
 import { createHash, randomBytes } from "node:crypto";
 import { and, asc, eq, gt, isNull, lte, sql } from "drizzle-orm";
+import { z } from "zod";
 import { db, type DbOrTx } from "@/server/db";
 import {
   projectMembers,
@@ -10,9 +11,16 @@ import {
   workspaceMembers,
   workspaces,
 } from "@/server/db/schema";
-import { assertWorkspace, type ActorContext } from "@/server/authz/policy";
+import { assertWorkspace, canWorkspace, type ActorContext } from "@/server/authz/policy";
 import { GUEST_MAX_PROJECT_ROLE, projectRoleAtMost, type WorkspaceRole } from "@/server/authz/matrix";
-import { ConflictError, NotFoundError, ValidationError, assertId, pgErrorInfo } from "@/server/errors";
+import {
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+  ValidationError,
+  assertId,
+  pgErrorInfo,
+} from "@/server/errors";
 import { enqueueOutbox, recordActivity, recordAudit } from "@/modules/activity/service";
 import {
   createWorkspaceInput,
@@ -202,9 +210,65 @@ export async function setMemberStatus(
 
 // ── Invitations ───────────────────────────────────────────────────────────────────────────
 
+/** Email domains whose members may invite guests (workspace setting; owners and admins always can). */
+export async function guestInviterDomains(workspaceId: string): Promise<string[]> {
+  const [row] = await db()
+    .select({ settings: workspaces.settings })
+    .from(workspaces)
+    .where(eq(workspaces.id, workspaceId));
+  const v = row?.settings?.guestInviterDomains;
+  return Array.isArray(v) ? v.filter((d): d is string => typeof d === "string") : [];
+}
+
+/** Owners and admins; and members whose own email is on one of the workspace's allowed domains. */
+export async function canInviteGuests(actor: ActorContext): Promise<boolean> {
+  if (canWorkspace(actor.workspaceRole, "member.invite")) return true;
+  if (actor.workspaceRole !== "member") return false;
+  const domains = await guestInviterDomains(actor.workspaceId);
+  if (!domains.length) return false;
+  const [me] = await db().select({ email: users.email }).from(users).where(eq(users.id, actor.userId));
+  const domain = me?.email.split("@")[1]?.toLowerCase();
+  return !!domain && domains.includes(domain);
+}
+
+const domainList = z
+  .array(
+    z
+      .string()
+      .trim()
+      .toLowerCase()
+      .regex(/^(?=.{3,253}$)([a-z0-9-]+\.)+[a-z]{2,}$/, "Use a domain like 8limbsinc.net"),
+  )
+  .max(10);
+
+/** Owners and admins: which email domains' members may invite guests. */
+export async function setGuestInviterDomains(actor: ActorContext, raw: string[]) {
+  assertWorkspace(actor, "workspace.update_settings");
+  const domains = [...new Set(domainList.parse(raw.map((d) => d.replace(/^@/, ""))))];
+  await db().transaction(async (tx) => {
+    await tx
+      .update(workspaces)
+      .set({
+        settings: sql`${workspaces.settings} || ${JSON.stringify({ guestInviterDomains: domains })}::jsonb`,
+        updatedAt: new Date(),
+      })
+      .where(eq(workspaces.id, actor.workspaceId));
+    await recordAudit(tx, {
+      event: "workspace.guest_inviter_domains_changed",
+      workspaceId: actor.workspaceId,
+      actorId: actor.userId,
+      metadata: { domains },
+    });
+  });
+  return domains;
+}
+
 export async function inviteMember(actor: ActorContext, raw: InviteMemberInput) {
   const input = inviteMemberInput.parse(raw);
-  assertWorkspace(actor, "member.invite");
+  if (!canWorkspace(actor.workspaceRole, "member.invite")) {
+    // Members on an allowed email domain may invite guests only.
+    if (input.role !== "guest" || !(await canInviteGuests(actor))) throw new ForbiddenError();
+  }
   if (input.role === "admin") assertWorkspace(actor, "member.invite_admin");
 
   const token = randomBytes(32).toString("base64url");

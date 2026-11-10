@@ -15,6 +15,7 @@ import {
   inviteMember,
   revokeInvitation,
   setMemberStatus,
+  setGuestInviterDomains,
 } from "./service";
 import { invitableRole } from "./validators";
 
@@ -107,4 +108,28 @@ export async function acceptInvitationAction(token: string, _prev: ActionState):
   });
   if (result?.ok) redirect(`/w/${slug}`);
   return result;
+}
+
+export async function setGuestInviterDomainsAction(
+  workspaceSlug: string,
+  _prev: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  return runAction(async () => {
+    const user = await requireUser();
+    const actor = await resolveActor(user.id, workspaceSlug);
+    const domains = await setGuestInviterDomains(
+      actor,
+      formString(form, "domains")
+        .split(/[\s,]+/)
+        .filter(Boolean),
+    );
+    revalidatePath(`/w/${workspaceSlug}/members`);
+    return {
+      ok: true,
+      message: domains.length
+        ? `Members with ${domains.map((d) => `@${d}`).join(", ")} emails can now invite guests`
+        : "Only owners and admins can invite now",
+    };
+  });
 }

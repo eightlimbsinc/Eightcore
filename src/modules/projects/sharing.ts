@@ -6,11 +6,11 @@ import { z } from "zod";
 import { db, type DbOrTx } from "@/server/db";
 import { projectMembers, taskLists, users, workspaceInvitations, workspaceMembers } from "@/server/db/schema";
 import { GUEST_MAX_PROJECT_ROLE, projectRoleAtMost, type ProjectRole } from "@/server/authz/matrix";
-import { canProject, canWorkspace, type ActorContext } from "@/server/authz/policy";
+import { canProject, type ActorContext } from "@/server/authz/policy";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError, assertId } from "@/server/errors";
 import { recordActivity, recordAudit } from "@/modules/activity/service";
 import { loadListAccess } from "@/modules/lists/service";
-import { inviteMember } from "@/modules/workspaces/service";
+import { canInviteGuests, inviteMember } from "@/modules/workspaces/service";
 
 export const GUEST_ROLES = ["editor", "commenter", "viewer"] as const;
 export type GuestRole = (typeof GUEST_ROLES)[number];
@@ -80,7 +80,7 @@ export async function getListSharing(actor: ActorContext, listId: string) {
       .filter((g) => !withAccess.includes(g))
       .map((g) => ({ userId: g.userId, name: g.name, email: g.email })),
     pending: pending.map((p) => ({ id: p.id, email: p.email })),
-    canInvite: canWorkspace(actor.workspaceRole, "member.invite"),
+    canInvite: await canInviteGuests(actor),
   };
 }
 
@@ -202,7 +202,7 @@ export async function inviteGuestToList(
 ): Promise<{ token: string | null; email: string }> {
   const role = guestRole.parse(raw.role);
   const email = z.email("Enter an email address").parse(raw.email.trim().toLowerCase());
-  if (!canWorkspace(actor.workspaceRole, "member.invite")) throw new ForbiddenError();
+  if (!(await canInviteGuests(actor))) throw new ForbiddenError();
   const { list, project } = await manageableList(db(), actor, listId);
   const grant = { projectId: project.id, listIds: [list.id], role };
 

@@ -20,6 +20,8 @@ import {
   listPendingInvitations,
   listWorkspacesForUser,
   previewInvitation,
+  canInviteGuests,
+  guestInviterDomains,
 } from "./service";
 
 /** Signed-in user + actor for a workspace page. Non-members see a 404. */
@@ -75,17 +77,23 @@ export async function getMembersPage(slug: string) {
   const { user, actor } = await getWorkspaceContext(slug);
   if (!canWorkspace(actor.workspaceRole, "member.view_directory")) notFound();
   const canInvite = canWorkspace(actor.workspaceRole, "member.invite");
-  const [members, invitations] = await Promise.all([
+  const [members, invitations, inviteGuests, domains] = await Promise.all([
     listMembers(actor),
     canInvite ? listPendingInvitations(actor) : Promise.resolve([]),
+    canInviteGuests(actor),
+    guestInviterDomains(actor.workspaceId),
   ]);
   return {
     user,
     actor,
     members,
     invitations,
+    guestInviterDomains: domains,
     can: {
       invite: canInvite,
+      /** Members on an allowed email domain: guests only. */
+      inviteGuests,
+      editSettings: canWorkspace(actor.workspaceRole, "workspace.update_settings"),
       inviteAdmin: canWorkspace(actor.workspaceRole, "member.invite_admin"),
       changeRole: canWorkspace(actor.workspaceRole, "member.change_role"),
       manageOwners: canWorkspace(actor.workspaceRole, "member.manage_owners"),

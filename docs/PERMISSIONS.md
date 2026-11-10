@@ -60,7 +60,7 @@ Changing a guest's role keeps their lists.
 | `workspace.view` | ✅ | ✅ | ✅ | ✅ |
 | `workspace.update_settings` | ✅ | ✅ | ❌ | ❌ |
 | `workspace.delete` / `transfer_ownership` | ✅ | ❌ | ❌ | ❌ |
-| `member.invite` (as member/guest) | ✅ | ✅ | ❌ (configurable) | ❌ |
+| `member.invite` (as member/guest) | ✅ | ✅ | Guests only, if their email domain is allowed (Members → Who can invite guests) | ❌ |
 | `member.invite_admin` / change role to admin | ✅ | ✅ | ❌ | ❌ |
 | `member.change_role` of an owner | ✅ | ❌ | ❌ | ❌ |
 | `member.deactivate` | ✅ | ✅ (not owners) | ❌ | ❌ |

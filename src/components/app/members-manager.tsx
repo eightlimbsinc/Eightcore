@@ -7,6 +7,7 @@ import {
   inviteMemberAction,
   revokeInvitationAction,
   setMemberStatusAction,
+  setGuestInviterDomainsAction,
 } from "@/modules/workspaces/actions";
 import type { ActionState } from "@/lib/action-state";
 import { Button } from "@/components/ui/button";
@@ -37,9 +38,12 @@ interface Permissions {
 export function InviteForm({
   workspaceSlug,
   canInviteAdmin,
+  guestsOnly = false,
 }: {
   workspaceSlug: string;
   canInviteAdmin: boolean;
+  /** Members on an allowed email domain may invite guests only. */
+  guestsOnly?: boolean;
 }) {
   const [state, action, pending] = useActionState(inviteMemberAction.bind(null, workspaceSlug), undefined);
   const errors = state && !state.ok ? state.fieldErrors : undefined;
@@ -53,9 +57,9 @@ export function InviteForm({
           </Field>
         </div>
         <Field label="Role" htmlFor="invite-role" error={errors?.role}>
-          <NativeSelect id="invite-role" name="role" defaultValue="member">
-            {canInviteAdmin ? <option value="admin">Admin</option> : null}
-            <option value="member">Member</option>
+          <NativeSelect id="invite-role" name="role" defaultValue={guestsOnly ? "guest" : "member"}>
+            {canInviteAdmin && !guestsOnly ? <option value="admin">Admin</option> : null}
+            {guestsOnly ? null : <option value="member">Member</option>}
             <option value="guest">Guest</option>
           </NativeSelect>
         </Field>
@@ -226,5 +230,45 @@ export function PendingInvitations({
         </li>
       ))}
     </ul>
+  );
+}
+
+/** Owners and admins: which email domains' members may invite guests. */
+export function GuestInviterDomains({
+  workspaceSlug,
+  domains,
+}: {
+  workspaceSlug: string;
+  domains: string[];
+}) {
+  const [state, action, pending] = useActionState(
+    setGuestInviterDomainsAction.bind(null, workspaceSlug),
+    undefined,
+  );
+  return (
+    <form action={action} className="grid gap-2">
+      {state ? (
+        <Alert variant={state.ok ? "success" : "destructive"}>{state.message ?? "Saved"}</Alert>
+      ) : null}
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="min-w-64 flex-1">
+          <Field label="Members with these email domains can invite guests" htmlFor="guest-domains">
+            <Input
+              id="guest-domains"
+              name="domains"
+              defaultValue={domains.join(", ")}
+              placeholder="8limbsinc.net"
+            />
+          </Field>
+        </div>
+        <Button type="submit" variant="outline" disabled={pending}>
+          Save
+        </Button>
+      </div>
+      <p className="text-muted-foreground text-[12px]">
+        Separate several with commas. Leave empty so only owners and admins can invite. They can invite guests
+        only, never members or admins.
+      </p>
+    </form>
   );
 }
