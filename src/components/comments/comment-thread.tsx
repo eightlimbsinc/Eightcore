@@ -1,4 +1,5 @@
 "use client";
+import { LinkPreviews, LinkifiedText } from "@/components/app/link-previews";
 import { PersonAvatar } from "@/components/app/person-avatar";
 import { useState, useTransition } from "react";
 import { Pencil, Reply, Trash2 } from "lucide-react";
@@ -30,9 +31,14 @@ function escapeRegExp(text: string) {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-/** Plain text, with "@Name" highlighted for the people actually mentioned. */
+/** Plain text with clickable links, and "@Name" highlighted for the people actually mentioned. */
 function CommentBody({ body, mentions }: { body: string; mentions: Mentionable[] }) {
-  if (!mentions.length) return <p className="text-[13px] leading-relaxed whitespace-pre-wrap">{body}</p>;
+  if (!mentions.length)
+    return (
+      <p className="text-[13px] leading-relaxed whitespace-pre-wrap">
+        <LinkifiedText text={body} />
+      </p>
+    );
   const names = [...mentions].sort((a, b) => b.name.length - a.name.length).map((m) => escapeRegExp(m.name));
   const parts = body.split(new RegExp(`(@(?:${names.join("|")}))`, "gi"));
   return (
@@ -43,7 +49,7 @@ function CommentBody({ body, mentions }: { body: string; mentions: Mentionable[]
             {part}
           </span>
         ) : (
-          part
+          <LinkifiedText key={i} text={part} />
         ),
       )}
     </p>
@@ -95,7 +101,10 @@ function CommentItem({
             onCancel={() => setEditing(false)}
           />
         ) : (
-          <CommentBody body={comment.body} mentions={comment.mentions} />
+          <>
+            <CommentBody body={comment.body} mentions={comment.mentions} />
+            <LinkPreviews workspaceSlug={workspaceSlug} text={comment.body} />
+          </>
         )}
         <AttachmentList workspaceSlug={workspaceSlug} files={comment.attachments} />
         {!editing ? (

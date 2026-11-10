@@ -1,4 +1,5 @@
 "use client";
+import { LinkPreviews } from "@/components/app/link-previews";
 import { useActionState, useState, useTransition } from "react";
 import { Archive } from "lucide-react";
 import { archiveTaskAction, updateTaskAction } from "@/modules/tasks/actions";
@@ -85,6 +86,7 @@ export function TaskForm({
           placeholder={canEdit ? "Add details, acceptance criteria, links…" : "No description"}
         />
       </Field>
+      <LinkPreviews workspaceSlug={workspaceSlug} text={task.description} />
       {canEdit ? (
         <div>
           <Button type="submit" disabled={pending}>

@@ -66,7 +66,7 @@ test("teammate comments with an @mention and a file", async ({ page }) => {
   await box.fill("Draft is ready, @Co");
   await page.getByRole("option", { name: owner.name }).click();
   await expect(box).toHaveValue(`Draft is ready, @${owner.name} `);
-  await box.pressSequentially("what do you think?");
+  await box.pressSequentially("what do you think? https://example.com/brief");
   await page.getByLabel("Attach files to this comment").setInputFiles({
     name: "logo-draft.txt",
     mimeType: "text/plain",
@@ -77,6 +77,11 @@ test("teammate comments with an @mention and a file", async ({ page }) => {
   const comment = page.getByRole("article", { name: `Comment by ${member.name}` });
   await expect(comment.getByText("what do you think?")).toBeVisible();
   await expect(comment.getByText(`@${owner.name}`)).toBeVisible();
+  // Links in comments are clickable and open in a new tab.
+  await expect(comment.getByRole("link", { name: "https://example.com/brief" })).toHaveAttribute(
+    "target",
+    "_blank",
+  );
   await expect(comment.getByRole("link", { name: "logo-draft.txt", exact: true })).toBeVisible();
   // Commenting makes you a watcher.
   await expect(page.getByRole("button", { name: "Stop watching" })).toBeVisible();
