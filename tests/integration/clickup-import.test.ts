@@ -36,6 +36,7 @@ function fakeClickUp(owner: { email: string }, member: { email: string }) {
     },
     { id: "f-designer", name: "Designer", type: "users" },
     { id: "f-button", name: "Do it", type: "button" },
+    { id: "f-site", name: "Site", type: "url" },
   ];
   const u = {
     owner: { id: 1, username: "Raf", email: owner.email },
@@ -67,6 +68,7 @@ function fakeClickUp(owner: { email: string }, member: { email: string }) {
       custom_fields: [
         { ...fields[0]!, value: 1 },
         { ...fields[1]!, value: [u.member] },
+        { ...fields[3]!, value: "not a web address" },
       ],
       dependencies: [{ task_id: "t-parent", depends_on: "t-done" }],
       checklists: [{ name: "QA", items: [{ name: "Mobile", resolved: true }] }],
@@ -80,6 +82,17 @@ function fakeClickUp(owner: { email: string }, member: { email: string }) {
       name: "Wireframes",
       status: statuses[3]!,
       date_done: ms("2026-02-01T00:00:00Z"),
+    },
+  ];
+  // A task in another list carrying the Website list's field (ClickUp allows that).
+  const opsTasks = [
+    {
+      ...base,
+      list: { id: "L2" },
+      id: "t-ops",
+      name: "Invoices",
+      status: statuses[0]!,
+      custom_fields: [{ ...fields[0]!, value: "o-1" }],
     },
   ];
   const archived = [{ ...base, id: "t-old", name: "Old idea", status: statuses[0]!, archived: true }];
@@ -139,11 +152,13 @@ function fakeClickUp(owner: { email: string }, member: { email: string }) {
               ? arch === "true"
                 ? archived.map((t) => ({ ...t, list: { id: "L1" } }))
                 : listTasks
-              : [];
+              : arch === "true"
+                ? []
+                : opsTasks;
         return { tasks: items, last_page: true } as T;
       }
       const detail = /^\/task\/([\w-]+)\?/.exec(path);
-      if (detail) return [...listTasks, ...archived].find((t) => t.id === detail[1]) as T;
+      if (detail) return [...listTasks, ...archived, ...opsTasks].find((t) => t.id === detail[1]) as T;
       if (/^\/task\/[\w-]+\/comment$/.test(path)) return (routes[path] ?? { comments: [] }) as T;
       if (!(path in routes)) throw new Error(`unexpected ${path}`);
       return routes[path] as T;
@@ -161,7 +176,7 @@ describe("ClickUp import", () => {
 
     const dry = await runClickUpImport({ ...opts, apply: false });
     expect(dry.spaces).toEqual([
-      { name: "8limbs INC", key: "LI", lists: 2, tasks: 4, closed: 1, archived: 1, subtasks: 1 },
+      { name: "8limbs INC", key: "LI", lists: 2, tasks: 5, closed: 1, archived: 1, subtasks: 1 },
     ]);
     expect(dry.people.find((p) => p.name === "Former Freelancer")?.matched).toBeNull();
     expect(dry.people.find((p) => p.name === "Mica")?.matched).toBe(users.member.name);
@@ -174,12 +189,13 @@ describe("ClickUp import", () => {
 
     const outboxBefore = (await db().select({ n: count() }).from(outboxEvents))[0]!.n;
     const result = await runClickUpImport({ ...opts, apply: true });
-    expect(result.warnings).toEqual([]);
+    // The bad link skips only that field; the task's other values are kept.
+    expect(result.warnings).toEqual([expect.stringMatching(/^Field "Site": a value didn't fit/)]);
     expect(result.created).toMatchObject({
       projects: 1,
       folders: 1,
       lists: 2,
-      tasks: 4,
+      tasks: 5,
       comments: 3,
       dependencies: 1,
     });
@@ -227,7 +243,13 @@ describe("ClickUp import", () => {
     expect(fields.map((f) => [f.name, f.display?.text])).toEqual([
       ["Stage", "Build"],
       ["Designer", users.member.name],
+      ["Site", undefined], // the bad link was left empty
     ]);
+    // A field ClickUp uses on another list too is widened to the whole project.
+    const ops = byTitle.get("Invoices")!;
+    expect(
+      (await getTaskFields(actors.owner, ops.id)).fields.find((f) => f.name === "Stage")?.display?.text,
+    ).toBe("Design");
     const { threads } = await listComments(actors.owner, home.id);
     expect(threads.map((t) => [t.authorName, t.body.split("\n")[0]])).toEqual([
       [users.member.name, "Looks good"],
@@ -246,6 +268,6 @@ describe("ClickUp import", () => {
     expect((await db().select({ n: count() }).from(importMappings))[0]!.n).toBe(mappings);
     expect(
       (await db().select({ n: count() }).from(tasks).where(eq(tasks.projectId, project!.id)))[0]!.n,
-    ).toBe(4);
+    ).toBe(5);
   });
 });

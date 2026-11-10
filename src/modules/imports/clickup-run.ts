@@ -5,7 +5,15 @@ import "server-only";
 // import_mappings, so a re-run skips what's done and picks up what failed.
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/server/db";
-import { comments, importMappings, projects, tasks, users, workspaceMembers } from "@/server/db/schema";
+import {
+  comments,
+  customFields,
+  importMappings,
+  projects,
+  tasks,
+  users,
+  workspaceMembers,
+} from "@/server/db/schema";
 import type { ActorContext } from "@/server/authz/policy";
 import { resolveActorById } from "@/server/authz/actor";
 import { withoutOutbox } from "@/server/causation";
@@ -282,6 +290,7 @@ export async function runClickUpImport(options: ImportOptions): Promise<ImportRe
     mapped.set(`${type}:${externalId}`, entityId);
   };
   const find = (type: string, externalId: string) => mapped.get(`${type}:${externalId}`);
+  const skippedValues = new Map<string, number>();
 
   await withoutOutbox(async () => {
     for (const plan of planned) {
@@ -318,6 +327,8 @@ export async function runClickUpImport(options: ImportOptions): Promise<ImportRe
       );
       for (const pl of plan.lists) await importTasks(pl, projectId, tagIds);
     }
+    for (const [name, n] of skippedValues)
+      if (n > 1) warn(`Field "${name}": ${n} values left empty in total`);
     // Dependencies once every task exists (they can cross lists and spaces).
     const all = planned.flatMap((s) => s.lists.flatMap((l) => l.tasks));
     for (const t of all) {
@@ -432,7 +443,13 @@ export async function runClickUpImport(options: ImportOptions): Promise<ImportRe
     log(`  ${pl.list.name}: ${ordered.length} tasks`);
 
     for (const listed of ordered) {
-      if (find("task", listed.id)) continue;
+      const done = find("task", listed.id);
+      if (done) {
+        // Imported before: fill in custom field values an earlier run couldn't set (from the list
+        // payload, so no extra ClickUp requests).
+        if (!find("fieldvalues", listed.id)) await applyFields(listed, done, listId, assignable);
+        continue;
+      }
       try {
         const t = await client.get<CuTask>(`/task/${listed.id}?include_markdown_description=true`);
         const start = dateOf(t.start_date, options.timeZone);
@@ -491,23 +508,7 @@ export async function runClickUpImport(options: ImportOptions): Promise<ImportRe
         }
         if (tags.length) await setTaskTags(actor, created.id, tags);
 
-        const values: Record<string, string> = {};
-        for (const f of t.custom_fields ?? []) {
-          const target = find("field", f.id);
-          if (!target) continue;
-          const optionIds = new Map(
-            (f.type_config?.options ?? [])
-              .map((o) => [o.id, find("option", o.id)] as const)
-              .filter((e): e is [string, string] => !!e[1]),
-          );
-          const v = fieldValue(f, { timeZone: options.timeZone, options: optionIds, people });
-          if (v !== null && (f.type !== "users" || assignable.has(v))) values[target] = v;
-        }
-        if (Object.keys(values).length) {
-          await setTaskFieldValues(actor, created.id, values).catch((e: Error) =>
-            warn(`${t.name}: some custom field values skipped (${e.message})`),
-          );
-        }
+        await applyFields(t, created.id, listId, assignable);
 
         if (options.comments !== false) await importComments(t, created.id, assignable);
         const files = attachmentsComment(t);
@@ -527,6 +528,44 @@ export async function runClickUpImport(options: ImportOptions): Promise<ImportRe
         warn(`Task "${listed.name}" (${listed.id}) not imported: ${(error as Error).message}`);
       }
     }
+  }
+
+  /**
+   * Sets a task's custom field values one field at a time (a value that doesn't fit skips only
+   * that field). A field ClickUp uses on more lists than seen is widened to the whole project.
+   */
+  async function applyFields(t: CuTask, taskId: string, listId: string, assignable: Set<string>) {
+    for (const f of t.custom_fields ?? []) {
+      const target = find("field", f.id);
+      if (!target) continue;
+      const optionIds = new Map(
+        (f.type_config?.options ?? [])
+          .map((o) => [o.id, find("option", o.id)] as const)
+          .filter((e): e is [string, string] => !!e[1]),
+      );
+      const v = fieldValue(f, { timeZone: options.timeZone, options: optionIds, people });
+      if (v === null || (f.type === "users" && !assignable.has(v))) continue;
+      await db()
+        .update(customFields)
+        .set({ listId: null })
+        .where(
+          and(
+            eq(customFields.id, target),
+            sql`${customFields.listId} is distinct from ${listId}::uuid`,
+            sql`${customFields.listId} is not null`,
+          ),
+        );
+      try {
+        await setTaskFieldValues(actor, taskId, { [target]: v });
+      } catch (error) {
+        skippedValues.set(f.name, (skippedValues.get(f.name) ?? 0) + 1);
+        if (skippedValues.get(f.name) === 1)
+          warn(
+            `Field "${f.name}": a value didn't fit and was left empty (${(error as Error).message}); further ones are counted at the end`,
+          );
+      }
+    }
+    await remember("fieldvalues", t.id, taskId);
   }
 
   async function importComments(t: CuTask, taskId: string, assignable: Set<string>) {
