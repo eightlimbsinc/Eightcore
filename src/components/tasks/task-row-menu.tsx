@@ -2,9 +2,10 @@
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ContextMenu, DropdownMenu } from "radix-ui";
-import { Archive, Copy, ExternalLink, Hash, MoreHorizontal, PanelTop, Trash2 } from "lucide-react";
+import { Archive, Copy, ExternalLink, Hash, Link2, MoreHorizontal, PanelTop, Trash2 } from "lucide-react";
 import { archiveTaskFromListAction, deleteTaskAction } from "@/modules/tasks/actions";
 import { cn } from "@/lib/utils";
+import { notify } from "@/components/app/toast";
 
 export interface TaskMenuTarget {
   workspaceSlug: string;
@@ -27,13 +28,17 @@ function useTaskMenu(target: TaskMenuTarget) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const href = `/w/${target.workspaceSlug}/t/${target.taskRef}`;
-  const copy = (text: string) => void navigator.clipboard?.writeText(text);
+  const copy = (text: string, done: string) =>
+    void navigator.clipboard?.writeText(text).then(
+      () => notify(done),
+      () => notify("Couldn't copy (the browser blocked it)"),
+    );
   return {
     pending,
     open: () => router.push(href),
     openInNewTab: () => window.open(href, "_blank", "noopener"),
-    copyLink: () => copy(new URL(href, window.location.origin).toString()),
-    copyId: () => copy(target.taskRef),
+    copyLink: () => copy(new URL(href, window.location.origin).toString(), "Link copied"),
+    copyId: () => copy(target.taskRef, `${target.taskRef} copied`),
     archive: () => {
       if (
         !confirm(
@@ -161,6 +166,27 @@ export function DeleteTaskButton({
       className="text-destructive border-destructive/40 hover:bg-destructive-soft inline-flex h-9 items-center gap-2 rounded-md border px-4 text-sm disabled:opacity-60 [&_svg]:size-4"
     >
       <Trash2 /> {pending ? "Deleting…" : "Delete task"}
+    </button>
+  );
+}
+
+/** "Copy link" in the task's header (window and full page). */
+export function CopyTaskLinkButton({ workspaceSlug, taskRef }: { workspaceSlug: string; taskRef: string }) {
+  return (
+    <button
+      type="button"
+      aria-label="Copy link"
+      title="Copy link"
+      onClick={() => {
+        const url = new URL(`/w/${workspaceSlug}/t/${taskRef}`, window.location.origin).toString();
+        void navigator.clipboard?.writeText(url).then(
+          () => notify("Link copied"),
+          () => notify("Couldn't copy (the browser blocked it)"),
+        );
+      }}
+      className="text-muted-foreground hover:text-foreground hover:bg-surface-muted inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-[13px]"
+    >
+      <Link2 className="size-4" /> Copy link
     </button>
   );
 }

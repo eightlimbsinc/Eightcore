@@ -1,4 +1,5 @@
 "use client";
+import { TaskContextMenu } from "./task-row-menu";
 import Link from "next/link";
 import { useId, useState, useTransition } from "react";
 import {
@@ -325,7 +326,20 @@ function DraggableChip({
       aria-label={`${task.ref} ${task.title}`}
       className={cn(isDragging && "opacity-40")}
     >
-      <Chip task={task} workspaceSlug={workspaceSlug} />
+      <TaskContextMenu
+        target={{
+          workspaceSlug,
+          taskId: task.id,
+          taskRef: task.ref,
+          title: task.title,
+          canArchive: false,
+          canDelete: false,
+        }}
+      >
+        <span className="block min-w-0">
+          <Chip task={task} workspaceSlug={workspaceSlug} />
+        </span>
+      </TaskContextMenu>
     </div>
   );
 }

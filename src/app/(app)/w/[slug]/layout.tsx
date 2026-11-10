@@ -9,6 +9,7 @@ import { LogoMark } from "@/components/brand/logo";
 import { TimeZoneCookie } from "@/components/app/time-zone-cookie";
 import { CommandPalette, OpenPaletteButton } from "@/components/app/command-palette";
 import { RunningTimer } from "@/components/time/running-timer";
+import { Toaster } from "@/components/app/toast";
 
 export default async function WorkspaceLayout({
   children,
@@ -116,6 +117,7 @@ export default async function WorkspaceLayout({
         <main className="flex-1">{children}</main>
         {modal}
         <TimeZoneCookie />
+        <Toaster />
         <CommandPalette
           workspaceSlug={workspace.slug}
           projects={projects}

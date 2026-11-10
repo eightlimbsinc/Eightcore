@@ -189,7 +189,7 @@ test("an owner organises work into lists and tasks", async ({ page }) => {
     .getByRole("button", { name: /^Relationships/ })
     .click();
   await page.getByLabel("Task reference").fill("WEB-2");
-  await page.getByRole("button", { name: "Link" }).click();
+  await page.getByRole("button", { name: "Link", exact: true }).click();
   await expect(page.getByText("Dependency added")).toBeVisible();
   await expect(page.getByRole("list", { name: "Blocked by" })).toContainText("Pick hero video");
   await expect(page.getByText("Blocked", { exact: true }).first()).toBeVisible();
@@ -491,4 +491,14 @@ test("an owner organises work into lists and tasks", async ({ page }) => {
 
   await page.getByRole("navigation", { name: "Layout" }).getByRole("link", { name: "List" }).click();
   await expect(page.getByRole("link", { name: "Footer link is broken" })).toBeVisible();
+
+  // Copy a ticket's link: right-click it, or the button in its window.
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.getByRole("link", { name: "Footer link is broken" }).click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Copy link" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Link copied" })).toBeVisible();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(/\/t\/WEB-\d+$/);
+  await page.getByRole("link", { name: "Footer link is broken" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Copy link" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Link copied" })).toBeVisible();
 });

@@ -23,7 +23,7 @@ import { readRecurrence } from "@/lib/recurrence";
 import { NewTaskForm } from "@/components/tasks/new-task-form";
 import { ArchiveTaskButton, TaskForm, TaskTitleInput } from "@/components/tasks/task-forms";
 import { AssigneePicker } from "@/components/tasks/assignee-picker";
-import { DeleteTaskButton } from "@/components/tasks/task-row-menu";
+import { CopyTaskLinkButton, DeleteTaskButton, TaskContextMenu } from "@/components/tasks/task-row-menu";
 import {
   AssigneeStack,
   BlockedBadge,
@@ -124,6 +124,7 @@ export async function TaskDetail({
         </nav>
         <span className="flex flex-wrap items-center gap-2">
           {dependencies.openBlockers > 0 ? <BlockedBadge count={dependencies.openBlockers} /> : null}
+          <CopyTaskLinkButton workspaceSlug={slug} taskRef={taskRef} />
           {variant === "modal" ? <TaskModalControls href={`/w/${slug}/t/${taskRef}`} /> : null}
         </span>
       </header>
@@ -268,19 +269,31 @@ export async function TaskDetail({
                   {subtasks.map((s) => {
                     const subStatus = statuses.find((st) => st.id === s.statusId);
                     return (
-                      <li key={s.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2">
-                        <span className="text-muted-foreground w-16 font-mono text-[11px]">{s.ref}</span>
-                        <Link
-                          href={`/w/${slug}/t/${s.ref}`}
-                          className="min-w-0 flex-1 truncate hover:underline hover:underline-offset-4"
-                        >
-                          {s.title}
-                        </Link>
-                        <PriorityLabel priority={s.priority} />
-                        <DueDateLabel dueDate={s.dueDate} completed={Boolean(s.completedAt)} />
-                        <AssigneeStack people={s.assignees} />
-                        {subStatus ? <StatusPill name={subStatus.name} color={subStatus.color} /> : null}
-                      </li>
+                      <TaskContextMenu
+                        key={s.id}
+                        target={{
+                          workspaceSlug: slug,
+                          taskId: s.id,
+                          taskRef: s.ref,
+                          title: s.title,
+                          canArchive: false,
+                          canDelete: false,
+                        }}
+                      >
+                        <li className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2">
+                          <span className="text-muted-foreground w-16 font-mono text-[11px]">{s.ref}</span>
+                          <Link
+                            href={`/w/${slug}/t/${s.ref}`}
+                            className="min-w-0 flex-1 truncate hover:underline hover:underline-offset-4"
+                          >
+                            {s.title}
+                          </Link>
+                          <PriorityLabel priority={s.priority} />
+                          <DueDateLabel dueDate={s.dueDate} completed={Boolean(s.completedAt)} />
+                          <AssigneeStack people={s.assignees} />
+                          {subStatus ? <StatusPill name={subStatus.name} color={subStatus.color} /> : null}
+                        </li>
+                      </TaskContextMenu>
                     );
                   })}
                 </ul>

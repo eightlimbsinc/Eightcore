@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { TaskContextMenu } from "@/components/tasks/task-row-menu";
 import Link from "next/link";
 import { SearchX } from "lucide-react";
 import { getTasksPage } from "@/modules/workspaces/queries";
@@ -101,20 +102,34 @@ export default async function TasksPage({
               </h2>
               <ul className="divide-y">
                 {g.tasks.map((t) => (
-                  <li key={t.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2">
-                    <span className="text-muted-foreground w-16 shrink-0 font-mono text-[11px]">{t.ref}</span>
-                    <Link
-                      href={`/w/${slug}/t/${t.ref}`}
-                      className="min-w-0 flex-1 truncate font-medium hover:underline hover:underline-offset-4"
-                    >
-                      {t.title}
-                    </Link>
-                    <TagList tags={t.tags} />
-                    <AssigneeStack people={t.assignees} />
-                    <PriorityLabel priority={t.priority} />
-                    <DueDateLabel dueDate={t.dueDate} completed={t.closed} today={today} />
-                    <StatusPill name={t.statusName} color={t.statusColor} />
-                  </li>
+                  <TaskContextMenu
+                    key={t.id}
+                    target={{
+                      workspaceSlug: slug,
+                      taskId: t.id,
+                      taskRef: t.ref,
+                      title: t.title,
+                      canArchive: false,
+                      canDelete: false,
+                    }}
+                  >
+                    <li className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2">
+                      <span className="text-muted-foreground w-16 shrink-0 font-mono text-[11px]">
+                        {t.ref}
+                      </span>
+                      <Link
+                        href={`/w/${slug}/t/${t.ref}`}
+                        className="min-w-0 flex-1 truncate font-medium hover:underline hover:underline-offset-4"
+                      >
+                        {t.title}
+                      </Link>
+                      <TagList tags={t.tags} />
+                      <AssigneeStack people={t.assignees} />
+                      <PriorityLabel priority={t.priority} />
+                      <DueDateLabel dueDate={t.dueDate} completed={t.closed} today={today} />
+                      <StatusPill name={t.statusName} color={t.statusColor} />
+                    </li>
+                  </TaskContextMenu>
                 ))}
               </ul>
             </section>

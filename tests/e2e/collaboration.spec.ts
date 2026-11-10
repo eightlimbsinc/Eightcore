@@ -252,6 +252,8 @@ test("the board moves tasks between statuses, also by keyboard", async ({ page }
   await expect(page.getByText(/New logo is over To Do/)).toBeAttached();
   await page.keyboard.press("Space");
   await expect(columns.getByRole("listitem", { name: /^To Do, 1 task/ })).toBeVisible();
+  // The card moves at once; the save finishes just after. Let it, then reload.
+  await page.waitForLoadState("networkidle");
   await page.reload();
   await expect(columns.getByRole("listitem", { name: /^To Do, 1 task/ })).toContainText("New logo");
 
@@ -291,6 +293,7 @@ test("the calendar schedules and reschedules tasks by dragging", async ({ page }
   await page.mouse.move(to.x + to.width / 2, to.y + 28, { steps: 15 });
   await page.mouse.up();
   await expect(today.getByRole("group", { name: "BRD-1 New logo" })).toBeVisible();
+  await page.waitForLoadState("networkidle"); // let the save finish
   await page.reload();
   await expect(page.getByRole("gridcell", { name: /, today: 1 task/ })).toContainText("New logo");
 
@@ -376,6 +379,8 @@ test("bulk actions change and archive many tasks at once", async ({ page }) => {
   await page.keyboard.press("?");
   await expect(page.getByRole("dialog", { name: "Keyboard shortcuts" })).toBeVisible();
   await page.keyboard.press("Escape");
+  // Closing hands focus back to the "Keyboard shortcuts" button; let it land first.
+  await expect(page.getByRole("button", { name: "Keyboard shortcuts" })).toBeFocused();
   await page.keyboard.press("n");
   await expect(page.getByLabel("New task title")).toBeFocused();
   await page.keyboard.press("Escape");
