@@ -104,7 +104,7 @@ export default async function WorkspaceLayout({
           {projects.length === 0 ? (
             <p className="text-muted-foreground px-2 py-1 text-[13px]">No projects yet.</p>
           ) : (
-            <ProjectTree base={base} projects={projects} />
+            <ProjectTree base={base} projects={projects} canDeleteProjects={can.deleteProjects} />
           )}
         </nav>
         <div className="flex items-center gap-1 border-t p-2">

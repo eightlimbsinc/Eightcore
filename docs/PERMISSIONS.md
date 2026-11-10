@@ -64,6 +64,7 @@ Changing a guest's role keeps their lists.
 | `member.invite_admin` / change role to admin | ✅ | ✅ | ❌ | ❌ |
 | `member.change_role` of an owner | ✅ | ❌ | ❌ | ❌ |
 | `member.deactivate` | ✅ | ✅ (not owners) | ❌ | ❌ |
+| `project.delete` (permanent, confirmed by typing the key) | ✅ | ✅ | ❌ | ❌ |
 | `project.create` | ✅ | ✅ | ✅ | ❌ |
 | `workflow.manage` | ✅ | ✅ | ❌ | ❌ |
 | `custom_field.manage` (workspace scope) | ✅ | ✅ | ❌ | ❌ |

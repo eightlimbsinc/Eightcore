@@ -6,7 +6,7 @@ import { resolveActor } from "@/server/authz/actor";
 import { formString, runAction } from "@/server/action";
 import { PROJECT_ROLES, type ProjectRole } from "@/server/authz/matrix";
 import type { ActionState } from "@/lib/action-state";
-import { createProject, setProjectArchived, setProjectMember, updateProject } from "./service";
+import { createProject, deleteProject, setProjectArchived, setProjectMember, updateProject } from "./service";
 
 async function actorFor(workspaceSlug: string) {
   const user = await requireUser();
@@ -84,4 +84,18 @@ export async function setProjectMemberAction(
     });
     revalidatePath(`/w/${workspaceSlug}`, "layout");
   });
+}
+
+/** Permanently deletes a project (owners and admins; the key typed in confirms it), then goes home. */
+export async function deleteProjectAction(
+  workspaceSlug: string,
+  projectId: string,
+  confirmKey: string,
+): Promise<ActionState> {
+  const result = await runAction(async () => {
+    await deleteProject(await actorFor(workspaceSlug), projectId, confirmKey);
+    revalidatePath(`/w/${workspaceSlug}`, "layout");
+  });
+  if (result?.ok) redirect(`/w/${workspaceSlug}`);
+  return result;
 }

@@ -6,7 +6,14 @@ import { ChevronRight, Lock } from "lucide-react";
 import type { ItemAppearance } from "@/lib/appearance";
 import { cn } from "@/lib/utils";
 import { AppearancePicker } from "./appearance-picker";
-import { FolderMenu, InlineNameForm, ListMenu, ProjectAddMenu, type TreeEdit } from "./sidebar-tree-menus";
+import {
+  FolderMenu,
+  InlineNameForm,
+  ListMenu,
+  ProjectAddMenu,
+  ProjectContextMenu,
+  type TreeEdit,
+} from "./sidebar-tree-menus";
 
 export function NavLink({
   href,
@@ -129,7 +136,16 @@ function ListNavLink({
 }
 
 /** Projects with their folders and lists, expandable like a file tree. */
-export function ProjectTree({ base, projects }: { base: string; projects: SidebarProject[] }) {
+export function ProjectTree({
+  base,
+  projects,
+  canDeleteProjects = false,
+}: {
+  base: string;
+  projects: SidebarProject[];
+  /** Owners and admins: "Delete project" in the right-click menu. */
+  canDeleteProjects?: boolean;
+}) {
   const pathname = usePathname();
   const slug = base.replace(/^\/w\//, "");
   // Explicit open/closed choices; anything not chosen yet follows the defaults below.
@@ -197,38 +213,52 @@ export function ProjectTree({ base, projects }: { base: string; projects: Sideba
           edit?.kind === "new-list" && edit.projectId === p.id && edit.folderId === folderId;
         return (
           <li key={p.id}>
-            <div className="group flex items-center gap-0.5">
-              <ToggleButton open={projectOpen} label={p.name} onClick={() => toggle(p.id, projectOpen)} />
-              <AppearancePicker
-                workspaceSlug={slug}
-                kind="project"
-                id={p.id}
-                name={p.name}
-                appearance={p}
-                canEdit={p.canEditProject}
-              />
-              <div className="min-w-0 flex-1">
-                <ProjectNavLink
-                  href={`${base}/p/${p.key}`}
+            <ProjectContextMenu
+              workspaceSlug={slug}
+              project={{ id: p.id, key: p.key, name: p.name }}
+              href={`${base}/p/${p.key}`}
+              canManageLists={p.canManageLists}
+              canDelete={canDeleteProjects}
+              onPick={(kind) => {
+                open(p.id);
+                setEdit(
+                  kind === "new-list" ? { kind, projectId: p.id, folderId: null } : { kind, projectId: p.id },
+                );
+              }}
+            >
+              <div className="group flex items-center gap-0.5">
+                <ToggleButton open={projectOpen} label={p.name} onClick={() => toggle(p.id, projectOpen)} />
+                <AppearancePicker
+                  workspaceSlug={slug}
+                  kind="project"
+                  id={p.id}
                   name={p.name}
-                  projectKey={p.key}
-                  isPrivate={p.visibility === "private"}
+                  appearance={p}
+                  canEdit={p.canEditProject}
                 />
+                <div className="min-w-0 flex-1">
+                  <ProjectNavLink
+                    href={`${base}/p/${p.key}`}
+                    name={p.name}
+                    projectKey={p.key}
+                    isPrivate={p.visibility === "private"}
+                  />
+                </div>
+                {p.canManageLists ? (
+                  <ProjectAddMenu
+                    projectName={p.name}
+                    onPick={(kind) => {
+                      open(p.id);
+                      setEdit(
+                        kind === "new-list"
+                          ? { kind, projectId: p.id, folderId: null }
+                          : { kind, projectId: p.id },
+                      );
+                    }}
+                  />
+                ) : null}
               </div>
-              {p.canManageLists ? (
-                <ProjectAddMenu
-                  projectName={p.name}
-                  onPick={(kind) => {
-                    open(p.id);
-                    setEdit(
-                      kind === "new-list"
-                        ? { kind, projectId: p.id, folderId: null }
-                        : { kind, projectId: p.id },
-                    );
-                  }}
-                />
-              ) : null}
-            </div>
+            </ProjectContextMenu>
             {projectOpen ? (
               <ul className="mt-0.5 grid gap-0.5 pl-3">
                 {edit?.kind === "new-folder" && edit.projectId === p.id ? (

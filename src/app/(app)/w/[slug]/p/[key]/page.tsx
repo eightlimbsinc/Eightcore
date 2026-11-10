@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { ArchiveProjectButton, ProjectDetailsForm, ProjectMembers } from "@/components/app/project-settings";
 import { ProjectLists } from "@/components/lists/project-lists";
+import { DeleteProjectButton } from "@/components/app/delete-project";
 
 export async function generateMetadata({ params }: { params: Promise<{ key: string }> }): Promise<Metadata> {
   return { title: (await params).key.toUpperCase() };
@@ -95,6 +96,22 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
               </CardHeader>
               <CardContent>
                 <ArchiveProjectButton workspaceSlug={slug} projectId={project.id} />
+              </CardContent>
+            </Card>
+          ) : null}
+          {project.can.delete ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Delete</CardTitle>
+                <CardDescription>
+                  Permanently removes the project and everything in it. Workspace owners and admins only.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <DeleteProjectButton
+                  workspaceSlug={slug}
+                  project={{ id: project.id, key: project.key, name: project.name }}
+                />
               </CardContent>
             </Card>
           ) : null}

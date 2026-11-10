@@ -31,6 +31,7 @@ const workspaceExpectations: Record<WorkspaceAction, Row<WorkspaceRole>> = {
   "member.deactivate": { owner: Y, admin: Y, member: N, guest: N },
   "project.create": { owner: Y, admin: Y, member: Y, guest: N },
   "project.view_all": { owner: Y, admin: Y, member: N, guest: N },
+  "project.delete": { owner: Y, admin: Y, member: N, guest: N },
   "audit_log.view": { owner: Y, admin: Y, member: N, guest: N },
   "integration.manage": { owner: Y, admin: Y, member: N, guest: N },
 };

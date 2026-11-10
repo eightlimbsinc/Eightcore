@@ -21,6 +21,8 @@ export const WORKSPACE_ACTIONS = {
   "member.deactivate": ["owner", "admin"],
   "project.create": ["owner", "admin", "member"],
   "project.view_all": ["owner", "admin"],
+  /** Permanently delete a project with everything in it. */
+  "project.delete": ["owner", "admin"],
   "audit_log.view": ["owner", "admin"],
   /** Outgoing and incoming webhooks (Make and other integrations). */
   "integration.manage": ["owner", "admin"],

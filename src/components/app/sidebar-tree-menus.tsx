@@ -1,7 +1,9 @@
 "use client";
 import { useActionState, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { FolderPlus, ListPlus, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
+import { FolderOpen, FolderPlus, ListPlus, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
+import { ContextMenu } from "radix-ui";
+import { DeleteProjectDialog } from "./delete-project";
 import type { ActionState } from "@/lib/action-state";
 import {
   createFolderAction,
@@ -228,4 +230,74 @@ function actionFor(
     case "rename-list":
       return renameListAction.bind(null, slug, edit.listId);
   }
+}
+
+const ctxContent =
+  "bg-surface text-foreground z-50 min-w-48 overflow-hidden rounded-md border p-1 text-sm shadow-lg shadow-black/5";
+const ctxItem =
+  "data-[highlighted]:bg-surface-muted [&_svg]:text-muted-foreground flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 outline-none select-none [&_svg]:size-4";
+
+/** Right-click on a project in the sidebar: open it, add a list or folder, delete it. */
+export function ProjectContextMenu({
+  workspaceSlug,
+  project,
+  href,
+  canManageLists,
+  canDelete,
+  onPick,
+  children,
+}: {
+  workspaceSlug: string;
+  project: { id: string; key: string; name: string };
+  href: string;
+  canManageLists: boolean;
+  canDelete: boolean;
+  onPick: (kind: "new-list" | "new-folder") => void;
+  children: React.ReactNode;
+}) {
+  const router = useRouter();
+  const [deleting, setDeleting] = useState(false);
+  return (
+    <>
+      <ContextMenu.Root>
+        <ContextMenu.Trigger asChild>{children}</ContextMenu.Trigger>
+        <ContextMenu.Portal>
+          <ContextMenu.Content className={ctxContent} aria-label={`Actions for ${project.name}`}>
+            <ContextMenu.Item className={ctxItem} onSelect={() => router.push(href)}>
+              <FolderOpen /> Open project
+            </ContextMenu.Item>
+            {canManageLists ? (
+              <>
+                <ContextMenu.Item className={ctxItem} onSelect={() => onPick("new-list")}>
+                  <ListPlus /> New list
+                </ContextMenu.Item>
+                <ContextMenu.Item className={ctxItem} onSelect={() => onPick("new-folder")}>
+                  <FolderPlus /> New folder
+                </ContextMenu.Item>
+              </>
+            ) : null}
+            {canDelete ? (
+              <>
+                <ContextMenu.Separator className="bg-border -mx-1 my-1 h-px" />
+                <ContextMenu.Item
+                  className={cn(ctxItem, "text-destructive [&_svg]:text-destructive")}
+                  onSelect={() => setDeleting(true)}
+                >
+                  <Trash2 /> Delete project…
+                </ContextMenu.Item>
+              </>
+            ) : null}
+          </ContextMenu.Content>
+        </ContextMenu.Portal>
+      </ContextMenu.Root>
+      {canDelete ? (
+        <DeleteProjectDialog
+          workspaceSlug={workspaceSlug}
+          project={project}
+          open={deleting}
+          onOpenChange={setDeleting}
+        />
+      ) : null}
+    </>
+  );
 }

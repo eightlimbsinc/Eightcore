@@ -1,6 +1,7 @@
 import "server-only";
 import { and, asc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { db, type DbOrTx } from "@/server/db";
+import { discardStored } from "@/server/storage";
 import { projectMembers, projects, taskLists, users, workspaceMembers } from "@/server/db/schema";
 import {
   assertWorkspace,
@@ -139,6 +140,7 @@ export async function getProjectByKey(actor: ActorContext, key: string) {
       manageMembers: canProject(role, "project.manage_members"),
       manageFields: canProject(role, "custom_field.manage"),
       manageAutomations: canProject(role, "automation.manage"),
+      delete: canWorkspace(actor.workspaceRole, "project.delete"),
     },
   };
 }
@@ -286,4 +288,52 @@ export async function setProjectMember(
       metadata: { projectId, userId: input.userId, role: input.role, listIds: input.listIds },
     });
   });
+}
+
+/**
+ * Permanently deletes a project with its folders, lists, tasks, comments, files, docs, fields,
+ * tags and automations. Owners and admins only; `confirmKey` must be the project's key.
+ * Import records for it are cleared too, so the project can be imported again.
+ */
+export async function deleteProject(actor: ActorContext, projectId: string, confirmKey: string) {
+  assertWorkspace(actor, "project.delete");
+  const keys = await db().transaction(async (tx) => {
+    const { project } = await loadProjectAccess(tx, actor, { id: projectId });
+    if (confirmKey.trim().toUpperCase() !== project.key) {
+      throw new ValidationError(`Type ${project.key} to confirm`, { confirm: "That isn't the project key" });
+    }
+    const files = await tx.execute<{ storage_key: string }>(sql`
+      select a.storage_key from attachments a join tasks t on t.id = a.task_id where t.project_id = ${projectId}::uuid`);
+    const counts = await tx.execute<{ tasks: number; lists: number }>(sql`
+      select (select count(*)::int from tasks where project_id = ${projectId}::uuid) as tasks,
+             (select count(*)::int from task_lists where project_id = ${projectId}::uuid) as lists`);
+    await tx.execute(sql`
+      delete from import_mappings where workspace_id = ${actor.workspaceId}::uuid and entity_id in (
+        select ${projectId}::uuid
+        union all select id from folders where project_id = ${projectId}::uuid
+        union all select id from task_lists where project_id = ${projectId}::uuid
+        union all select s.id from list_statuses s join task_lists l on l.id = s.list_id where l.project_id = ${projectId}::uuid
+        union all select id from custom_fields where project_id = ${projectId}::uuid
+        union all select o.id from custom_field_options o join custom_fields f on f.id = o.field_id where f.project_id = ${projectId}::uuid
+        union all select id from tasks where project_id = ${projectId}::uuid
+        union all select c.id from comments c join tasks t on t.id = c.task_id where t.project_id = ${projectId}::uuid)`);
+    await tx
+      .delete(projects)
+      .where(and(eq(projects.id, projectId), eq(projects.workspaceId, actor.workspaceId)));
+    const summary = { key: project.key, name: project.name, ...counts.rows[0] };
+    await recordActivity(tx, actor, {
+      entityType: "project",
+      entityId: projectId,
+      action: "deleted",
+      metadata: summary,
+    });
+    await recordAudit(tx, {
+      event: "project.deleted",
+      workspaceId: actor.workspaceId,
+      actorId: actor.userId,
+      metadata: { projectId, ...summary },
+    });
+    return files.rows.map((r) => ({ storageKey: r.storage_key }));
+  });
+  await discardStored(keys);
 }

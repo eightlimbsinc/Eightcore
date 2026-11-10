@@ -439,4 +439,20 @@ test("an owner organises work into lists and tasks", async ({ page }) => {
   await page.getByRole("option", { name: /Launch brief/ }).click();
   await expect(page.getByLabel("Doc title")).toHaveValue("Launch brief");
   await expect(page.getByRole("region", { name: "Sub-pages" })).toContainText("Copy deck");
+
+  // Right-click a project in the sidebar to delete it (typing its key confirms).
+  await page.getByRole("link", { name: "New project" }).first().click();
+  await page.getByLabel("Project name").fill("Scratch");
+  await page.getByLabel("Key").fill("SCR");
+  await page.getByRole("button", { name: "Create project" }).click();
+  await expect(page.getByRole("heading", { name: "Scratch" })).toBeVisible();
+  const projectsNav = page.getByRole("navigation", { name: "Projects" });
+  await projectsNav.getByRole("link", { name: /Scratch/ }).click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Delete project…" }).click();
+  const confirm = page.getByRole("dialog", { name: "Delete “Scratch”?" });
+  await expect(confirm.getByRole("button", { name: "Delete project" })).toBeDisabled();
+  await confirm.getByLabel("Project key to confirm").fill("scr");
+  await confirm.getByRole("button", { name: "Delete project" }).click();
+  await expect(projectsNav.getByRole("link", { name: /Scratch/ })).toHaveCount(0);
+  await expect(projectsNav.getByRole("link", { name: /Website/ })).toBeVisible();
 });

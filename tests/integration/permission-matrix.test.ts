@@ -25,6 +25,7 @@ import {
 } from "@/modules/workspaces/service";
 import {
   createProject,
+  deleteProject,
   getProjectByKey,
   listVisibleProjects,
   setProjectArchived,
@@ -92,6 +93,10 @@ const workspaceProbes: Partial<
     if (!visible.some((p) => p.id === f.privateProject.id)) throw new ForbiddenError();
   },
   "integration.manage": (actor) => createInboundHook(actor, "Make scenario"),
+  "project.delete": async (actor, f) => {
+    const doomed = await createProject(f.actors.owner, { name: "Doomed", key: "DOOM" });
+    await deleteProject(actor, doomed.id, "DOOM");
+  },
 };
 
 /** Matrix actions with no service yet. Each needs a probe once its feature ships. */
