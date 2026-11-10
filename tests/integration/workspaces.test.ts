@@ -125,6 +125,20 @@ describe("invitations", () => {
     await expect(acceptInvitation(invitee, token)).rejects.toBeInstanceOf(NotFoundError);
   });
 
+  it("an expired invitation doesn't block inviting the same email again", async () => {
+    const { actors } = await createWorkspaceWithRoles();
+    const { token: old } = await inviteMember(actors.owner, { email: "late@example.test", role: "member" });
+    await expect(inviteMember(actors.owner, { email: "LATE@example.test", role: "member" })).rejects.toThrow(
+      /already a pending invitation/,
+    );
+    await adminPool().query(
+      "update workspace_invitations set expires_at = now() - interval '1 day' where email = 'late@example.test'",
+    );
+    const { token } = await inviteMember(actors.owner, { email: "late@example.test", role: "guest" });
+    expect(await previewInvitation(token)).toMatchObject({ status: "valid", role: "guest" });
+    expect(await previewInvitation(old)).toEqual({ status: "invalid" });
+  });
+
   it("stores only a hash of the token", async () => {
     const { actors } = await createWorkspaceWithRoles();
     const { token } = await inviteMember(actors.owner, { email: "x@example.test", role: "guest" });

@@ -1,6 +1,6 @@
 import "server-only";
 import { createHash, randomBytes } from "node:crypto";
-import { and, asc, eq, gt, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, gt, isNull, lte, sql } from "drizzle-orm";
 import { db, type DbOrTx } from "@/server/db";
 import {
   projectMembers,
@@ -220,6 +220,20 @@ export async function inviteMember(actor: ActorContext, raw: InviteMemberInput) 
           ),
         );
       if (existing?.status === "active") throw new ConflictError("That person is already a member");
+
+      // An expired invitation (no longer listed as pending) gives way to the new one.
+      await tx
+        .update(workspaceInvitations)
+        .set({ revokedAt: new Date() })
+        .where(
+          and(
+            eq(workspaceInvitations.workspaceId, actor.workspaceId),
+            eq(sql`lower(${workspaceInvitations.email})`, input.email),
+            isNull(workspaceInvitations.acceptedAt),
+            isNull(workspaceInvitations.revokedAt),
+            lte(workspaceInvitations.expiresAt, new Date()),
+          ),
+        );
 
       const [invitation] = await tx
         .insert(workspaceInvitations)
