@@ -319,6 +319,7 @@ export async function getList(actor: ActorContext, listId: string) {
       saveView: canSaveView(role, list.viewProtected),
       protectView: canProject(role, "view.protect"),
       manageAutomations: canProject(role, "automation.manage"),
+      manageForms: canProject(role, "form.manage"),
     },
   };
 }

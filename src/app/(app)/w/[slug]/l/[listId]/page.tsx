@@ -53,6 +53,7 @@ export default async function ListPage({
     groups,
     shown,
     closedCount,
+    forms,
   } = await getListView(slug, listId, query);
   // Big lists: each group shows its first GROUP_PAGE tasks ("Show all" adds ?all=<status>),
   // and groups that start collapsed send no rows until opened (?open=<status>).
@@ -185,6 +186,7 @@ export default async function ListPage({
         slug={slug}
         layout="list"
         list={list}
+        forms={forms}
         project={project}
         folder={folder}
         counts={{ shown: topLevel.length, total: allTopLevel.length }}

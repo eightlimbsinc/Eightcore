@@ -24,6 +24,7 @@ export default async function BoardPage({
         slug={slug}
         layout="board"
         list={list}
+        forms={data.forms}
         project={project}
         folder={data.folder}
         counts={{ shown: topLevel.length, total: allTopLevel.length }}

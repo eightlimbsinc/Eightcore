@@ -75,6 +75,8 @@ export const PROJECT_ACTIONS = {
   "doc.edit": ["manager", "editor"],
   /** Delete anyone's doc. */
   "doc.delete": ["manager"],
+  /** Create and edit a list's forms (public links that create tasks). */
+  "form.manage": ["manager", "editor"],
 } as const satisfies Record<string, readonly ProjectRole[]>;
 export type ProjectAction = keyof typeof PROJECT_ACTIONS;
 

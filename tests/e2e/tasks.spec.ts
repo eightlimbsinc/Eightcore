@@ -466,4 +466,29 @@ test("an owner organises work into lists and tasks", async ({ page }) => {
   await expect(share.getByRole("form", { name: "Invite a guest by email" })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(share).toBeHidden();
+
+  // Forms: "+ View → Form" on the list, share the link, a client's response becomes a ticket.
+  await projectsNav.getByRole("link", { name: "Build" }).click();
+  await page.getByRole("navigation", { name: "Layout" }).getByRole("button", { name: "View" }).click();
+  await page.getByRole("menuitem", { name: /Form/ }).click();
+  await expect(page.getByRole("heading", { name: "Build request form" })).toBeVisible();
+  await page.getByLabel("Add a question").selectOption({ label: "Priority" });
+  await page.getByLabel("Thank-you message").fill("Got it, thanks!");
+  await page.getByRole("button", { name: "Save form" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Saved" })).toBeVisible();
+  const formUrl = await page.getByLabel("Form link").inputValue();
+
+  const visitor = await page.context().browser()!.newContext(); // signed out, like a client
+  const client = await visitor.newPage();
+  await client.goto(formUrl);
+  await expect(client.getByRole("heading", { name: "Build request form" })).toBeVisible();
+  await client.getByLabel("Request title").fill("Footer link is broken");
+  await client.getByLabel("Details").fill("The privacy link 404s");
+  await client.getByLabel("Priority").selectOption("high");
+  await client.getByRole("button", { name: "Submit" }).click();
+  await expect(client.getByRole("status")).toContainText("Got it, thanks!");
+  await visitor.close();
+
+  await page.getByRole("navigation", { name: "Layout" }).getByRole("link", { name: "List" }).click();
+  await expect(page.getByRole("link", { name: "Footer link is broken" })).toBeVisible();
 });

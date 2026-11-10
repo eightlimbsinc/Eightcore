@@ -63,6 +63,7 @@ const projectExpectations: Record<ProjectAction, Row<ProjectRole>> = {
   "automation.manage": { manager: Y, editor: N, commenter: N, viewer: N },
   "doc.edit": { manager: Y, editor: Y, commenter: N, viewer: N },
   "doc.delete": { manager: Y, editor: N, commenter: N, viewer: N },
+  "form.manage": { manager: Y, editor: Y, commenter: N, viewer: N },
 };
 
 describe("workspace permission matrix", () => {

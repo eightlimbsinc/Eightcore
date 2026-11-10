@@ -63,6 +63,7 @@ export default async function CalendarPage({
         slug={slug}
         layout="calendar"
         list={list}
+        forms={data.forms}
         project={project}
         folder={data.folder}
         counts={{ shown: topLevel.length, total: allTopLevel.length }}

@@ -43,6 +43,7 @@ import { addTimeEntry, deleteTimeEntry } from "@/modules/time/service";
 import { startQaCycle } from "@/modules/qa/service";
 import { saveAutomation } from "@/modules/automations/service";
 import { createDoc, deleteDoc } from "@/modules/docs/service";
+import { createForm } from "@/modules/forms/service";
 import { createInboundHook } from "@/modules/webhooks/service";
 import { actorFor, createUser, createWorkspaceWithRoles } from "../support/factories";
 
@@ -176,6 +177,7 @@ const projectProbes: Record<ProjectAction, (actor: ActorContext, f: Fixture) => 
       actions: [{ type: "add_comment", body: "Thanks!" }],
     }),
   "doc.edit": (actor, f) => createDoc(actor, f.privateProject.id, { title: "Brief" }),
+  "form.manage": (actor, f) => createForm(actor, f.list.id),
   // Someone else's doc: only doc.delete may remove it.
   "doc.delete": async (actor, f) => {
     const doc = await createDoc(f.actors.owner, f.privateProject.id, { title: "Owner's doc" });

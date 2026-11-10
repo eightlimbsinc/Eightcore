@@ -18,3 +18,4 @@ export * from "@/modules/webhooks/schema";
 export * from "@/modules/docs/schema";
 export * from "@/modules/imports/schema";
 export * from "@/modules/links/schema";
+export * from "@/modules/forms/schema";

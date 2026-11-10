@@ -15,6 +15,7 @@ import { listTransitions } from "./transitions";
 import { listStatusTemplates } from "./status-templates";
 import { db } from "@/server/db";
 import { getList, getProjectTree } from "./service";
+import { listFormsFor } from "@/modules/forms/service";
 
 export async function getListPage(slug: string, listId: string) {
   const { user, actor } = await getWorkspaceContext(slug);
@@ -23,18 +24,20 @@ export async function getListPage(slug: string, listId: string) {
     if (detail.list.archivedAt) notFound();
     // listTasks has checked access to this list, so its task ids are safe to look up.
     const ids = tasks.map((t) => t.id);
-    const [tags, blockers, fields, people, time] = await Promise.all([
+    const [tags, blockers, fields, people, time, forms] = await Promise.all([
       tagsForTasks(db(), ids),
       openBlockerCounts(db(), actor, ids),
       fieldValuesForTasks(db(), ids),
       listAssignableMembers(actor, detail.list.projectId, listId),
       timeTotalsForTasks(db(), ids),
+      listFormsFor(actor, listId),
     ]);
     return {
       user,
       actor,
       ...detail,
       people,
+      forms: forms.map(({ id, name }) => ({ id, name })),
       tasks: tasks.map((t) => ({
         ...t,
         tags: tags.get(t.id) ?? [],

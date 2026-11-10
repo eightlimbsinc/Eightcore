@@ -9,6 +9,7 @@ import { FilterBar } from "@/components/tasks/filter-bar";
 import { AddTaskButton } from "@/components/tasks/add-task-button";
 import type { StatusOption } from "@/components/tasks/status-menu";
 import { ViewMenu } from "@/components/lists/view-menu";
+import { ListViewTabs } from "@/components/lists/list-view-tabs";
 import { ShareListButton } from "@/components/lists/share-list";
 import { cn } from "@/lib/utils";
 
@@ -30,6 +31,7 @@ export function ListHeader({
   closedCount = 0,
   people,
   tagNames,
+  forms = [],
 }: {
   slug: string;
   layout: "list" | "board" | "calendar";
@@ -49,7 +51,10 @@ export function ListHeader({
     protectView: boolean;
     createTask: boolean;
     manageAutomations?: boolean;
+    manageForms?: boolean;
   };
+  /** The list's forms (shown as view tabs). */
+  forms?: { id: string; name: string }[];
   /** For "Add task". */
   statuses: StatusOption[];
   /** Tasks in "closed" statuses (shown on the Closed toggle). */
@@ -135,23 +140,14 @@ export function ListHeader({
         }
       />
       <div className="grid gap-4 px-8 pt-4">
-        <nav aria-label="Layout" className="flex gap-1 border-b">
-          {tabs.map(({ key, label, icon: Icon, href }) => (
-            <Link
-              key={key}
-              href={href}
-              aria-current={layout === key ? "page" : undefined}
-              className={cn(
-                "-mb-px inline-flex items-center gap-1.5 border-b-2 px-3 py-2 text-[13px]",
-                layout === key
-                  ? "border-accent text-foreground font-medium"
-                  : "text-muted-foreground hover:text-foreground border-transparent",
-              )}
-            >
-              <Icon className="size-4" aria-hidden /> {label}
-            </Link>
-          ))}
-        </nav>
+        <ListViewTabs
+          workspaceSlug={slug}
+          listId={list.id}
+          layouts={tabs.map(({ key, label, href }) => ({ key, label, href }))}
+          forms={forms}
+          active={layout}
+          canManageForms={Boolean(can.manageForms)}
+        />
         <div className="flex flex-wrap items-start gap-2">
           <div className="min-w-0 flex-1">
             <FilterBar

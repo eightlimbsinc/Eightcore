@@ -133,6 +133,16 @@ export async function can(ctx: ActorContext, action: Action, resource?: Resource
 - **Incoming webhooks** (Make → `POST /api/hooks/<token>`) act as the person who created the address (`actorKind = "integration"`), with that person's current rights, and can only create or update tasks and add comments. Only a SHA-256 hash of the token is stored; the address is shown once. Deleting the address, or deactivating its creator, switches it off.
 - **Import jobs** run as `actorKind = "import"` and can only write into the workspace that owns the job.
 
+### Forms (public links)
+
+- `form.manage` (managers, editors) creates and edits a list's forms. Each form has a secret link
+  (`/f/<token>`); anyone with it can submit, without an account. "New link" retires the old one.
+- A response can only create a task in the form's list, as the form's creator (re-checked: if they
+  lost access, the form stops taking responses). Answers are validated like the app's own fields;
+  files are limited to 5 and 4 MB in total.
+- Spam: a hidden trap field, at most 10 responses per sender per 10 minutes and 300 per form per
+  hour. Only a salted hash of the sender's address is kept.
+
 ## 5. Protected file access
 
 - Files are served only by `GET /w/[slug]/files/[attachmentId]`. That route resolves the actor from the session and the workspace slug, loads the attachment by ID **and** `workspace_id`, then requires the parent task to be visible (`attachment.download` = `project.view`). Anything else is a 404.
