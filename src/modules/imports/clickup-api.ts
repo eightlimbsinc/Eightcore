@@ -124,6 +124,8 @@ export function fieldKind(type: string): { kind: FieldKind; lossy?: string } | n
       return { kind: "person", lossy: "only the first person is kept" };
     case "labels":
       return { kind: "text", lossy: "labels become comma-separated text" };
+    case "attachment":
+      return null;
     case "formula":
     case "rollup":
     case "progress":
@@ -238,14 +240,26 @@ export function descriptionOf(task: CuTask): string {
 
 /** Attachments as one comment of links (files stay in ClickUp). */
 export function attachmentsComment(task: CuTask): string | null {
-  const files = (task.attachments ?? []).filter((a) => a.url);
-  if (!files.length) return null;
-  const lines = files.map((a) => {
+  type File = { title?: string | null; url?: string | null; size?: number | string | null };
+  const line = (a: File) => {
     const size = Number(a.size);
     const kb = Number.isFinite(size) && size > 0 ? ` (${Math.max(1, Math.round(size / 1024))} KB)` : "";
     return `- ${a.title || "file"}${kb}: ${a.url}`;
-  });
-  return `Attachments from ClickUp:\n${lines.join("\n")}`.slice(0, 10_000);
+  };
+  const seen = new Set<string>();
+  const fresh = (files: File[]) => files.filter((a) => a.url && !seen.has(a.url) && seen.add(a.url));
+  const direct = fresh(task.attachments ?? []);
+  // Files in "attachment" custom fields (e.g. "Video/Screenshot"), under the field's name.
+  const fromFields = (task.custom_fields ?? [])
+    .filter((f) => f.type === "attachment" && Array.isArray(f.value))
+    .map((f) => ({ name: f.name, files: fresh(f.value as File[]) }))
+    .filter((g) => g.files.length);
+  if (!direct.length && !fromFields.length) return null;
+  const parts = [
+    ...(direct.length ? [direct.map(line).join("\n")] : []),
+    ...fromFields.map((g) => `${g.name}:\n${g.files.map(line).join("\n")}`),
+  ];
+  return `Attachments from ClickUp:\n${parts.join("\n\n")}`.slice(0, 10_000);
 }
 
 /** A comment by someone with no Eightcore account (or imported as the importer). */

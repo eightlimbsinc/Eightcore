@@ -104,5 +104,24 @@ describe("ClickUp conversion", () => {
         attachments: [{ title: "brief.pdf", url: "https://x/y", size: 2048 }],
       }),
     ).toBe("Attachments from ClickUp:\n- brief.pdf (2 KB): https://x/y");
+    expect(
+      attachmentsComment({
+        id: "a",
+        name: "x",
+        status: { status: "o", type: "open" },
+        attachments: [{ title: "shot.png", url: "https://x/1" }],
+        custom_fields: [
+          {
+            id: "f",
+            name: "Video/Screenshot",
+            type: "attachment",
+            value: [
+              { title: "shot.png", url: "https://x/1" },
+              { title: "bug.mp4", url: "https://x/2" },
+            ],
+          },
+        ],
+      }),
+    ).toBe("Attachments from ClickUp:\n- shot.png: https://x/1\n\nVideo/Screenshot:\n- bug.mp4: https://x/2");
   });
 });

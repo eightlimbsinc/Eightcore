@@ -257,7 +257,11 @@ export async function runClickUpImport(options: ImportOptions): Promise<ImportRe
       });
       for (const f of new Map(lists.flatMap((l) => l.fields).map((f) => [f.id, f])).values()) {
         const kind = fieldKind(f.type);
-        if (!kind) report.skippedFields.push(`${space.name} › ${f.name} (${f.type})`);
+        if (f.type === "attachment")
+          report.lossyFields.push(
+            `${space.name} › ${f.name}: files become links in the task's attachments comment`,
+          );
+        else if (!kind) report.skippedFields.push(`${space.name} › ${f.name} (${f.type})`);
         else if (kind.lossy) report.lossyFields.push(`${space.name} › ${f.name}: ${kind.lossy}`);
       }
     }
