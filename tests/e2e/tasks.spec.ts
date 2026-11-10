@@ -9,6 +9,7 @@ test.describe.configure({ mode: "serial" });
 test.use({ extraHTTPHeaders: { "x-e2e-client-ip": "203.0.113.2" } });
 
 test("an owner organises work into lists and tasks", async ({ page }) => {
+  test.setTimeout(120_000); // one long journey through most of the app
   // Sign up, verify, create a workspace and a project.
   await page.goto("/sign-up");
   await page.getByLabel("Full name").fill(owner.name);
@@ -457,6 +458,7 @@ test("an owner organises work into lists and tasks", async ({ page }) => {
   await expect(projectsNav.getByRole("link", { name: /Website/ })).toBeVisible();
 
   // Right-click a list in the sidebar: Share & permissions.
+  await projectsNav.getByRole("button", { name: "Expand Website" }).click();
   await projectsNav.getByRole("link", { name: "Build" }).click({ button: "right" });
   await page.getByRole("menuitem", { name: "Share & permissions…" }).click();
   const share = page.getByRole("dialog", { name: "Share “Build”" });
