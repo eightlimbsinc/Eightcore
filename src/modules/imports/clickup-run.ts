@@ -441,9 +441,14 @@ export async function runClickUpImport(options: ImportOptions): Promise<ImportRe
         if (t.parent && !parentId)
           warn(`${t.name}: its parent task wasn't imported, so it's a top-level task`);
         const assigneeIds = [...new Set((t.assignees ?? []).map(person).filter((x): x is string => !!x))];
+        // Assignees with no Eightcore account: named in the description and tagged "ClickUp: Name",
+        // so their tasks can be found and reassigned once they join.
+        const missing = (t.assignees ?? [])
+          .filter((u) => !people.get(Number(u.id)))
+          .map((u) => (u.username || u.email || "someone").trim());
         const created = await createTask(actor, listId, {
           title: t.name.trim().slice(0, 500) || "Untitled",
-          description: descriptionOf(t),
+          description: descriptionOf(t, missing),
           statusId: statusOf(t.status),
           priority: priorityOf(t),
           startDate: start && due && start > due ? undefined : (start ?? undefined),
@@ -469,7 +474,10 @@ export async function runClickUpImport(options: ImportOptions): Promise<ImportRe
           .where(eq(tasks.id, created.id));
 
         const tags: string[] = [];
-        for (const tag of t.tags ?? []) {
+        for (const tag of [
+          ...(t.tags ?? []),
+          ...missing.map((n) => ({ name: `ClickUp: ${n}`, tag_bg: "#9CA3AF" })),
+        ]) {
           const name = tag.name.trim().slice(0, 40);
           if (!name) continue;
           let id = tagIds.get(name.toLowerCase());

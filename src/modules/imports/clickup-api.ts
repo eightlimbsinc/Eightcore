@@ -218,7 +218,8 @@ export function projectKeyFor(name: string, taken: Set<string>): string {
 const MAX_DESCRIPTION = 20_000;
 
 /** The task description: ClickUp's markdown (or plain text), its checklists, and where it came from. */
-export function descriptionOf(task: CuTask): string {
+/** `missingAssignees`: ClickUp assignees with no Eightcore account (named so they can be reassigned). */
+export function descriptionOf(task: CuTask, missingAssignees: string[] = []): string {
   const body = (task.markdown_description || task.text_content || task.description || "").trim();
   const checklists = (task.checklists ?? [])
     .map((c) =>
@@ -228,7 +229,11 @@ export function descriptionOf(task: CuTask): string {
       ].join("\n"),
     )
     .join("\n\n");
-  const source = `Imported from ClickUp${task.custom_id ? ` (${task.custom_id})` : ""}: ${task.url ?? `task ${task.id}`}`;
+  const source =
+    `Imported from ClickUp${task.custom_id ? ` (${task.custom_id})` : ""}: ${task.url ?? `task ${task.id}`}` +
+    (missingAssignees.length
+      ? `\nAssigned in ClickUp to: ${missingAssignees.join(", ")} (not in Eightcore at import)`
+      : "");
   const parts = [body, checklists, `---\n${source}`].filter(Boolean);
   let text = parts.join("\n\n");
   if (text.length > MAX_DESCRIPTION) {

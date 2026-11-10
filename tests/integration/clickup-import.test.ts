@@ -216,7 +216,13 @@ describe("ClickUp import", () => {
     const page = await getTaskByRef(actors.owner, ref);
     expect(page.assignees.map((a) => a.userId)).toEqual([users.member.id]); // the freelancer has no account
     expect(page.watchers.map((w) => w.userId)).toEqual([users.member.id]); // the importer doesn't follow it
-    expect((await tagsForTasks(db(), [home.id])).get(home.id)?.map((t) => t.name)).toEqual(["Client"]);
+    expect((await tagsForTasks(db(), [home.id])).get(home.id)?.map((t) => t.name)).toEqual([
+      "ClickUp: Former Freelancer",
+      "Client",
+    ]);
+    expect(home.description).toContain(
+      "Assigned in ClickUp to: Former Freelancer (not in Eightcore at import)",
+    );
     const fields = (await getTaskFields(actors.owner, home.id)).fields;
     expect(fields.map((f) => [f.name, f.display?.text])).toEqual([
       ["Stage", "Build"],
