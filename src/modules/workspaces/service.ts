@@ -4,13 +4,14 @@ import { and, asc, eq, gt, isNull, lte, sql } from "drizzle-orm";
 import { db, type DbOrTx } from "@/server/db";
 import {
   projectMembers,
+  taskLists,
   users,
   workspaceInvitations,
   workspaceMembers,
   workspaces,
 } from "@/server/db/schema";
 import { assertWorkspace, type ActorContext } from "@/server/authz/policy";
-import type { WorkspaceRole } from "@/server/authz/matrix";
+import { GUEST_MAX_PROJECT_ROLE, projectRoleAtMost, type WorkspaceRole } from "@/server/authz/matrix";
 import { ConflictError, NotFoundError, ValidationError, assertId, pgErrorInfo } from "@/server/errors";
 import { enqueueOutbox, recordActivity, recordAudit } from "@/modules/activity/service";
 import {
@@ -399,6 +400,14 @@ export async function acceptInvitation(
       .update(workspaceInvitations)
       .set({ acceptedAt: new Date(), acceptedBy: user.id })
       .where(eq(workspaceInvitations.id, invitation.id));
+    // Access the invitation carries (e.g. a guest invited from a list's Share dialog).
+    await applyInvitationGrants(tx, {
+      workspaceId: invitation.workspaceId,
+      userId: user.id,
+      workspaceRole: invitation.role,
+      invitedBy: invitation.invitedBy,
+      grants: invitation.grants,
+    });
 
     const [workspace] = await tx
       .select({ slug: workspaces.slug })
@@ -436,5 +445,48 @@ export async function acceptInvitation(
 export class ForbiddenInvitationEmail extends ValidationError {
   constructor(readonly invitedEmail: string) {
     super("This invitation was sent to a different email address. Sign in with that address to accept it.");
+  }
+}
+
+/** On accepting an invitation: the project and list access it carries (guests limited to those lists). */
+export async function applyInvitationGrants(
+  tx: DbOrTx,
+  input: {
+    workspaceId: string;
+    userId: string;
+    workspaceRole: string;
+    invitedBy: string;
+    grants: { projectId: string; listIds: string[]; role: "editor" | "commenter" | "viewer" }[];
+  },
+) {
+  for (const g of input.grants) {
+    const lists = (
+      await tx.select({ id: taskLists.id }).from(taskLists).where(eq(taskLists.projectId, g.projectId))
+    ).map((l) => l.id);
+    if (!lists.length) continue; // the project (or its lists) went away meanwhile
+    const wanted = g.listIds.filter((id) => lists.includes(id));
+    if (!wanted.length) continue;
+    const guest = input.workspaceRole === "guest";
+    const role = guest ? projectRoleAtMost(g.role, GUEST_MAX_PROJECT_ROLE) : g.role;
+    const [current] = await tx
+      .select({ listIds: projectMembers.listIds })
+      .from(projectMembers)
+      .where(and(eq(projectMembers.projectId, g.projectId), eq(projectMembers.userId, input.userId)));
+    const listIds =
+      !guest || current?.listIds === null ? null : [...new Set([...(current?.listIds ?? []), ...wanted])];
+    await tx
+      .insert(projectMembers)
+      .values({
+        workspaceId: input.workspaceId,
+        projectId: g.projectId,
+        userId: input.userId,
+        role,
+        listIds,
+        addedBy: input.invitedBy,
+      })
+      .onConflictDoUpdate({
+        target: [projectMembers.projectId, projectMembers.userId],
+        set: { role, listIds },
+      });
   }
 }

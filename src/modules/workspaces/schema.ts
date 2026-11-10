@@ -73,6 +73,11 @@ export const workspaceInvitations = pgTable(
     acceptedAt: timestamp({ withTimezone: true }),
     acceptedBy: uuid().references(() => users.id),
     revokedAt: timestamp({ withTimezone: true }),
+    /** Access given on acceptance, e.g. a guest invited from a list's Share dialog. */
+    grants: jsonb()
+      .$type<{ projectId: string; listIds: string[]; role: "editor" | "commenter" | "viewer" }[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
   },
   (t) => [
     uniqueIndex("workspace_invitations_pending_email_uq")

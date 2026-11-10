@@ -455,4 +455,13 @@ test("an owner organises work into lists and tasks", async ({ page }) => {
   await confirm.getByRole("button", { name: "Delete project" }).click();
   await expect(projectsNav.getByRole("link", { name: /Scratch/ })).toHaveCount(0);
   await expect(projectsNav.getByRole("link", { name: /Website/ })).toBeVisible();
+
+  // Right-click a list in the sidebar: Share & permissions.
+  await projectsNav.getByRole("link", { name: "Build" }).click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Share & permissions…" }).click();
+  const share = page.getByRole("dialog", { name: "Share “Build”" });
+  await expect(share.getByText("No guests yet.")).toBeVisible();
+  await expect(share.getByRole("form", { name: "Invite a guest by email" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(share).toBeHidden();
 });

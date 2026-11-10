@@ -1,7 +1,17 @@
 "use client";
 import { useActionState, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { FolderOpen, FolderPlus, ListPlus, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
+import {
+  FolderOpen,
+  FolderPlus,
+  List as ListIcon,
+  ListPlus,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Trash2,
+  Users,
+} from "lucide-react";
 import { ContextMenu } from "radix-ui";
 import { DeleteProjectDialog } from "./delete-project";
 import type { ActionState } from "@/lib/action-state";
@@ -115,11 +125,9 @@ export function ListMenu({
   workspaceSlug: string;
   projectHref: string;
   list: { id: string; name: string };
-  onPick: (kind: "rename-list") => void;
+  onPick: (kind: "rename-list" | "share-list") => void;
 }) {
-  const [, startTransition] = useTransition();
-  const pathname = usePathname();
-  const router = useRouter();
+  const deleteList = useDeleteList(workspaceSlug, projectHref, list);
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -132,23 +140,82 @@ export function ListMenu({
         <DropdownMenuItem onSelect={() => onPick("rename-list")}>
           <Pencil /> Rename list
         </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => onPick("share-list")}>
+          <Users /> Share & permissions…
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem
-          className="text-destructive [&_svg]:text-destructive"
-          onSelect={() => {
-            if (!confirm(`Delete the list “${list.name}” and hide its tasks?`)) return;
-            const viewing = pathname.startsWith(`/w/${workspaceSlug}/l/${list.id}`);
-            startTransition(async () => {
-              const result = await deleteListAction(workspaceSlug, list.id);
-              if (result && !result.ok) alert(result.message);
-              else if (viewing) router.push(projectHref);
-            });
-          }}
-        >
+        <DropdownMenuItem className="text-destructive [&_svg]:text-destructive" onSelect={deleteList}>
           <Trash2 /> Delete list
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+/** Deletes a list after confirming (and leaves its page if you were on it). */
+function useDeleteList(workspaceSlug: string, projectHref: string, list: { id: string; name: string }) {
+  const [, startTransition] = useTransition();
+  const pathname = usePathname();
+  const router = useRouter();
+  return () => {
+    if (!confirm(`Delete the list “${list.name}” and hide its tasks?`)) return;
+    const viewing = pathname.startsWith(`/w/${workspaceSlug}/l/${list.id}`);
+    startTransition(async () => {
+      const result = await deleteListAction(workspaceSlug, list.id);
+      if (result && !result.ok) alert(result.message);
+      else if (viewing) router.push(projectHref);
+    });
+  };
+}
+
+/** Right-click on a list in the sidebar: open, rename, share & permissions, delete. */
+export function ListContextMenu({
+  workspaceSlug,
+  projectHref,
+  href,
+  list,
+  canManage,
+  onPick,
+  children,
+}: {
+  workspaceSlug: string;
+  projectHref: string;
+  href: string;
+  list: { id: string; name: string };
+  canManage: boolean;
+  onPick: (kind: "rename-list" | "share-list") => void;
+  children: React.ReactNode;
+}) {
+  const router = useRouter();
+  const deleteList = useDeleteList(workspaceSlug, projectHref, list);
+  return (
+    <ContextMenu.Root>
+      <ContextMenu.Trigger asChild>{children}</ContextMenu.Trigger>
+      <ContextMenu.Portal>
+        <ContextMenu.Content className={ctxContent} aria-label={`Actions for ${list.name}`}>
+          <ContextMenu.Item className={ctxItem} onSelect={() => router.push(href)}>
+            <ListIcon /> Open list
+          </ContextMenu.Item>
+          {canManage ? (
+            <>
+              <ContextMenu.Item className={ctxItem} onSelect={() => onPick("rename-list")}>
+                <Pencil /> Rename list
+              </ContextMenu.Item>
+              <ContextMenu.Item className={ctxItem} onSelect={() => onPick("share-list")}>
+                <Users /> Share & permissions…
+              </ContextMenu.Item>
+              <ContextMenu.Separator className="bg-border -mx-1 my-1 h-px" />
+              <ContextMenu.Item
+                className={cn(ctxItem, "text-destructive [&_svg]:text-destructive")}
+                onSelect={deleteList}
+              >
+                <Trash2 /> Delete list
+              </ContextMenu.Item>
+            </>
+          ) : null}
+        </ContextMenu.Content>
+      </ContextMenu.Portal>
+    </ContextMenu.Root>
   );
 }
 

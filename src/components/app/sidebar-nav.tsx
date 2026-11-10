@@ -6,9 +6,11 @@ import { ChevronRight, Lock } from "lucide-react";
 import type { ItemAppearance } from "@/lib/appearance";
 import { cn } from "@/lib/utils";
 import { AppearancePicker } from "./appearance-picker";
+import { ShareListDialog } from "@/components/lists/share-list";
 import {
   FolderMenu,
   InlineNameForm,
+  ListContextMenu,
   ListMenu,
   ProjectAddMenu,
   ProjectContextMenu,
@@ -168,6 +170,7 @@ export function ProjectTree({
   const toggle = (id: string, current: boolean) => setToggled((t) => ({ ...t, [id]: !current }));
   const open = (id: string) => setToggled((t) => ({ ...t, [id]: true }));
   const done = () => setEdit(null);
+  const [sharing, setSharing] = useState<{ id: string; name: string } | null>(null);
 
   const listRow = (p: SidebarProject, l: SidebarList, depth: number) =>
     edit?.kind === "rename-list" && edit.listId === l.id ? (
@@ -175,159 +178,182 @@ export function ProjectTree({
         <InlineNameForm workspaceSlug={slug} edit={edit} depth={depth} onDone={done} />
       </li>
     ) : (
-      <li key={l.id} className="group flex items-center">
-        <div className="min-w-0 flex-1">
-          <ListNavLink
-            href={`${base}/l/${l.id}`}
-            depth={depth}
-            icon={
-              <AppearancePicker
-                workspaceSlug={slug}
-                kind="list"
-                id={l.id}
-                name={l.name}
-                appearance={l}
-                canEdit={p.canManageLists}
-              />
-            }
-          >
-            {l.name}
-          </ListNavLink>
-        </div>
-        {p.canManageLists ? (
-          <ListMenu
-            workspaceSlug={slug}
-            projectHref={`${base}/p/${p.key}`}
-            list={l}
-            onPick={() => setEdit({ kind: "rename-list", listId: l.id, name: l.name })}
-          />
-        ) : null}
-      </li>
+      <ListContextMenu
+        key={l.id}
+        workspaceSlug={slug}
+        projectHref={`${base}/p/${p.key}`}
+        href={`${base}/l/${l.id}`}
+        list={l}
+        canManage={p.canManageLists}
+        onPick={(kind) =>
+          kind === "share-list"
+            ? setSharing({ id: l.id, name: l.name })
+            : setEdit({ kind: "rename-list", listId: l.id, name: l.name })
+        }
+      >
+        <li className="group flex items-center">
+          <div className="min-w-0 flex-1">
+            <ListNavLink
+              href={`${base}/l/${l.id}`}
+              depth={depth}
+              icon={
+                <AppearancePicker
+                  workspaceSlug={slug}
+                  kind="list"
+                  id={l.id}
+                  name={l.name}
+                  appearance={l}
+                  canEdit={p.canManageLists}
+                />
+              }
+            >
+              {l.name}
+            </ListNavLink>
+          </div>
+          {p.canManageLists ? (
+            <ListMenu
+              workspaceSlug={slug}
+              projectHref={`${base}/p/${p.key}`}
+              list={l}
+              onPick={(kind) =>
+                kind === "share-list"
+                  ? setSharing({ id: l.id, name: l.name })
+                  : setEdit({ kind: "rename-list", listId: l.id, name: l.name })
+              }
+            />
+          ) : null}
+        </li>
+      </ListContextMenu>
     );
 
   return (
-    <ul className="grid gap-0.5">
-      {projects.map((p) => {
-        const projectOpen = isOpen(p.id, containsPath(p));
-        const newHere = (folderId: string | null) =>
-          edit?.kind === "new-list" && edit.projectId === p.id && edit.folderId === folderId;
-        return (
-          <li key={p.id}>
-            <ProjectContextMenu
-              workspaceSlug={slug}
-              project={{ id: p.id, key: p.key, name: p.name }}
-              href={`${base}/p/${p.key}`}
-              canManageLists={p.canManageLists}
-              canDelete={canDeleteProjects}
-              onPick={(kind) => {
-                open(p.id);
-                setEdit(
-                  kind === "new-list" ? { kind, projectId: p.id, folderId: null } : { kind, projectId: p.id },
-                );
-              }}
-            >
-              <div className="group flex items-center gap-0.5">
-                <ToggleButton open={projectOpen} label={p.name} onClick={() => toggle(p.id, projectOpen)} />
-                <AppearancePicker
-                  workspaceSlug={slug}
-                  kind="project"
-                  id={p.id}
-                  name={p.name}
-                  appearance={p}
-                  canEdit={p.canEditProject}
-                />
-                <div className="min-w-0 flex-1">
-                  <ProjectNavLink
-                    href={`${base}/p/${p.key}`}
-                    name={p.name}
-                    projectKey={p.key}
-                    isPrivate={p.visibility === "private"}
-                  />
-                </div>
-                {p.canManageLists ? (
-                  <ProjectAddMenu
-                    projectName={p.name}
-                    onPick={(kind) => {
-                      open(p.id);
-                      setEdit(
-                        kind === "new-list"
-                          ? { kind, projectId: p.id, folderId: null }
-                          : { kind, projectId: p.id },
-                      );
-                    }}
-                  />
-                ) : null}
-              </div>
-            </ProjectContextMenu>
-            {projectOpen ? (
-              <ul className="mt-0.5 grid gap-0.5 pl-3">
-                {edit?.kind === "new-folder" && edit.projectId === p.id ? (
-                  <li>
-                    <InlineNameForm workspaceSlug={slug} edit={edit} depth={1} onDone={done} />
-                  </li>
-                ) : null}
-                {p.folders.map((f) => {
-                  const folderOpen = isOpen(f.id, true);
-                  return (
-                    <li key={f.id}>
-                      {edit?.kind === "rename-folder" && edit.folderId === f.id ? (
-                        <InlineNameForm workspaceSlug={slug} edit={edit} depth={1} onDone={done} />
-                      ) : (
-                        <div className="text-muted-foreground group flex h-8 items-center gap-0.5 text-[13px]">
-                          <ToggleButton
-                            open={folderOpen}
-                            label={f.name}
-                            onClick={() => toggle(f.id, folderOpen)}
-                          />
-                          <AppearancePicker
-                            workspaceSlug={slug}
-                            kind="folder"
-                            id={f.id}
-                            name={f.name}
-                            appearance={f}
-                            canEdit={p.canManageLists}
-                          />
-                          <span className="min-w-0 flex-1 truncate pl-2">{f.name}</span>
-                          {p.canManageLists ? (
-                            <FolderMenu
-                              workspaceSlug={slug}
-                              folder={{ id: f.id, name: f.name, listCount: f.lists.length }}
-                              onPick={(kind) => {
-                                if (kind === "new-list") {
-                                  open(f.id);
-                                  setEdit({ kind, projectId: p.id, folderId: f.id });
-                                } else {
-                                  setEdit({ kind, folderId: f.id, name: f.name });
-                                }
-                              }}
-                            />
-                          ) : null}
-                        </div>
-                      )}
-                      {folderOpen && (f.lists.length > 0 || newHere(f.id)) ? (
-                        <ul className="grid gap-0.5">
-                          {f.lists.map((l) => listRow(p, l, 3))}
-                          {newHere(f.id) && edit ? (
-                            <li>
-                              <InlineNameForm workspaceSlug={slug} edit={edit} depth={3} onDone={done} />
-                            </li>
-                          ) : null}
-                        </ul>
-                      ) : null}
-                    </li>
+    <>
+      <ShareListDialog workspaceSlug={slug} list={sharing} onClose={() => setSharing(null)} />
+      <ul className="grid gap-0.5">
+        {projects.map((p) => {
+          const projectOpen = isOpen(p.id, containsPath(p));
+          const newHere = (folderId: string | null) =>
+            edit?.kind === "new-list" && edit.projectId === p.id && edit.folderId === folderId;
+          return (
+            <li key={p.id}>
+              <ProjectContextMenu
+                workspaceSlug={slug}
+                project={{ id: p.id, key: p.key, name: p.name }}
+                href={`${base}/p/${p.key}`}
+                canManageLists={p.canManageLists}
+                canDelete={canDeleteProjects}
+                onPick={(kind) => {
+                  open(p.id);
+                  setEdit(
+                    kind === "new-list"
+                      ? { kind, projectId: p.id, folderId: null }
+                      : { kind, projectId: p.id },
                   );
-                })}
-                {p.rootLists.map((l) => listRow(p, l, 2))}
-                {newHere(null) && edit ? (
-                  <li>
-                    <InlineNameForm workspaceSlug={slug} edit={edit} depth={2} onDone={done} />
-                  </li>
-                ) : null}
-              </ul>
-            ) : null}
-          </li>
-        );
-      })}
-    </ul>
+                }}
+              >
+                <div className="group flex items-center gap-0.5">
+                  <ToggleButton open={projectOpen} label={p.name} onClick={() => toggle(p.id, projectOpen)} />
+                  <AppearancePicker
+                    workspaceSlug={slug}
+                    kind="project"
+                    id={p.id}
+                    name={p.name}
+                    appearance={p}
+                    canEdit={p.canEditProject}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <ProjectNavLink
+                      href={`${base}/p/${p.key}`}
+                      name={p.name}
+                      projectKey={p.key}
+                      isPrivate={p.visibility === "private"}
+                    />
+                  </div>
+                  {p.canManageLists ? (
+                    <ProjectAddMenu
+                      projectName={p.name}
+                      onPick={(kind) => {
+                        open(p.id);
+                        setEdit(
+                          kind === "new-list"
+                            ? { kind, projectId: p.id, folderId: null }
+                            : { kind, projectId: p.id },
+                        );
+                      }}
+                    />
+                  ) : null}
+                </div>
+              </ProjectContextMenu>
+              {projectOpen ? (
+                <ul className="mt-0.5 grid gap-0.5 pl-3">
+                  {edit?.kind === "new-folder" && edit.projectId === p.id ? (
+                    <li>
+                      <InlineNameForm workspaceSlug={slug} edit={edit} depth={1} onDone={done} />
+                    </li>
+                  ) : null}
+                  {p.folders.map((f) => {
+                    const folderOpen = isOpen(f.id, true);
+                    return (
+                      <li key={f.id}>
+                        {edit?.kind === "rename-folder" && edit.folderId === f.id ? (
+                          <InlineNameForm workspaceSlug={slug} edit={edit} depth={1} onDone={done} />
+                        ) : (
+                          <div className="text-muted-foreground group flex h-8 items-center gap-0.5 text-[13px]">
+                            <ToggleButton
+                              open={folderOpen}
+                              label={f.name}
+                              onClick={() => toggle(f.id, folderOpen)}
+                            />
+                            <AppearancePicker
+                              workspaceSlug={slug}
+                              kind="folder"
+                              id={f.id}
+                              name={f.name}
+                              appearance={f}
+                              canEdit={p.canManageLists}
+                            />
+                            <span className="min-w-0 flex-1 truncate pl-2">{f.name}</span>
+                            {p.canManageLists ? (
+                              <FolderMenu
+                                workspaceSlug={slug}
+                                folder={{ id: f.id, name: f.name, listCount: f.lists.length }}
+                                onPick={(kind) => {
+                                  if (kind === "new-list") {
+                                    open(f.id);
+                                    setEdit({ kind, projectId: p.id, folderId: f.id });
+                                  } else {
+                                    setEdit({ kind, folderId: f.id, name: f.name });
+                                  }
+                                }}
+                              />
+                            ) : null}
+                          </div>
+                        )}
+                        {folderOpen && (f.lists.length > 0 || newHere(f.id)) ? (
+                          <ul className="grid gap-0.5">
+                            {f.lists.map((l) => listRow(p, l, 3))}
+                            {newHere(f.id) && edit ? (
+                              <li>
+                                <InlineNameForm workspaceSlug={slug} edit={edit} depth={3} onDone={done} />
+                              </li>
+                            ) : null}
+                          </ul>
+                        ) : null}
+                      </li>
+                    );
+                  })}
+                  {p.rootLists.map((l) => listRow(p, l, 2))}
+                  {newHere(null) && edit ? (
+                    <li>
+                      <InlineNameForm workspaceSlug={slug} edit={edit} depth={2} onDone={done} />
+                    </li>
+                  ) : null}
+                </ul>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+    </>
   );
 }

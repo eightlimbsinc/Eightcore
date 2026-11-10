@@ -9,6 +9,7 @@ import { FilterBar } from "@/components/tasks/filter-bar";
 import { AddTaskButton } from "@/components/tasks/add-task-button";
 import type { StatusOption } from "@/components/tasks/status-menu";
 import { ViewMenu } from "@/components/lists/view-menu";
+import { ShareListButton } from "@/components/lists/share-list";
 import { cn } from "@/lib/utils";
 
 /** Header shared by a list's List and Board pages: breadcrumbs, layout tabs, view menu, filters. */
@@ -119,6 +120,9 @@ export function ListHeader({
                   <Settings2 /> {can.manage ? "List settings & statuses" : "Status rules"}
                 </Link>
               </Button>
+            ) : null}
+            {can.manage ? (
+              <ShareListButton workspaceSlug={slug} list={{ id: list.id, name: list.name }} />
             ) : null}
             {can.manageAutomations ? (
               <Button asChild variant="outline" size="icon">
