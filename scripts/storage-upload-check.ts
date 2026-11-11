@@ -6,14 +6,18 @@ import { loadEnvFiles } from "./load-env";
 
 loadEnvFiles();
 process.env.BETTER_AUTH_SECRET ??= "storage-check-placeholder-not-used-for-signing";
-// The site uses S3 storage in production; check that one when it's configured here.
-if (process.env.S3_ENDPOINT) process.env.STORAGE_DRIVER ??= "s3";
+// What this check can see (set or missing only; values are never printed).
+const NEEDED = ["S3_ENDPOINT", "S3_REGION", "S3_BUCKET", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY"];
+for (const name of NEEDED) console.log(`${name}: ${process.env[name]?.trim() ? "set" : "MISSING"}`);
+// The site uses S3 storage in production; check that one when it's configured here
+// (even if a local development file says STORAGE_DRIVER=local).
+if (process.env.S3_ENDPOINT?.trim()) process.env.STORAGE_DRIVER = "s3";
 const site = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
 
 const { storage, storageDriver } = await import("@/server/storage");
 if (storageDriver() !== "s3") {
   console.log(
-    "No S3 settings found. Add S3_ENDPOINT, S3_REGION, S3_BUCKET, S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY to .env.netlify (the same values as on Netlify), then run this again.",
+    "\nS3_ENDPOINT isn't set. Add the MISSING ones above to .env.netlify (one per line, NAME=value, the same values as on Netlify), save the file, then run this again.",
   );
   process.exit(1);
 }
