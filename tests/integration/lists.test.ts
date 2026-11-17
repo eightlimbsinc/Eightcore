@@ -13,6 +13,7 @@ import {
   listStatusesFor,
   moveStatus,
   saveListView,
+  setListTabOrder,
   setItemAppearance,
   setListViewProtected,
   updateStatus,
@@ -172,7 +173,13 @@ describe("saved list views", () => {
       subtasks: "expanded",
       closed: "hide",
       filters: "",
+      tabs: [],
     });
+
+    // The tab order is saved separately, and saving the view keeps it.
+    await setListTabOrder(actors.member, list.id, ["calendar", "list", "board", "calendar"]);
+    await saveListView(actors.member, list.id, { order: "desc", tabs: ["junk"] });
+    expect((await getList(actors.owner, list.id)).view.tabs).toEqual(["calendar", "list", "board"]);
 
     await expect(setListViewProtected(actors.member, list.id, true)).rejects.toBeInstanceOf(ForbiddenError);
     await setListViewProtected(actors.owner, list.id, true);
@@ -186,7 +193,9 @@ describe("saved list views", () => {
       subtasks: "collapsed",
       closed: "show",
       filters: "",
+      tabs: ["calendar", "list", "board"],
     });
+    await expect(setListTabOrder(actors.member, list.id, ["list"])).rejects.toBeInstanceOf(ForbiddenError);
   });
 });
 

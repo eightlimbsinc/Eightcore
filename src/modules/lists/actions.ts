@@ -14,6 +14,7 @@ import {
   moveStatus,
   renameFolder,
   saveListView,
+  setListTabOrder,
   setItemAppearance,
   setListArchived,
   setListViewProtected,
@@ -312,5 +313,17 @@ export async function setTransitionsStrictAction(
   return runAction(async () => {
     await setTransitionsStrict(await actorFor(workspaceSlug), listId, strict);
     revalidatePath(`/w/${workspaceSlug}`, "layout");
+  });
+}
+
+/** Dragging the view tabs (List, Board, Calendar, forms) into a new order. */
+export async function setListTabOrderAction(
+  workspaceSlug: string,
+  listId: string,
+  tabs: string[],
+): Promise<ActionState> {
+  return runAction(async () => {
+    await setListTabOrder(await actorFor(workspaceSlug), listId, tabs);
+    revalidatePath(`/w/${workspaceSlug}/l/${listId}`, "layout");
   });
 }

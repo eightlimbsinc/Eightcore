@@ -15,6 +15,7 @@ import { parseFieldValue, type FieldType } from "@/modules/fields/validators";
 import { uploadTaskAttachments } from "@/modules/attachments/service";
 import { formUploadsReady, startFormUploads, type FileMeta } from "@/modules/attachments/direct";
 import { isClosedCategory } from "@/modules/lists/templates";
+import { readViewSettings } from "@/modules/lists/view-settings";
 import {
   FORM_MAX_FILES,
   FORM_MAX_TOTAL_BYTES,
@@ -113,7 +114,7 @@ export async function getFormForEditing(actor: ActorContext, formId: string) {
       token: form.token,
       responses: responses[0]?.n ?? 0,
     },
-    list: { id: list.id, name: list.name },
+    list: { id: list.id, name: list.name, tabOrder: readViewSettings(list.viewSettings).tabs },
     project: { id: project.id, key: project.key, name: project.name },
     statuses: statuses.map((s) => ({ id: s.id, name: s.name, color: s.color })),
     people: people.map((p) => ({ id: p.userId, name: p.name })),

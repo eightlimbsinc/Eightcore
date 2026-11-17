@@ -10,6 +10,8 @@ export const viewSettingsSchema = z.object({
   closed: z.enum(["show", "hide"]).catch("hide"),
   /** Saved filters, as an address-bar query ("priority=high&assignee=me"). */
   filters: z.string().max(2000).catch(""),
+  /** Order of the view tabs (List, Board, Calendar, form ids); missing ones go at the end. */
+  tabs: z.array(z.string().max(64)).max(50).catch([]),
 });
 export type ViewSettings = z.infer<typeof viewSettingsSchema>;
 
@@ -18,6 +20,7 @@ export const DEFAULT_VIEW: ViewSettings = {
   subtasks: "collapsed",
   closed: "hide",
   filters: "",
+  tabs: [],
 };
 
 /** Stored JSON → settings, falling back to defaults for anything missing or unknown. */
@@ -39,6 +42,7 @@ export function effectiveView(
     subtasks: pick("subtasks") ?? saved.subtasks,
     closed: pick("closed") ?? saved.closed,
     filters: saved.filters,
+    tabs: saved.tabs,
   });
 }
 
@@ -54,4 +58,13 @@ export function viewQuery(view: ViewSettings, saved: ViewSettings, extra = ""): 
   }
   const query = params.toString();
   return query ? `?${query}` : "";
+}
+
+/** `keys` in the saved tab order; keys it doesn't name keep their order after those it does. */
+export function orderTabs<T extends string>(keys: T[], saved: string[]): T[] {
+  const rank = (k: string) => {
+    const i = saved.indexOf(k);
+    return i < 0 ? saved.length + keys.indexOf(k as T) : i;
+  };
+  return [...keys].sort((a, b) => rank(a) - rank(b));
 }

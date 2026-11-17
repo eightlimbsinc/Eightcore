@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { TaskContextMenu } from "@/components/tasks/task-row-menu";
+import { DraggableTaskItem } from "@/components/tasks/task-drag";
 import Link from "next/link";
 import { SearchX } from "lucide-react";
 import { getTasksPage } from "@/modules/workspaces/queries";
@@ -113,7 +114,18 @@ export default async function TasksPage({
                       canDelete: false,
                     }}
                   >
-                    <li className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2">
+                    <DraggableTaskItem
+                      task={{
+                        id: t.id,
+                        ref: t.ref,
+                        version: t.version,
+                        projectId: t.projectId,
+                        listId: t.listId,
+                        subtask: Boolean(t.parentTaskId),
+                      }}
+                      title={t.parentTaskId ? undefined : "Drag onto a list in the sidebar to move it"}
+                      className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2"
+                    >
                       <span className="text-muted-foreground w-16 shrink-0 font-mono text-[11px]">
                         {t.ref}
                       </span>
@@ -128,7 +140,7 @@ export default async function TasksPage({
                       <PriorityLabel priority={t.priority} />
                       <DueDateLabel dueDate={t.dueDate} completed={t.closed} today={today} />
                       <StatusPill name={t.statusName} color={t.statusColor} />
-                    </li>
+                    </DraggableTaskItem>
                   </TaskContextMenu>
                 ))}
               </ul>

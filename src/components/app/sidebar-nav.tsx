@@ -7,6 +7,7 @@ import type { ItemAppearance } from "@/lib/appearance";
 import { cn } from "@/lib/utils";
 import { AppearancePicker } from "./appearance-picker";
 import { ShareListDialog } from "@/components/lists/share-list";
+import { useListDropTarget } from "@/components/tasks/task-drag";
 import {
   FolderMenu,
   InlineNameForm,
@@ -86,6 +87,36 @@ interface SidebarProject extends ItemAppearance {
   rootLists: SidebarList[];
   canManageLists: boolean;
   canEditProject: boolean;
+}
+
+/** A sidebar list row that tasks can be dropped on (moving them to this list). */
+function DropListItem({
+  workspaceSlug,
+  list,
+  className,
+  children,
+  ...rest
+}: {
+  workspaceSlug: string;
+  list: { id: string; name: string; projectId: string };
+  children: React.ReactNode;
+} & React.HTMLAttributes<HTMLLIElement> & { ref?: React.Ref<HTMLLIElement> }) {
+  const drop = useListDropTarget(workspaceSlug, list);
+  return (
+    <li
+      {...rest}
+      {...drop.props}
+      aria-busy={drop.pending || undefined}
+      className={cn(
+        "group flex items-center rounded-md",
+        drop.over && "bg-accent-soft ring-accent ring-1",
+        drop.pending && "opacity-60",
+        className,
+      )}
+    >
+      {children}
+    </li>
+  );
 }
 
 function ToggleButton({ open, label, onClick }: { open: boolean; label: string; onClick: () => void }) {
@@ -191,7 +222,7 @@ export function ProjectTree({
             : setEdit({ kind: "rename-list", listId: l.id, name: l.name })
         }
       >
-        <li className="group flex items-center">
+        <DropListItem workspaceSlug={slug} list={{ id: l.id, name: l.name, projectId: p.id }}>
           <div className="min-w-0 flex-1">
             <ListNavLink
               href={`${base}/l/${l.id}`}
@@ -222,7 +253,7 @@ export function ProjectTree({
               }
             />
           ) : null}
-        </li>
+        </DropListItem>
       </ListContextMenu>
     );
 

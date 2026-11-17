@@ -15,6 +15,7 @@ import {
   createTask,
   deleteTask,
   moveTask,
+  moveTaskToList,
   setTaskArchived,
   setTaskAssignees,
   setWatching,
@@ -182,6 +183,19 @@ export async function moveTaskAction(
 ): Promise<ActionState> {
   return runAction(async () => {
     await moveTask(await actorFor(workspaceSlug), taskId, version, move);
+    revalidatePath(`/w/${workspaceSlug}`, "layout");
+  });
+}
+
+/** Dropping a task on another list (sidebar): moves it, with its subtasks, to that list. */
+export async function moveTaskToListAction(
+  workspaceSlug: string,
+  taskId: string,
+  version: number,
+  listId: string,
+): Promise<ActionState> {
+  return runAction(async () => {
+    await moveTaskToList(await actorFor(workspaceSlug), taskId, version, listId);
     revalidatePath(`/w/${workspaceSlug}`, "layout");
   });
 }

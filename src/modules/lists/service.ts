@@ -1,5 +1,6 @@
 import "server-only";
 import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { z } from "zod";
 import { generateKeyBetween, generateNKeysBetween } from "fractional-indexing";
 import { db, type DbOrTx } from "@/server/db";
 import { folders, listStatuses, projectMembers, projects, taskLists, tasks } from "@/server/db/schema";
@@ -530,10 +531,11 @@ function canSaveView(role: ProjectRole, isProtected: boolean) {
 
 /** Makes `raw` the list's saved view: what everyone sees by default. */
 export async function saveListView(actor: ActorContext, listId: string, raw: unknown) {
-  const view = readViewSettings(raw);
   await db().transaction(async (tx) => {
     const { list, role } = await loadListAccess(tx, actor, listId);
     if (!canSaveView(role, list.viewProtected)) throw new ForbiddenError();
+    // The tab order is saved on its own (setListTabOrder), so keep it.
+    const view = { ...readViewSettings(raw), tabs: readViewSettings(list.viewSettings).tabs };
     await tx.update(taskLists).set({ viewSettings: view }).where(eq(taskLists.id, listId));
     await recordActivity(tx, actor, {
       entityType: "list",
@@ -541,6 +543,17 @@ export async function saveListView(actor: ActorContext, listId: string, raw: unk
       action: "view_saved",
       metadata: view,
     });
+  });
+}
+
+/** Saves the order of the list's view tabs (dragged in the tab bar), for everyone. */
+export async function setListTabOrder(actor: ActorContext, listId: string, raw: unknown) {
+  const tabs = z.array(z.string().max(64)).max(50).parse(raw);
+  await db().transaction(async (tx) => {
+    const { list, role } = await loadListAccess(tx, actor, listId);
+    if (!canSaveView(role, list.viewProtected)) throw new ForbiddenError();
+    const view = { ...readViewSettings(list.viewSettings), tabs: [...new Set(tabs)] };
+    await tx.update(taskLists).set({ viewSettings: view }).where(eq(taskLists.id, listId));
   });
 }
 

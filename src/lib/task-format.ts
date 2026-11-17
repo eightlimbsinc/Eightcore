@@ -88,6 +88,7 @@ export function describeActivity(
         const label = FIELD_LABELS[field] ?? field;
         if (field === "description") return "updated the description";
         if (field === "title") return `renamed the task to “${show(field, to)}”`;
+        if (field === "list") return `moved the task from ${show(field, from)} to ${show(field, to)}`;
         return `changed ${label} from ${show(field, from)} to ${show(field, to)}`;
       });
     case "commented":

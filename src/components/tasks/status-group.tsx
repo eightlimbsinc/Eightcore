@@ -53,7 +53,12 @@ export function StatusGroup({
     setOpen((o) => !o);
   };
   return (
-    <section aria-labelledby={`status-${id}`} className="grid gap-1" aria-busy={loading || undefined}>
+    <section
+      aria-labelledby={`status-${id}`}
+      data-drop-status={id}
+      className="data-[drop=in]:ring-accent data-[drop=in]:bg-accent-soft/40 grid gap-1 rounded-lg data-[drop=in]:ring-2"
+      aria-busy={loading || undefined}
+    >
       <h2 id={`status-${id}`} className="flex items-center gap-2 text-[12px]">
         <button
           type="button"

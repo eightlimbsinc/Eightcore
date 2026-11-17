@@ -44,6 +44,8 @@ export default async function FormBuilderPage({
           forms={data.forms}
           active={data.form.id}
           canManageForms
+          tabOrder={data.list.tabOrder}
+          canReorder
         />
         <FormBuilder
           key={data.form.id}

@@ -147,6 +147,8 @@ export function ListHeader({
           forms={forms}
           active={layout}
           canManageForms={Boolean(can.manageForms)}
+          tabOrder={savedView.tabs}
+          canReorder={Boolean(can.saveView)}
         />
         <div className="flex flex-wrap items-start gap-2">
           <div className="min-w-0 flex-1">

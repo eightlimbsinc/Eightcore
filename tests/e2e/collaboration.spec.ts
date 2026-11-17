@@ -248,8 +248,11 @@ test("the board moves tasks between statuses, also by keyboard", async ({ page }
   await card.focus();
   await page.keyboard.press("Space");
   await expect(page.getByText(/New logo is over Backlog/)).toBeAttached();
-  await page.keyboard.press("ArrowRight");
-  await expect(page.getByText(/New logo is over To Do/)).toBeAttached();
+  // The sensor starts listening for arrow keys just after the lift: retry until it moves.
+  await expect(async () => {
+    await page.keyboard.press("ArrowRight");
+    await expect(page.getByText(/New logo is over To Do/)).toBeAttached({ timeout: 1000 });
+  }).toPass();
   await page.keyboard.press("Space");
   await expect(columns.getByRole("listitem", { name: /^To Do, 1 task/ })).toBeVisible();
   // The card moves at once; the save finishes just after. Let it, then reload.
@@ -512,4 +515,63 @@ test("Completed tasks hide behind Closed; finished groups collapse; status templ
   // The saved template is offered when creating a list.
   await page.goto(`/w/${workspaceSlug}/p/BRD`);
   await expect(page.getByRole("radio", { name: /Brand flow/ })).toBeVisible();
+});
+
+test("tasks and view tabs move by dragging: reorder, status, another list", async ({ page }) => {
+  // Its own visitor IP: this spec has signed in many times already (sign-in is rate limited).
+  await page.setExtraHTTPHeaders({ "x-e2e-client-ip": "203.0.113.9" });
+  await signIn(page, owner);
+  await expect(page).toHaveURL(/\/w\//);
+  await page.goto(`/w/${workspaceSlug}/p/BRD`);
+  await page.getByLabel("List name").fill("Moves");
+  await page.getByRole("button", { name: "Create list" }).click();
+  await expect(page.getByRole("heading", { name: "Moves" })).toBeVisible();
+  for (const title of ["Drag A", "Drag B", "Drag C"]) {
+    await page.getByRole("button", { name: "Add task", exact: true }).click();
+    await page.getByLabel("New task title").fill(title);
+    await page.getByLabel("New task title").press("Enter");
+    await expect(page.getByRole("link", { name: title })).toBeVisible();
+  }
+  await page.keyboard.press("Escape");
+  const row = (title: string) => page.getByRole("group", { name: new RegExp(`^BRD-\\d+ ${title}$`) });
+  const titles = async () =>
+    (await page.locator('[data-drag-task][data-depth="0"]').allInnerTexts()).map(
+      (t) => t.match(/Drag \w/)?.[0],
+    );
+
+  // Reorder: C above A.
+  await expect.poll(titles).toEqual(["Drag A", "Drag B", "Drag C"]);
+  await row("Drag C").dragTo(row("Drag A"), { targetPosition: { x: 200, y: 4 } });
+  await expect.poll(titles).toEqual(["Drag C", "Drag A", "Drag B"]);
+  await page.reload();
+  await expect.poll(titles).toEqual(["Drag C", "Drag A", "Drag B"]);
+
+  // Another status: put B in the second status, then drag A into that group.
+  await page
+    .getByRole("button", { name: /^Status of BRD-\d+/ })
+    .last()
+    .click();
+  await page.getByRole("menuitem").nth(1).click();
+  const groups = page.locator("[data-drop-status]");
+  await expect(groups).toHaveCount(2);
+  await row("Drag A").dragTo(row("Drag B"), { targetPosition: { x: 200, y: 30 } });
+  await expect(groups.nth(1).getByRole("link", { name: "Drag A" })).toBeVisible();
+
+  // Another list: drop C on "Design" in the sidebar.
+  const projectsNav = page.getByRole("navigation", { name: "Projects" });
+  await row("Drag C").dragTo(projectsNav.getByRole("link", { name: "Design" }));
+  await expect(page.getByText(/Moved BRD-\d+ to Design/)).toBeVisible();
+  await expect(page.getByRole("link", { name: "Drag C" })).toHaveCount(0);
+  await projectsNav.getByRole("link", { name: "Design" }).click();
+  await expect(page.getByRole("link", { name: "Drag C" })).toBeVisible();
+
+  // View tabs: drag Calendar in front of List; the order is saved.
+  const layout = page.getByRole("navigation", { name: "Layout" });
+  await layout.getByRole("link", { name: "Calendar" }).dragTo(layout.getByRole("link", { name: "List" }), {
+    targetPosition: { x: 2, y: 10 },
+  });
+  await expect(layout.getByRole("link").first()).toHaveText("Calendar");
+  await page.waitForLoadState("networkidle");
+  await page.reload();
+  await expect(layout.getByRole("link").first()).toHaveText("Calendar");
 });

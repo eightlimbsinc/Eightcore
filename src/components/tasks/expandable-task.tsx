@@ -3,6 +3,7 @@ import { useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TaskContextMenu, TaskMenuButton, type TaskMenuTarget } from "./task-row-menu";
+import { endTaskDrag, startTaskDrag, type TaskDragPayload } from "./task-drag";
 
 /**
  * One list row plus its subtasks. Rows with subtasks get an arrow that shows or hides them;
@@ -18,6 +19,7 @@ export function ExpandableTask({
   leading,
   cells,
   children,
+  drag,
 }: {
   gridClass: string;
   /** For the arrow's label, e.g. "WEB-1 Homepage hero". */
@@ -33,6 +35,8 @@ export function ExpandableTask({
   leading?: React.ReactNode;
   cells: React.ReactNode;
   children?: React.ReactNode;
+  /** Dragging: reorder, change status (see ListTaskDnd) or drop on a sidebar list. */
+  drag?: { task: TaskDragPayload; statusId: string; openBlockers: number };
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const expandable = subtaskCount > 0 && Boolean(children);
@@ -45,8 +49,31 @@ export function ExpandableTask({
           tabIndex={-1}
           role="group"
           aria-label={name}
+          draggable={Boolean(drag)}
+          data-drag-task={drag?.task.id}
+          data-depth={depth}
+          data-status={drag?.statusId}
+          data-blockers={drag?.openBlockers}
+          onDragStart={
+            drag
+              ? (e) => {
+                  e.stopPropagation();
+                  startTaskDrag(e, drag.task);
+                  e.currentTarget.dataset.dragging = "true";
+                }
+              : undefined
+          }
+          onDragEnd={
+            drag
+              ? (e) => {
+                  endTaskDrag();
+                  delete e.currentTarget.dataset.dragging;
+                }
+              : undefined
+          }
           className={cn(
             gridClass,
+            "data-[dragging]:opacity-40 data-[drop=after]:shadow-[inset_0_-2px_0_var(--accent)] data-[drop=before]:shadow-[inset_0_2px_0_var(--accent)] data-[pending]:opacity-50",
             "group hover:bg-surface-muted/50 focus-visible:bg-accent-soft/50 relative min-h-10 items-center gap-x-2 py-1 pr-9 pl-2 outline-none focus-visible:shadow-[inset_3px_0_0_var(--accent)]",
           )}
           style={depth ? { paddingLeft: `${0.5 + depth * 1.5}rem` } : undefined}

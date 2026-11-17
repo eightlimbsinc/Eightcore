@@ -100,6 +100,8 @@ export async function searchTasks(
       dueDate: tasks.dueDate,
       completedAt: tasks.completedAt,
       parentTaskId: tasks.parentTaskId,
+      version: tasks.version,
+      projectId: tasks.projectId,
       projectKey: projects.key,
       projectName: projects.name,
       listId: taskLists.id,

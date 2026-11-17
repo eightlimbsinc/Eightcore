@@ -906,3 +906,99 @@ export async function moveTask(
   if (result.moved && move.comment?.trim()) await createComment(actor, taskId, { body: move.comment.trim() });
   return { version: result.version };
 }
+
+/**
+ * Moves a top-level task (with its subtasks) to another list of the same project, e.g. by
+ * dropping it on a list in the sidebar. Each task keeps a status of the same name in the new
+ * list, else the first of the same kind (category), else the list's first status. Values of
+ * custom fields that only exist on the old list are cleared. It lands at the end of the list.
+ */
+export async function moveTaskToList(
+  actor: ActorContext,
+  taskId: string,
+  expectedVersion: number,
+  targetListId: string,
+) {
+  assertId(targetListId, "List not found");
+  return db().transaction(async (tx) => {
+    const { task, list, role } = await loadTaskAccess(tx, actor, taskId);
+    assertProject(role, "task.update");
+    if (task.parentTaskId) throw new ValidationError("Subtasks move with their parent");
+    if (task.version !== expectedVersion) {
+      throw new ConflictError("Someone else changed this task. Reload to see their changes, then try again.");
+    }
+    if (targetListId === list.id) return { moved: false as const, listId: list.id };
+    const target = await loadListAccess(tx, actor, targetListId);
+    if (target.project.id !== task.projectId) {
+      throw new ValidationError("Tasks can only be moved to lists in the same project");
+    }
+    if (target.list.archivedAt) throw new ValidationError("That list is archived");
+    assertProject(target.role, "task.create");
+
+    const [fromStatuses, toStatuses] = await Promise.all([
+      listStatusesFor(tx, list.id),
+      listStatusesFor(tx, target.list.id),
+    ]);
+    if (!toStatuses.length) throw new ValidationError("That list has no statuses");
+    const mapStatus = (statusId: string) => {
+      const from = fromStatuses.find((s) => s.id === statusId);
+      const name = from?.name.toLowerCase();
+      return (
+        toStatuses.find((s) => s.name.toLowerCase() === name) ??
+        toStatuses.find((s) => s.category === from?.category) ??
+        toStatuses[0]!
+      );
+    };
+
+    // The task and every subtask below it.
+    const family = await tx.execute<{ id: string; status_id: string }>(sql`
+      with recursive tree as (
+        select id, status_id from tasks where id = ${taskId}::uuid
+        union all
+        select t.id, t.status_id from tasks t join tree on t.parent_task_id = tree.id
+      )
+      select id, status_id from tree`);
+    const rows = family.rows;
+    const [last] = await tx
+      .select({ position: tasks.position })
+      .from(tasks)
+      .where(and(eq(tasks.listId, target.list.id), isNull(tasks.parentTaskId)))
+      .orderBy(desc(tasks.position))
+      .limit(1);
+    const position = generateKeyBetween(last?.position ?? null, null);
+    const toStatus = mapStatus(task.statusId);
+    const values = sql.join(
+      rows.map((r) => sql`(${r.id}::uuid, ${mapStatus(r.status_id).id}::uuid)`),
+      sql`, `,
+    );
+    // One statement, so the parent/list and status/list rules are checked once everything moved.
+    await tx.execute(sql`
+      update tasks set
+        list_id = ${target.list.id}::uuid,
+        status_id = m.status_id,
+        position = case when tasks.id = ${taskId}::uuid then ${position} else tasks.position end,
+        version = tasks.version + 1
+      from (values ${values}) as m(id, status_id)
+      where tasks.id = m.id`);
+    // Fields only on the old list don't apply any more.
+    await tx.execute(sql`
+      delete from task_field_values v using custom_fields f
+      where v.field_id = f.id and f.list_id = ${list.id}::uuid
+        and v.task_id in (${sql.join(
+          rows.map((r) => sql`${r.id}::uuid`),
+          sql`, `,
+        )})`);
+
+    const fromStatus = fromStatuses.find((s) => s.id === task.statusId);
+    const changes: Record<string, [unknown, unknown]> = { list: [list.name, target.list.name] };
+    if (fromStatus?.name !== toStatus.name) changes.status = [fromStatus?.name ?? null, toStatus.name];
+    await recordActivity(tx, actor, { entityType: "task", entityId: taskId, action: "updated", changes });
+    await enqueueOutbox(tx, actor.workspaceId, "task.updated", {
+      taskId,
+      fields: ["list", ...(changes.status ? ["status"] : [])],
+      fromListId: list.id,
+      listId: target.list.id,
+    });
+    return { moved: true as const, listId: target.list.id };
+  });
+}
