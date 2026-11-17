@@ -12,7 +12,7 @@ export default async function ListAutomationsPage({
   params: Promise<{ slug: string; listId: string }>;
 }) {
   const { slug, listId } = await params;
-  const { list, project, automations, projectWide, lists, tags, people, endpoints, fields } =
+  const { list, project, automations, projectWide, lists, tags, people, endpoints, fields, forms } =
     await getListAutomationsPage(slug, listId);
   return (
     <>
@@ -51,6 +51,7 @@ export default async function ListAutomationsPage({
           people={people}
           endpoints={endpoints}
           fields={fields}
+          forms={forms}
         />
       </div>
     </>

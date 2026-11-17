@@ -17,6 +17,7 @@ export const WEBHOOK_EVENTS = [
   "task.assignees_changed",
   "comment.created",
   "qa.concluded",
+  "form.submitted",
 ] as const;
 
 const MAX_ATTEMPTS = 6;

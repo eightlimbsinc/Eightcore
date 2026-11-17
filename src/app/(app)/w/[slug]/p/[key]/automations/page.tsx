@@ -12,7 +12,7 @@ export default async function ProjectAutomationsPage({
   params: Promise<{ slug: string; key: string }>;
 }) {
   const { slug, key } = await params;
-  const { project, automations, lists, tags, people, endpoints, fields } = await getAutomationsPage(
+  const { project, automations, lists, tags, people, endpoints, fields, forms } = await getAutomationsPage(
     slug,
     key,
   );
@@ -37,6 +37,7 @@ export default async function ProjectAutomationsPage({
           people={people}
           endpoints={endpoints}
           fields={fields}
+          forms={forms}
         />
       </div>
     </>

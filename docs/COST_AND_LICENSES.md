@@ -20,7 +20,7 @@ Licences and versions below were checked against the npm registry and project si
 | Dependency | Version checked | Licence | FOSS | Free-tier restrictions | Optional paid services | Potential recurring cost |
 |---|---|---|---|---|---|---|
 | Node.js (22 LTS / 24 LTS) | 22.22 | MIT | ✅ | — | — | None |
-| Next.js | 16.4.2 | MIT | ✅ | — | Vercel hosting (optional, **not used**) | None |
+| Next.js | 16.4.5 (security fix GHSA-mfr8-8qww-v76h) | MIT | ✅ | — | Vercel hosting (optional, **not used**) | None |
 | React / React DOM | 19.3.0 | MIT | ✅ | — | — | None |
 | TypeScript | pin 6.0.x (7.0.2 is latest) | Apache-2.0 | ✅ | — | — | None |
 | Tailwind CSS | 4.3.3 | MIT | ✅ | — | Tailwind Plus (paid UI kit, **must not be used**) | None |

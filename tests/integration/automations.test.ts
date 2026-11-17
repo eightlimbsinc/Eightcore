@@ -226,6 +226,57 @@ describe("ClickUp-style list automations", () => {
   });
 });
 
+describe("form submitted → webhook", () => {
+  it("sends the submission's answers to Make", async () => {
+    const { actors, project, list } = await setup();
+    const { createForm, getFormForEditing, submitForm, updateForm } = await import("@/modules/forms/service");
+    const { id: formId } = await createForm(actors.owner, list.id);
+    await updateForm(actors.owner, formId, {
+      name: "Website request",
+      fields: [
+        { key: "titlekey", kind: "title", label: "Issue name", help: "", required: true, multiline: false },
+        {
+          key: "whokey",
+          kind: "question",
+          label: "Requested by",
+          help: "",
+          required: false,
+          multiline: false,
+        },
+        { key: "priokey", kind: "priority", label: "Priority", help: "", required: false, multiline: false },
+      ],
+    });
+    await saveAutomation(actors.owner, project.id, {
+      name: "Form → Make",
+      listId: list.id,
+      trigger: { type: "form_submitted", formId },
+      actions: [{ type: "call_url", url: "https://hook.us1.make.com/forms" }],
+    });
+    const { form } = await getFormForEditing(actors.owner, formId);
+    await submitForm(
+      form.token,
+      { titlekey: "Footer broken", whokey: "Sofia", priokey: "high" },
+      {},
+      "203.0.113.5",
+    );
+    await processOutbox();
+    const toMake = sent.filter((x) => x.url === "https://hook.us1.make.com/forms");
+    expect(toMake).toHaveLength(1);
+    expect(JSON.parse(toMake[0]!.body)).toMatchObject({
+      event: "form.submitted",
+      task: { title: "Footer broken", priority: "high" },
+      data: {
+        form: "Website request",
+        answers: [
+          { question: "Issue name", answer: "Footer broken" },
+          { question: "Requested by", answer: "Sofia" },
+          { question: "Priority", answer: "high" },
+        ],
+      },
+    });
+  });
+});
+
 describe("outgoing webhooks", () => {
   it("only accepts public https addresses", () => {
     expect(() => checkWebhookUrl("http://hook.example.com")).toThrow(/https/);

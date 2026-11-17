@@ -11,6 +11,7 @@ import { listAssignableMembers } from "@/modules/tasks/service";
 import { listProjectFields } from "@/modules/fields/service";
 import { webhookEndpointChoices } from "@/modules/webhooks/service";
 import { listAutomations } from "./service";
+import { listProjectForms } from "@/modules/forms/service";
 
 /** Everything the automation editor offers for a project (or one of its lists). */
 async function editorChoices(actor: ActorContext, projectId: string, listId?: string) {
@@ -21,6 +22,7 @@ async function editorChoices(actor: ActorContext, projectId: string, listId?: st
     webhookEndpointChoices(db(), actor.workspaceId),
     listProjectFields(actor, projectId),
   ]);
+  const forms = await listProjectForms(actor, projectId);
   const listRows = [
     ...tree.rootLists.map((l) => ({ ...l, folder: null as string | null })),
     ...tree.folders.flatMap((f) => f.lists.map((l) => ({ ...l, folder: f.name as string | null }))),
@@ -37,6 +39,7 @@ async function editorChoices(actor: ActorContext, projectId: string, listId?: st
     tags: tags.map((t) => ({ id: t.id, name: t.name })),
     people: people.map((p) => ({ id: p.userId, name: p.name })),
     endpoints,
+    forms: forms.filter((f) => !listId || f.listId === listId),
     fields: fields
       .filter((f) => !listId || !f.listId || f.listId === listId)
       .map((f) => ({

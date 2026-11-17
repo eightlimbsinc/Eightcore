@@ -147,6 +147,8 @@ function triggerMatches(rawTrigger: unknown, event: OutboxRow) {
       );
     case "comment_added":
       return event.type === "comment.created";
+    case "form_submitted":
+      return event.type === "form.submitted" && (!t.formId || p.formId === t.formId);
     case "qa_concluded":
       return event.type === "qa.concluded" && (!t.result || p.result === t.result);
   }

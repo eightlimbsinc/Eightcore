@@ -7,7 +7,7 @@ import { canProject, type ActorContext } from "@/server/authz/policy";
 import { resolveActorById } from "@/server/authz/actor";
 import { env } from "@/server/env";
 import { ForbiddenError, NotFoundError, ValidationError, assertId } from "@/server/errors";
-import { recordActivity } from "@/modules/activity/service";
+import { enqueueOutbox, recordActivity } from "@/modules/activity/service";
 import { listStatusesFor, loadListAccess } from "@/modules/lists/service";
 import { createTask, listAssignableMembers } from "@/modules/tasks/service";
 import { listProjectFields, setTaskFieldValues } from "@/modules/fields/service";
@@ -50,6 +50,15 @@ export async function listFormsFor(actor: ActorContext, listId: string) {
     .select({ id: listForms.id, name: listForms.name, enabled: listForms.enabled })
     .from(listForms)
     .where(eq(listForms.listId, listId))
+    .orderBy(asc(listForms.createdAt));
+}
+
+/** The project's forms (for picking one in an automation). */
+export async function listProjectForms(actor: ActorContext, projectId: string) {
+  return db()
+    .select({ id: listForms.id, name: listForms.name, listId: listForms.listId })
+    .from(listForms)
+    .where(and(eq(listForms.projectId, projectId), eq(listForms.workspaceId, actor.workspaceId)))
     .orderBy(asc(listForms.createdAt));
 }
 
@@ -378,6 +387,28 @@ export async function submitForm(
     ).catch((error: Error) => console.error("[form] attaching files failed", form.id, error.message));
   }
   await db().insert(formSubmissions).values({ formId: form.id, taskId: task.id, ipHash });
+  // For automations and webhooks (e.g. Make): the answers, labelled by their questions.
+  const answersOut = shown.fields
+    .map((f) => {
+      const v = text(f.key);
+      let answer: string | string[] | null = v || null;
+      if (f.kind === "custom_field" && f.type === "dropdown")
+        answer = f.options.find((o) => o.id === v)?.label ?? null;
+      if (f.kind === "custom_field" && f.type === "checkbox") answer = v ? "Yes" : "No";
+      if (f.kind === "attachments")
+        answer = [
+          ...(files[f.key] ?? []).filter((x) => x.size > 0).map((x) => x.name),
+          ...(uploads[f.key] ?? []).map((u) => u.name),
+        ];
+      return { question: f.label, kind: f.kind, answer };
+    })
+    .filter((a) => a.answer !== null && !(Array.isArray(a.answer) && !a.answer.length));
+  await enqueueOutbox(db(), form.workspaceId, "form.submitted", {
+    taskId: task.id,
+    formId: form.id,
+    form: form.name,
+    answers: answersOut,
+  });
   return { ok: true, message: form.submitMessage || "Thanks! We got your request." };
 }
 

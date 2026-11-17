@@ -45,6 +45,7 @@ interface Choices {
   people: Option[];
   endpoints: Option[];
   fields: FieldOption[];
+  forms: { id: string; name: string; listId: string }[];
 }
 
 const PRIORITIES = ["urgent", "high", "normal", "low", "none"] as const;
@@ -67,6 +68,8 @@ function defaultTrigger(type: Trigger["type"]): Trigger {
       return { type, priority: null };
     case "qa_concluded":
       return { type, result: null };
+    case "form_submitted":
+      return { type, formId: null };
     default:
       return { type };
   }
@@ -432,6 +435,23 @@ function Editor({
               ))}
             </NativeSelect>
           ) : null}
+          {t.type === "form_submitted" ? (
+            <NativeSelect
+              aria-label="Which form"
+              value={t.formId ?? ""}
+              onChange={(e) => set({ trigger: { ...t, formId: e.target.value || null } })}
+              className="h-8"
+            >
+              <option value="">any form{d.listId ? " on this list" : ""}</option>
+              {choices.forms
+                .filter((f) => !d.listId || f.listId === d.listId)
+                .map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.name}
+                  </option>
+                ))}
+            </NativeSelect>
+          ) : null}
           {t.type === "qa_concluded" ? (
             <NativeSelect
               aria-label="QA result"
@@ -789,9 +809,11 @@ function describe(d: Definition, c: Choices) {
         ? `${person(t.userId)} is assigned`
         : t.type === "priority_changed" && t.priority
           ? `Priority changes to ${t.priority}`
-          : t.type === "qa_concluded" && t.result
-            ? `A QA round ${t.result === "pass" ? "passes" : "fails"}`
-            : TRIGGER_LABELS[t.type];
+          : t.type === "form_submitted" && t.formId
+            ? `“${c.forms.find((f) => f.id === t.formId)?.name ?? "A form"}” is submitted`
+            : t.type === "qa_concluded" && t.result
+              ? `A QA round ${t.result === "pass" ? "passes" : "fails"}`
+              : TRIGGER_LABELS[t.type];
   const then = d.actions
     .map((a) => {
       switch (a.type) {

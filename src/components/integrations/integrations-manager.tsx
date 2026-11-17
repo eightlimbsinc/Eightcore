@@ -22,6 +22,7 @@ const EVENT_LABELS: Record<string, string> = {
   "task.assignees_changed": "Assignees changed",
   "comment.created": "Comment added",
   "qa.concluded": "QA round concluded",
+  "form.submitted": "Form submitted (with its answers)",
 };
 
 function useRun() {

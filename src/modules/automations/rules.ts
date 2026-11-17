@@ -16,6 +16,8 @@ export const triggerSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("priority_changed"), priority: priority.nullable().default(null) }),
   z.object({ type: z.literal("comment_added") }),
   z.object({ type: z.literal("qa_concluded"), result: z.enum(["pass", "fail"]).nullable().default(null) }),
+  /** Null: any of the list's (or project's) forms. */
+  z.object({ type: z.literal("form_submitted"), formId: id.nullable().default(null) }),
 ]);
 export type Trigger = z.infer<typeof triggerSchema>;
 
@@ -82,6 +84,7 @@ export const TRIGGER_LABELS: Record<Trigger["type"], string> = {
   priority_changed: "The priority changes",
   comment_added: "A comment is added",
   qa_concluded: "A QA round is concluded",
+  form_submitted: "A form is submitted",
 };
 
 export const CONDITION_LABELS: Record<Condition["type"], string> = {

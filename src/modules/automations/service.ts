@@ -5,6 +5,7 @@ import {
   automationRuns,
   automations,
   customFields,
+  listForms,
   listStatuses,
   tags,
   taskLists,
@@ -47,6 +48,14 @@ async function checkReferences(
   const t = input.trigger;
   if (t.type === "status_changed") [t.fromStatusId, t.toStatusId].forEach((id) => id && statusIds.add(id));
   if (t.type === "assignee_added" && t.userId) userIds.add(t.userId);
+  if (t.type === "form_submitted" && t.formId) {
+    const [form] = await db()
+      .select({ listId: listForms.listId })
+      .from(listForms)
+      .where(and(eq(listForms.id, t.formId), eq(listForms.projectId, projectId)));
+    if (!form || (input.listId && form.listId !== input.listId))
+      throw new NotFoundError("Form not found on this list");
+  }
   for (const c of input.conditions) {
     if (c.type === "status_is") c.statusIds.forEach((id) => statusIds.add(id));
     if (c.type === "has_tag") tagIds.add(c.tagId);
