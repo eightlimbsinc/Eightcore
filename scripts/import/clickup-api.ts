@@ -92,8 +92,14 @@ try {
   console.log("\nSpaces → projects");
   for (const s of report.spaces)
     console.log(
-      `  ${s.name} → ${s.key}: ${s.lists} lists, ${s.tasks} tasks (${s.closed} closed, ${s.archived} archived, ${s.subtasks} subtasks)`,
+      `  ${s.name} → ${s.key}: ${s.lists} lists, ${s.tasks} tasks (${s.closed} closed, ${s.archived} archived, ${s.subtasks} subtasks); NEW: ${s.newTasks}, already in Eightcore: ${s.tasks - s.newTasks}`,
     );
+  // Tickets already imported are recognised by their ClickUp id and skipped: never duplicated.
+  console.log(
+    `\nNew tickets (${report.newTickets.length}); everything else is already in Eightcore and is skipped`,
+  );
+  for (const t of report.newTickets.slice(0, 200)) console.log(`  + ${t}`);
+  if (report.newTickets.length > 200) console.log(`  …and ${report.newTickets.length - 200} more`);
   console.log("\nPeople (matched by email)");
   for (const p of report.people)
     console.log(

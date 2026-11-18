@@ -145,6 +145,8 @@ export interface ImportReport {
     key: string;
     lists: number;
     tasks: number;
+    /** Not imported yet (a re-run brings only these in). */
+    newTasks: number;
     closed: number;
     archived: number;
     subtasks: number;
@@ -155,6 +157,8 @@ export interface ImportReport {
   created: Record<string, number>;
   warnings: string[];
   estimatedRequests: number;
+  /** "Space › List › Title" of every ticket not imported yet. */
+  newTickets: string[];
 }
 
 /** Reads ClickUp, then (with `apply`) creates the projects, lists, tasks, comments… in Eightcore. */
@@ -169,6 +173,7 @@ export async function runClickUpImport(options: ImportOptions): Promise<ImportRe
     created: {},
     warnings: [],
     estimatedRequests: 0,
+    newTickets: [],
   };
   const bump = (what: string) => (report.created[what] = (report.created[what] ?? 0) + 1);
   const warn = (msg: string) => {
@@ -256,11 +261,16 @@ export async function runClickUpImport(options: ImportOptions): Promise<ImportRe
       }
       planned.push({ space, key, folders: folders.map(({ id, name }) => ({ id, name })), lists });
       const ts = lists.flatMap((l) => l.tasks);
+      const fresh = lists.flatMap((l) =>
+        l.tasks.filter((t) => !mapped.has(`task:${t.id}`)).map((t) => `${l.list.name} › ${t.name}`),
+      );
+      report.newTickets.push(...fresh.map((t) => `${space.name} › ${t}`));
       report.spaces.push({
         name: space.name,
         key,
         lists: lists.length,
         tasks: ts.length,
+        newTasks: fresh.length,
         closed: ts.filter((t) => ["done", "closed"].includes(t.status.type)).length,
         archived: ts.filter((t) => t.archived).length,
         subtasks: ts.filter((t) => t.parent).length,
@@ -276,7 +286,8 @@ export async function runClickUpImport(options: ImportOptions): Promise<ImportRe
       }
     }
   }
-  const taskCount = planned.flatMap((s) => s.lists.flatMap((l) => l.tasks)).length;
+  // Only tickets not imported yet are fetched again (imported ones are skipped).
+  const taskCount = report.newTickets.length;
   // Per task: its detail (attachments, checklists) and its comments.
   report.estimatedRequests = taskCount * (options.comments === false ? 1 : 2);
 

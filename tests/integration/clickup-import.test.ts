@@ -194,8 +194,10 @@ describe("ClickUp import", () => {
 
     const dry = await runClickUpImport({ ...opts, apply: false });
     expect(dry.spaces).toEqual([
-      { name: "8limbs INC", key: "LI", lists: 2, tasks: 5, closed: 1, archived: 1, subtasks: 1 },
+      { name: "8limbs INC", key: "LI", lists: 2, tasks: 5, newTasks: 5, closed: 1, archived: 1, subtasks: 1 },
     ]);
+    expect(dry.newTickets).toHaveLength(5);
+    expect(dry.estimatedRequests).toBe(10);
     expect(dry.people.find((p) => p.name === "Former Freelancer")?.matched).toBeNull();
     expect(dry.people.find((p) => p.name === "Mica")?.matched).toBe(users.member.name);
     expect(dry.skippedFields).toEqual(["8limbs INC › Do it (button)"]);
@@ -283,6 +285,11 @@ describe("ClickUp import", () => {
     ]);
 
     const mappings = (await db().select({ n: count() }).from(importMappings))[0]!.n;
+    // A dry run now finds nothing new: every ticket is recognised by its ClickUp id.
+    const recheck = await runClickUpImport({ ...opts, apply: false });
+    expect(recheck.spaces[0]).toMatchObject({ tasks: 5, newTasks: 0 });
+    expect(recheck.newTickets).toEqual([]);
+    expect(recheck.estimatedRequests).toBe(0);
     const again = await runClickUpImport({ ...opts, apply: true });
     expect(again.created).toEqual({});
     expect((await db().select({ n: count() }).from(importMappings))[0]!.n).toBe(mappings);
