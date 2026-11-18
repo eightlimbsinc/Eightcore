@@ -187,6 +187,17 @@
     font-weight: 650;
     margin-top: 1.2em;
   }
+  .doc-content h4 {
+    font-size: 1em;
+    font-weight: 650;
+    margin-top: 1em;
+  }
+  /* Task descriptions: the same formatting, sized for the task window. */
+  .description-content {
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 5.5em;
+  }
   .doc-content > :first-child {
     margin-top: 0;
   }

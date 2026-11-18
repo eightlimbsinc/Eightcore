@@ -81,6 +81,29 @@ test("an owner organises work into lists and tasks", async ({ page }) => {
   await expect(win.getByRole("button", { name: "Expand", exact: true })).toBeVisible();
   await win.getByRole("button", { name: "Expand", exact: true }).click();
   await expect(win.getByRole("button", { name: "Collapse", exact: true })).toBeVisible();
+
+  // Rich text: the ⋮ menu turns a line into a heading; the toolbar makes a checklist.
+  await description.fill("Scope");
+  await win.getByRole("button", { name: "Turn this line into…" }).click();
+  await page.getByRole("menuitem", { name: "Heading 2" }).click();
+  await expect(description.locator("h2")).toHaveText("Scope");
+  await description.press("End");
+  await description.press("Enter");
+  await win.getByRole("toolbar", { name: "Formatting" }).getByRole("button", { name: "Checklist" }).click();
+  await page.keyboard.type("Translate titles");
+  // ("Saved" is still showing from the last save: wait for this save's request instead.)
+  const saved = page.waitForResponse((r) => r.request().method() === "POST" && r.url().includes("/t/WEB-1"));
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await saved;
+  // Saved as Markdown and shown formatted again after a reload.
+  await page.reload();
+  await expect(page.getByLabel("Description").locator("h2")).toHaveText("Scope");
+  await expect(page.getByLabel("Description").locator('ul[data-type="taskList"]')).toContainText(
+    "Translate titles",
+  );
+  await page.goBack();
+  await page.getByRole("link", { name: "Homepage hero" }).click();
+  await expect(win).toBeVisible();
   await description.fill("Hero with video background.");
 
   // Assign it to myself, add a subtask.

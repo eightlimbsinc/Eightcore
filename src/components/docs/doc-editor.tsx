@@ -1,28 +1,10 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { EditorContent, useEditor, useEditorState, type Editor } from "@tiptap/react";
+import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { TaskItem, TaskList } from "@tiptap/extension-list";
 import { Placeholder } from "@tiptap/extensions";
-import {
-  Bold,
-  Code,
-  Heading1,
-  Heading2,
-  Heading3,
-  Italic,
-  Link2,
-  List,
-  ListChecks,
-  ListOrdered,
-  Minus,
-  Quote,
-  Redo2,
-  SquareCode,
-  Strikethrough,
-  Underline,
-  Undo2,
-} from "lucide-react";
+import { BlockMenu, Toolbar } from "@/components/editor/rich-text";
 import { saveDocAction } from "@/modules/docs/actions";
 import { safeHref } from "@/modules/docs/content";
 import { Alert } from "@/components/ui/alert";
@@ -33,133 +15,6 @@ const SAVE_DELAY = 800;
 
 type Status =
   { kind: "saved"; at: string } | { kind: "dirty" } | { kind: "saving" } | { kind: "error"; message: string };
-
-function ToolButton({
-  label,
-  active,
-  disabled,
-  onClick,
-  children,
-}: {
-  label: string;
-  active?: boolean;
-  disabled?: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      title={label}
-      aria-pressed={active}
-      disabled={disabled}
-      onMouseDown={(e) => e.preventDefault()}
-      onClick={onClick}
-      className={cn(
-        "text-muted-foreground hover:text-foreground grid size-8 place-items-center rounded-md hover:bg-black/5 disabled:opacity-40 dark:hover:bg-white/10 [&_svg]:size-4",
-        active && "text-foreground bg-black/5 dark:bg-white/10",
-      )}
-    >
-      {children}
-    </button>
-  );
-}
-
-function Toolbar({ editor }: { editor: Editor }) {
-  const s = useEditorState({
-    editor,
-    selector: ({ editor: e }) => ({
-      bold: e.isActive("bold"),
-      italic: e.isActive("italic"),
-      underline: e.isActive("underline"),
-      strike: e.isActive("strike"),
-      code: e.isActive("code"),
-      h1: e.isActive("heading", { level: 1 }),
-      h2: e.isActive("heading", { level: 2 }),
-      h3: e.isActive("heading", { level: 3 }),
-      bullet: e.isActive("bulletList"),
-      ordered: e.isActive("orderedList"),
-      task: e.isActive("taskList"),
-      quote: e.isActive("blockquote"),
-      codeBlock: e.isActive("codeBlock"),
-      link: e.isActive("link"),
-      canUndo: e.can().undo(),
-      canRedo: e.can().redo(),
-    }),
-  });
-  const chain = () => editor.chain().focus();
-  function setLink() {
-    const current = editor.getAttributes("link").href as string | undefined;
-    const input = window.prompt("Link address (leave empty to remove)", current ?? "https://");
-    if (input === null) return;
-    const href = safeHref(input);
-    if (!input.trim() || !href) chain().extendMarkRange("link").unsetLink().run();
-    else chain().extendMarkRange("link").setLink({ href }).run();
-  }
-  return (
-    <div
-      role="toolbar"
-      aria-label="Formatting"
-      className="bg-surface/95 sticky top-0 z-10 flex flex-wrap items-center gap-0.5 border-b px-2 py-1 backdrop-blur"
-    >
-      <ToolButton label="Heading 1" active={s.h1} onClick={() => chain().toggleHeading({ level: 1 }).run()}>
-        <Heading1 />
-      </ToolButton>
-      <ToolButton label="Heading 2" active={s.h2} onClick={() => chain().toggleHeading({ level: 2 }).run()}>
-        <Heading2 />
-      </ToolButton>
-      <ToolButton label="Heading 3" active={s.h3} onClick={() => chain().toggleHeading({ level: 3 }).run()}>
-        <Heading3 />
-      </ToolButton>
-      <span className="bg-border mx-1 h-5 w-px" aria-hidden />
-      <ToolButton label="Bold" active={s.bold} onClick={() => chain().toggleBold().run()}>
-        <Bold />
-      </ToolButton>
-      <ToolButton label="Italic" active={s.italic} onClick={() => chain().toggleItalic().run()}>
-        <Italic />
-      </ToolButton>
-      <ToolButton label="Underline" active={s.underline} onClick={() => chain().toggleUnderline().run()}>
-        <Underline />
-      </ToolButton>
-      <ToolButton label="Strikethrough" active={s.strike} onClick={() => chain().toggleStrike().run()}>
-        <Strikethrough />
-      </ToolButton>
-      <ToolButton label="Inline code" active={s.code} onClick={() => chain().toggleCode().run()}>
-        <Code />
-      </ToolButton>
-      <ToolButton label="Link" active={s.link} onClick={setLink}>
-        <Link2 />
-      </ToolButton>
-      <span className="bg-border mx-1 h-5 w-px" aria-hidden />
-      <ToolButton label="Bulleted list" active={s.bullet} onClick={() => chain().toggleBulletList().run()}>
-        <List />
-      </ToolButton>
-      <ToolButton label="Numbered list" active={s.ordered} onClick={() => chain().toggleOrderedList().run()}>
-        <ListOrdered />
-      </ToolButton>
-      <ToolButton label="Checklist" active={s.task} onClick={() => chain().toggleTaskList().run()}>
-        <ListChecks />
-      </ToolButton>
-      <ToolButton label="Quote" active={s.quote} onClick={() => chain().toggleBlockquote().run()}>
-        <Quote />
-      </ToolButton>
-      <ToolButton label="Code block" active={s.codeBlock} onClick={() => chain().toggleCodeBlock().run()}>
-        <SquareCode />
-      </ToolButton>
-      <ToolButton label="Divider" onClick={() => chain().setHorizontalRule().run()}>
-        <Minus />
-      </ToolButton>
-      <span className="bg-border mx-1 h-5 w-px" aria-hidden />
-      <ToolButton label="Undo" disabled={!s.canUndo} onClick={() => chain().undo().run()}>
-        <Undo2 />
-      </ToolButton>
-      <ToolButton label="Redo" disabled={!s.canRedo} onClick={() => chain().redo().run()}>
-        <Redo2 />
-      </ToolButton>
-    </div>
-  );
-}
 
 function hasBlocks(content: unknown) {
   const blocks = (content as { content?: unknown[] } | null)?.content;
@@ -237,7 +92,7 @@ export function DocEditor({
   const extensions = useMemo(
     () => [
       StarterKit.configure({
-        heading: { levels: [1, 2, 3] },
+        heading: { levels: [1, 2, 3, 4] },
         link: {
           openOnClick: !canEdit,
           autolink: true,
@@ -337,8 +192,17 @@ export function DocEditor({
         ) : null}
       </div>
       <div className="bg-surface rounded-lg border">
-        {canEdit && editor ? <Toolbar editor={editor} /> : null}
-        <EditorContent editor={editor} className="min-h-[50vh] px-6 py-5" />
+        {canEdit && editor ? (
+          <Toolbar
+            editor={editor}
+            levels={[1, 2, 3, 4]}
+            className="bg-surface/95 sticky top-0 z-10 backdrop-blur"
+          />
+        ) : null}
+        <div className="relative" data-block-menu-box>
+          {canEdit && editor ? <BlockMenu editor={editor} levels={[1, 2, 3, 4]} /> : null}
+          <EditorContent editor={editor} className="min-h-[50vh] px-8 py-5" />
+        </div>
       </div>
     </div>
   );

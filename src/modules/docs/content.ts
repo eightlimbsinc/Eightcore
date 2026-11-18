@@ -58,7 +58,7 @@ function cleanAttrs(
   switch (type) {
     case "heading": {
       const level = Number(a.level);
-      return { level: [1, 2, 3].includes(level) ? level : 2 };
+      return { level: [1, 2, 3, 4].includes(level) ? level : 2 };
     }
     case "orderedList": {
       const start = Number(a.start);

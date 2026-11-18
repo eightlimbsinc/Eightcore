@@ -1,13 +1,22 @@
 "use client";
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { EditorContent, useEditor } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import { TaskItem, TaskList } from "@tiptap/extension-list";
+import { Placeholder } from "@tiptap/extensions";
+import { Markdown } from "@tiptap/markdown";
 import { ChevronDown, ChevronUp } from "lucide-react";
+import { safeHref } from "@/modules/docs/content";
+import { BlockMenu, Toolbar } from "@/components/editor/rich-text";
 import { cn } from "@/lib/utils";
 
 const COLLAPSED_PX = 200;
 
 /**
- * A task description that shows its first lines with "Expand" (like ClickUp), grows to fit its
- * whole text when expanded or while editing, and never needs dragging a corner.
+ * A task description in rich text: headings (H1–H4), bullets, numbering, checklists, quotes,
+ * links. It's stored as Markdown (what ClickUp's import and older descriptions already use), so
+ * search, webhooks and forms keep working with plain text. Shows its first lines with "Expand"
+ * (like ClickUp) and grows to fit while editing.
  */
 export function DescriptionField({
   id,
@@ -24,49 +33,95 @@ export function DescriptionField({
   placeholder?: string;
   form?: string;
 }) {
-  const ref = useRef<HTMLTextAreaElement>(null);
+  const [markdown, setMarkdown] = useState(defaultValue);
   const [expanded, setExpanded] = useState(false);
   const [tall, setTall] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
 
-  const fit = useCallback(() => {
-    const el = ref.current;
-    if (!el) return;
-    el.style.height = "auto";
-    const full = el.scrollHeight + 2;
-    setTall(full > COLLAPSED_PX + 24);
-    el.style.height = `${expanded ? Math.max(full, 96) : Math.min(Math.max(full, 96), COLLAPSED_PX)}px`;
-  }, [expanded]);
+  // Built once: new extension objects on every render would make Tiptap rebuild the editor.
+  const extensions = useMemo(
+    () => [
+      StarterKit.configure({
+        heading: { levels: [1, 2, 3, 4] },
+        link: {
+          openOnClick: Boolean(disabled),
+          autolink: true,
+          protocols: ["mailto"],
+          isAllowedUri: (url) => safeHref(url) !== null,
+          HTMLAttributes: { rel: "noopener noreferrer nofollow", target: "_blank" },
+        },
+      }),
+      TaskList,
+      TaskItem.configure({ nested: true }),
+      Placeholder.configure({ placeholder: placeholder ?? "", showOnlyWhenEditable: false }),
+      Markdown,
+    ],
+    [disabled, placeholder],
+  );
+  const editor = useEditor(
+    {
+      immediatelyRender: false,
+      editable: !disabled,
+      content: defaultValue || "",
+      contentType: "markdown",
+      extensions,
+      editorProps: {
+        attributes: {
+          id,
+          class: "doc-content description-content",
+          role: "textbox",
+          "aria-multiline": "true",
+          "aria-label": "Description",
+        },
+      },
+      onUpdate: ({ editor: e }) => setMarkdown(e.isEmpty ? "" : e.getMarkdown()),
+      onFocus: () => {
+        setFocused(true);
+        setExpanded(true); // editing shows everything
+      },
+      onBlur: () => setFocused(false),
+    },
+    [extensions],
+  );
 
+  // Whether the text is longer than the collapsed height (re-checked as it changes).
   useLayoutEffect(() => {
-    fit();
-  }, [fit]);
+    const el = box.current?.querySelector<HTMLElement>(".description-content");
+    if (!el) return;
+    const check = () => setTall(el.scrollHeight > COLLAPSED_PX + 24);
+    const observer = new ResizeObserver(check);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [editor]);
 
+  const clipped = !expanded && tall;
   return (
     <div className="grid gap-1">
-      <div className="relative">
-        <textarea
-          ref={ref}
-          id={id}
-          name={name}
-          form={form}
-          defaultValue={defaultValue}
-          disabled={disabled}
-          placeholder={placeholder}
-          suppressHydrationWarning
-          onInput={fit}
-          // Editing shows everything.
-          onFocus={() => setExpanded(true)}
-          className={cn(
-            "border-input bg-surface placeholder:text-muted-foreground/70 block w-full resize-none rounded-md border px-3 py-2 text-sm leading-relaxed disabled:opacity-50",
-            !expanded && "overflow-hidden",
-          )}
-        />
-        {!expanded && tall ? (
+      <input type="hidden" name={name} form={form} value={markdown} />
+      <div
+        className={cn(
+          "border-input bg-surface rounded-md border",
+          focused && "ring-ring/40 ring-2",
+          disabled && "opacity-90",
+        )}
+      >
+        {editor && !disabled ? <Toolbar editor={editor} levels={[1, 2, 3, 4]} className="px-1" /> : null}
+        <div ref={box} className="relative" data-block-menu-box>
+          {editor && !disabled ? <BlockMenu editor={editor} levels={[1, 2, 3, 4]} /> : null}
           <div
-            aria-hidden
-            className="from-surface pointer-events-none absolute inset-x-px bottom-px h-12 rounded-b-md bg-gradient-to-t to-transparent"
-          />
-        ) : null}
+            className={cn("py-2 pr-3 text-sm", disabled ? "pl-3" : "pl-8", clipped && "overflow-hidden")}
+            style={clipped ? { maxHeight: COLLAPSED_PX } : undefined}
+          >
+            <EditorContent editor={editor} />
+          </div>
+          {clipped ? (
+            <div
+              aria-hidden
+              className="from-surface pointer-events-none absolute inset-x-px bottom-px h-12 rounded-b-md bg-gradient-to-t to-transparent"
+            />
+          ) : null}
+        </div>
       </div>
       {tall ? (
         <div className="flex justify-center">
