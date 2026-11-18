@@ -253,10 +253,11 @@ test("the board moves tasks between statuses, also by keyboard", async ({ page }
     await page.keyboard.press("ArrowRight");
     await expect(page.getByText(/New logo is over To Do/)).toBeAttached({ timeout: 1000 });
   }).toPass();
+  // The card moves at once; the save (a server action POST) finishes just after. Wait for it.
+  const saved = page.waitForResponse((r) => r.request().method() === "POST" && r.url().includes("/board"));
   await page.keyboard.press("Space");
   await expect(columns.getByRole("listitem", { name: /^To Do, 1 task/ })).toBeVisible();
-  // The card moves at once; the save finishes just after. Let it, then reload.
-  await page.waitForLoadState("networkidle");
+  await saved;
   await page.reload();
   await expect(columns.getByRole("listitem", { name: /^To Do, 1 task/ })).toContainText("New logo");
 

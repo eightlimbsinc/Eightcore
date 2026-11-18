@@ -15,11 +15,34 @@ export class UploadError extends Error {}
 
 const mb = (n: number) => `${Math.round((n / 1024 / 1024) * 10) / 10} MB`;
 
+/** Bytes sent so far across all files of one upload, for a progress bar. */
+export type UploadProgress = (sent: { loaded: number; total: number }) => void;
+
+/** PUTs one file, reporting bytes sent (fetch can't report upload progress; XHR can). */
+export function uploadFile(url: string, file: File, onBytes: (loaded: number) => void): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", url);
+    xhr.setRequestHeader("content-type", "application/octet-stream");
+    xhr.upload.onprogress = (e) => onBytes(e.loaded);
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        onBytes(file.size);
+        resolve();
+      } else reject(new Error(String(xhr.status)));
+    };
+    xhr.onerror = () => reject(new Error("network"));
+    xhr.onabort = () => reject(new Error("aborted"));
+    xhr.send(file);
+  });
+}
+
 /** The form with `field`'s files uploaded to storage and replaced by references. */
 export async function moveFilesToStorage(
   data: FormData,
   field: string,
   start: StartUploads,
+  onProgress?: UploadProgress,
 ): Promise<FormData> {
   const files = data.getAll(field).filter((v): v is File => v instanceof File && v.size > 0);
   if (!files.length) return data;
@@ -35,15 +58,16 @@ export async function moveFilesToStorage(
   }
   if (!started.ok) throw new UploadError(started.message);
   try {
+    const total = files.reduce((sum, f) => sum + f.size, 0);
+    const sent = files.map(() => 0);
+    onProgress?.({ loaded: 0, total });
     await Promise.all(
-      files.map(async (f, i) => {
-        const res = await fetch(started.uploads[i]!.url, {
-          method: "PUT",
-          headers: { "content-type": "application/octet-stream" },
-          body: f,
-        });
-        if (!res.ok) throw new Error(String(res.status));
-      }),
+      files.map((f, i) =>
+        uploadFile(started.uploads[i]!.url, f, (loaded) => {
+          sent[i] = Math.min(loaded, f.size);
+          onProgress?.({ loaded: sent.reduce((a, b) => a + b, 0), total });
+        }),
+      ),
     );
   } catch {
     if (smallEnough) return data;

@@ -497,22 +497,41 @@ test("an owner organises work into lists and tasks", async ({ page }) => {
   await client.getByLabel("Details").fill("The privacy link 404s");
   await client.getByLabel("Priority").selectOption("high");
   // Over 25 MB: caught before sending, and the answers stay.
-  await client.getByLabel("Files").setInputFiles({
+  await client.getByLabel("Files", { exact: true }).setInputFiles({
     name: "recording.mov",
     mimeType: "video/quicktime",
     buffer: Buffer.alloc(26 * 1024 * 1024),
   });
+  // Picked files are listed straight away (a file that's too big is flagged).
+  await expect(client.getByRole("list", { name: "Attached files" })).toContainText("recording.mov");
+  await expect(client.getByRole("list", { name: "Attached files" })).toContainText("over 25 MB");
   await client.getByRole("button", { name: "Submit" }).click();
-  await expect(client.getByRole("alert").filter({ hasText: /at most 25 MB each/ })).toBeVisible();
+  await expect(client.getByRole("alert").filter({ hasText: /is over 25 MB/ })).toBeVisible();
   await expect(client.getByLabel("Request title")).toHaveValue("Footer link is broken");
+  // Remove it; picking again adds to the list rather than replacing it.
+  await client.getByRole("button", { name: "Remove recording.mov" }).click();
+  await expect(client.getByRole("list", { name: "Attached files" })).toHaveCount(0);
+  await client
+    .getByLabel("Files", { exact: true })
+    .setInputFiles({ name: "notes.txt", mimeType: "text/plain", buffer: Buffer.from("hi") });
+  // Files upload as soon as they're picked, before Submit.
+  await expect(client.getByRole("list", { name: "Attached files" })).toContainText("notes.txt");
+  await expect(client.getByRole("list", { name: "Attached files" })).toContainText("Attached");
+  await expect(client.getByRole("button", { name: "Add more files" })).toBeVisible();
   // A 6 MB recording: more than the host lets through the app, so it goes straight to storage.
-  await client.getByLabel("Files").setInputFiles({
+  await client.getByLabel("Files", { exact: true }).setInputFiles({
     name: "recording.mp4",
     mimeType: "video/mp4",
     buffer: Buffer.alloc(6 * 1024 * 1024, 1),
   });
+  await expect(client.getByRole("list", { name: "Attached files" }).getByRole("listitem")).toHaveText([
+    /notes\.txt/,
+    /recording\.mp4\s*6\.0 MB · Attached/,
+  ]);
   await client.getByRole("button", { name: "Submit" }).click();
-  await expect(client.getByRole("status")).toContainText("Got it, thanks!");
+  await expect(client.getByRole("status").filter({ hasText: "Got it, thanks!" })).toContainText(
+    "All 2 files were attached.",
+  );
   await visitor.close();
 
   await page.getByRole("navigation", { name: "Layout" }).getByRole("link", { name: "List" }).click();
@@ -528,5 +547,6 @@ test("an owner organises work into lists and tasks", async ({ page }) => {
   await page.getByRole("dialog").getByRole("button", { name: "Copy link" }).click();
   // The client's 6 MB recording arrived with the ticket.
   await expect(page.getByRole("dialog").getByRole("link", { name: "recording.mp4" }).first()).toBeVisible();
+  await expect(page.getByRole("dialog").getByRole("link", { name: "notes.txt" }).first()).toBeVisible();
   await expect(page.getByRole("status").filter({ hasText: "Link copied" })).toBeVisible();
 });
