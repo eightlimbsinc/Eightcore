@@ -22,6 +22,7 @@ const CHOICES: { key: keyof ViewSettings; title: string; options: [string, strin
     options: [
       ["collapsed", "Collapsed"],
       ["expanded", "Expanded"],
+      ["separate", "Separate (filter subtasks)"],
     ],
   },
   {

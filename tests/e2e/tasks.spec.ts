@@ -279,6 +279,20 @@ test("an owner organises work into lists and tasks", async ({ page }) => {
   await expect(page.getByRole("button", { name: /^Status of WEB-2:/ })).toBeVisible();
   await page.getByRole("button", { name: "Hide subtasks of WEB-1 Homepage hero" }).click();
   await expect(page.getByRole("link", { name: "Pick hero video" })).toHaveCount(0);
+  // "Separate": each subtask is its own row (naming its parent), so filters find it directly.
+  await page.getByRole("button", { name: /^View options/ }).click();
+  await page
+    .getByRole("group", { name: "Subtasks" })
+    .getByRole("link", { name: /^Separate/ })
+    .click();
+  await page.keyboard.press("Escape");
+  await expect(page).toHaveURL(/subtasks=separate/);
+  const subtaskRow = page.getByRole("group", { name: /^WEB-2 Pick hero video$/ });
+  await expect(subtaskRow).toContainText("↳ in WEB-1 Homepage hero");
+  await page.getByRole("button", { name: /^View options/ }).click();
+  await page.getByRole("group", { name: "Subtasks" }).getByRole("link", { name: "Collapsed" }).click();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("link", { name: "Pick hero video" })).toHaveCount(0);
 
   // Assign from the list row, then unassign.
   const newRow = page.getByRole("listitem").filter({ hasText: "Cross-browser check" });

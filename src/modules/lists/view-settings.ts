@@ -4,8 +4,11 @@ import { z } from "zod";
 export const viewSettingsSchema = z.object({
   /** Status groups first-to-last ("asc") or last-to-first ("desc"). */
   order: z.enum(["asc", "desc"]).catch("asc"),
-  /** Subtasks start collapsed under their parent, or expanded. */
-  subtasks: z.enum(["collapsed", "expanded"]).catch("collapsed"),
+  /**
+   * Subtasks start collapsed under their parent, expanded, or "separate": each subtask is its
+   * own row under its own status (so filters match subtasks directly), as in ClickUp.
+   */
+  subtasks: z.enum(["collapsed", "expanded", "separate"]).catch("collapsed"),
   /** Show or hide the groups of "closed" statuses (e.g. Completed). Hidden by default. */
   closed: z.enum(["show", "hide"]).catch("hide"),
   /** Saved filters, as an address-bar query ("priority=high&assignee=me"). */

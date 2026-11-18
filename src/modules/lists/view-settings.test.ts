@@ -31,6 +31,14 @@ describe("list view settings", () => {
   });
 });
 
+describe("separate subtasks", () => {
+  it("is a saved and address-bar option", () => {
+    expect(readViewSettings({ subtasks: "separate" }).subtasks).toBe("separate");
+    expect(effectiveView(DEFAULT_VIEW, { subtasks: "separate" }).subtasks).toBe("separate");
+    expect(readViewSettings({ subtasks: "sideways" }).subtasks).toBe("collapsed");
+  });
+});
+
 describe("orderTabs", () => {
   it("follows the saved order; tabs it doesn't name keep their order at the end", () => {
     expect(orderTabs(["list", "board", "calendar", "f1", "f2"], ["calendar", "f2", "gone"])).toEqual([

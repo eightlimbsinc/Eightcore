@@ -74,9 +74,13 @@ export default async function ListPage({
     delete: canProject(role, "task.delete") || canProject(role, "task.delete_own"),
   };
   const selectable = bulk.update || bulk.archive || bulk.delete;
+  // "Separate" subtasks: every task is its own row (no nesting), with its parent named.
+  const separate = view.subtasks === "separate";
+  const byId = new Map(tasks.map((t) => [t.id, t]));
   const renderTask = (task: (typeof tasks)[number], depth: number): React.ReactNode => {
     const ref = `${project.key}-${task.number}`;
-    const subtasks = childrenOf.get(task.id) ?? [];
+    const subtasks = separate ? [] : (childrenOf.get(task.id) ?? []);
+    const parent = separate && task.parentTaskId ? byId.get(task.parentTaskId) : undefined;
     return (
       <ExpandableTask
         // Remount when the view's subtask setting changes, so rows pick up the new default.
@@ -89,7 +93,7 @@ export default async function ListPage({
         depth={depth}
         leading={selectable ? <RowCheckbox id={task.id} label={`${ref} ${task.title}`} /> : <span />}
         drag={
-          can.updateTask && depth === 0
+          can.updateTask && depth === 0 && !task.parentTaskId
             ? {
                 task: { id: task.id, ref, version: task.version, projectId: project.id, listId: list.id },
                 statusId: task.statusId,
@@ -128,6 +132,11 @@ export default async function ListPage({
               >
                 {task.title}
               </Link>
+              {parent ? (
+                <span className="text-muted-foreground min-w-0 truncate text-[12px]">
+                  ↳ in {project.key}-{parent.number} {parent.title}
+                </span>
+              ) : null}
               {task.repeats ? (
                 <Repeat className="text-muted-foreground size-3.5" aria-label="Repeats" />
               ) : null}
