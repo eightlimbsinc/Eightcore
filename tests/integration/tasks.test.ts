@@ -105,16 +105,16 @@ describe("subtasks", () => {
     expect(await listTasks(actors.member, list.id)).toEqual([]);
   });
 
-  it("allows at most 5 levels below a top-level task", async () => {
+  it("allows at most 7 levels below a top-level task (as in ClickUp)", async () => {
     const { actors, list } = await setup();
     let parentId = (await createTask(actors.member, list.id, { title: "Level 0" })).id;
-    for (let level = 1; level <= 5; level++) {
+    for (let level = 1; level <= 7; level++) {
       parentId = (
         await createTask(actors.member, list.id, { title: `Level ${level}`, parentTaskId: parentId })
       ).id;
     }
     await expect(
-      createTask(actors.member, list.id, { title: "Level 6", parentTaskId: parentId }),
+      createTask(actors.member, list.id, { title: "Level 8", parentTaskId: parentId }),
     ).rejects.toBeInstanceOf(ValidationError);
   });
 

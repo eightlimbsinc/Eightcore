@@ -62,7 +62,7 @@ function assertProject(role: ProjectRole, action: ProjectAction): void {
 function mapHierarchyError(error: unknown): never {
   const { constraint } = pgErrorInfo(error);
   if (constraint === "tasks_max_depth")
-    throw new ValidationError("Subtasks can be nested at most 5 levels deep");
+    throw new ValidationError("Subtasks can be nested at most 7 levels deep");
   if (constraint === "tasks_no_cycles")
     throw new ValidationError("A task can't be placed under its own subtask");
   if (constraint === "tasks_dates_order") {
