@@ -83,7 +83,12 @@ export function TaskForm({
           name="description"
           defaultValue={task.description}
           disabled={!canEdit}
-          placeholder={canEdit ? "Add details, acceptance criteria, links…" : "No description"}
+          placeholder={
+            canEdit
+              ? "Add details, acceptance criteria, links… Paste a screenshot to add it here."
+              : "No description"
+          }
+          images={canEdit ? { workspaceSlug, taskId: task.id } : undefined}
         />
       </Field>
       <LinkPreviews workspaceSlug={workspaceSlug} text={task.description} />

@@ -11,6 +11,7 @@ import {
   Heading2,
   Heading3,
   Heading4,
+  ImagePlus,
   Italic,
   Link2,
   List,
@@ -104,10 +105,13 @@ export function Toolbar({
   editor,
   levels = [1, 2, 3],
   className,
+  onImage,
 }: {
   editor: Editor;
   levels?: HeadingLevel[];
   className?: string;
+  /** Shows an "Add image" button that calls this (the editor uploads and inserts the image). */
+  onImage?: () => void;
 }) {
   const s = useEditorState({
     editor,
@@ -205,6 +209,11 @@ export function Toolbar({
       <ToolButton label="Divider" onClick={() => chain().setHorizontalRule().run()}>
         <Minus />
       </ToolButton>
+      {onImage ? (
+        <ToolButton label="Add image" onClick={onImage}>
+          <ImagePlus />
+        </ToolButton>
+      ) : null}
       <span className="bg-border mx-1 h-5 w-px" aria-hidden />
       <ToolButton label="Undo" disabled={!s.canUndo} onClick={() => chain().undo().run()}>
         <Undo2 />

@@ -192,6 +192,15 @@
     font-weight: 650;
     margin-top: 1em;
   }
+  .doc-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 0.5rem;
+    border: 1px solid var(--border);
+  }
+  .doc-content img.ProseMirror-selectednode {
+    outline: 2px solid var(--accent);
+  }
   /* Task descriptions: the same formatting, sized for the task window. */
   .description-content {
     font-size: 14px;

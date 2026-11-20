@@ -101,6 +101,29 @@ test("an owner organises work into lists and tasks", async ({ page }) => {
   await expect(page.getByLabel("Description").locator('ul[data-type="taskList"]')).toContainText(
     "Translate titles",
   );
+  // A screenshot pasted into the description uploads as the task's file and shows in place.
+  const png =
+    "iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAEElEQVR4nGP4z8AARwzEcQCukw/x0F8jngAAAABJRU5ErkJggg==";
+  await page.getByLabel("Description").click();
+  await page.getByLabel("Description").evaluate((el, b64) => {
+    const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+    const data = new DataTransfer();
+    data.items.add(new File([bytes], "screenshot.png", { type: "image/png" }));
+    el.dispatchEvent(new ClipboardEvent("paste", { clipboardData: data, bubbles: true, cancelable: true }));
+  }, png);
+  const pasted = page.getByLabel("Description").getByRole("img", { name: "screenshot.png" });
+  await expect(pasted).toBeVisible();
+  await expect(pasted).toHaveAttribute("src", /\/files\/[0-9a-f-]{36}$/);
+  const savedImage = page.waitForResponse(
+    (r) => r.request().method() === "POST" && r.url().includes("/t/WEB-1"),
+  );
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await savedImage;
+  await page.reload();
+  const reloaded = page.getByLabel("Description").getByRole("img", { name: "screenshot.png" });
+  await expect(reloaded).toBeVisible();
+  await expect.poll(() => reloaded.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(4);
+
   await page.goBack();
   await page.getByRole("link", { name: "Homepage hero" }).click();
   await expect(win).toBeVisible();

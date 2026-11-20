@@ -5,7 +5,7 @@ import { resolveActor } from "@/server/authz/actor";
 import { runAction } from "@/server/action";
 import { formFiles } from "@/server/form-files";
 import type { ActionState } from "@/lib/action-state";
-import { deleteAttachment, uploadTaskAttachments } from "./service";
+import { deleteAttachment, isImageType, uploadTaskAttachments } from "./service";
 import { startTaskUploads, type FileMeta } from "./direct";
 import { DomainError } from "@/server/errors";
 
@@ -56,5 +56,33 @@ export async function startTaskUploadsAction(
     if (error instanceof DomainError) return { ok: false, message: error.message };
     console.error("[attachments] start uploads failed", error);
     return { ok: false, message: "Couldn't start the upload. Please try again." };
+  }
+}
+
+/**
+ * An image pasted (or dropped) into a task description: stored as one of the task's files, so
+ * the description can show it and only people who can see the task can open it.
+ */
+export async function uploadDescriptionImageAction(
+  workspaceSlug: string,
+  taskId: string,
+  form: FormData,
+): Promise<{ ok: true; id: string; name: string } | { ok: false; message: string }> {
+  try {
+    const actor = await actorFor(workspaceSlug);
+    const files = await formFiles(form, "files");
+    if (files.length !== 1) return { ok: false, message: "Paste one image at a time." };
+    const [row] = await uploadTaskAttachments(actor, taskId, files);
+    if (!row) return { ok: false, message: "Couldn't add the image." };
+    if (!isImageType(row.mimeType)) {
+      await deleteAttachment(actor, row.id);
+      return { ok: false, message: "Only PNG, JPEG, GIF and WebP images can go in a description." };
+    }
+    revalidatePath(`/w/${workspaceSlug}`, "layout");
+    return { ok: true, id: row.id, name: row.originalName };
+  } catch (error) {
+    if (error instanceof DomainError) return { ok: false, message: error.message };
+    console.error("[attachments] description image failed", error);
+    return { ok: false, message: "Couldn't add the image. Please try again." };
   }
 }

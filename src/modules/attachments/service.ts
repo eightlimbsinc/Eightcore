@@ -157,7 +157,11 @@ export async function insertAttachmentsInTx(
         sha256: u.sha256,
       })),
     )
-    .returning({ id: attachments.id, originalName: attachments.originalName });
+    .returning({
+      id: attachments.id,
+      originalName: attachments.originalName,
+      mimeType: attachments.mimeType,
+    });
   await recordActivity(tx, actor, {
     entityType: "task",
     entityId: taskId,
