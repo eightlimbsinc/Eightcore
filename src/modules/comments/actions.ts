@@ -20,15 +20,20 @@ export async function createCommentAction(
   form: FormData,
 ): Promise<ActionState> {
   return runAction(async () => {
+    const files = await formFiles(form, "files");
+    const text = formString(form, "body");
+    // A comment that's only a pasted screenshot (or file) gets a short caption.
+    const body =
+      text.trim() || !files.length ? text : files.length === 1 ? "📷 Screenshot" : "📷 Screenshots";
     await createComment(
       await actorFor(workspaceSlug),
       taskId,
       {
-        body: formString(form, "body"),
+        body,
         parentCommentId: parentCommentId ?? undefined,
         mentionIds: formStrings(form, "mention"),
       },
-      await formFiles(form, "files"),
+      files,
     );
     revalidatePath(`/w/${workspaceSlug}`, "layout");
     return { ok: true, message: parentCommentId ? "Reply posted" : "Comment posted" };

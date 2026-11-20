@@ -137,6 +137,31 @@ test("owner sees the mention in the inbox, replies, tags and attaches", async ({
   await expect(page.getByText("File attached")).toBeVisible();
   await expect(page.getByRole("link", { name: "brief.txt", exact: true })).toBeVisible();
 
+  // A screenshot pasted into the comment box shows before posting, then in the comment itself.
+  const png =
+    "iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAEElEQVR4nGP4z8AARwzEcQCukw/x0F8jngAAAABJRU5ErkJggg==";
+  const box = page.getByRole("combobox", { name: "New comment" });
+  await box.evaluate((el, b64) => {
+    const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+    const data = new DataTransfer();
+    data.items.add(new File([bytes], "image.png", { type: "image/png" }));
+    el.dispatchEvent(new ClipboardEvent("paste", { clipboardData: data, bubbles: true, cancelable: true }));
+  }, png);
+  await expect(page.getByRole("list", { name: "Files to post" }).getByRole("img")).toBeVisible();
+  // No text needed: an image-only comment gets a short caption.
+  await page.getByRole("button", { name: "Comment", exact: true }).click();
+  const shot = page.getByRole("article").filter({ hasText: "📷 Screenshot" });
+  await expect(shot.getByRole("img", { name: /^screenshot-.*\.png$/ }).first()).toBeVisible();
+  await expect
+    .poll(() =>
+      shot
+        .getByRole("img", { name: /^screenshot-/ })
+        .first()
+        .evaluate((i: HTMLImageElement) => i.naturalWidth),
+    )
+    .toBe(4);
+  await expect(page.getByRole("list", { name: "Files to post" })).toHaveCount(0);
+
   // The list shows the tag on the task row.
   await page.getByRole("link", { name: "Design" }).first().click();
   await expect(page).toHaveURL(/\/l\//);

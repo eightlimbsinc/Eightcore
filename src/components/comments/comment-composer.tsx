@@ -1,8 +1,8 @@
 "use client";
 import { withDirectUploads, type StartUploads } from "@/lib/direct-upload";
 import { PersonAvatar } from "@/components/app/person-avatar";
-import { startTransition, useActionState, useId, useRef, useState } from "react";
-import { Paperclip } from "lucide-react";
+import { startTransition, useActionState, useEffect, useId, useMemo, useRef, useState } from "react";
+import { FileText, Paperclip, X } from "lucide-react";
 import type { ActionState } from "@/lib/action-state";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
@@ -61,7 +61,25 @@ export function CommentComposer({
   const [fileKey, setFileKey] = useState(0);
   const [seenState, setSeenState] = useState(state);
   const textarea = useRef<HTMLTextAreaElement>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
   const id = useId();
+  // Files going with the comment: picked with the paperclip or pasted (screenshots).
+  const [files, setFilesState] = useState<File[]>([]);
+  const setFiles = (next: File[]) => {
+    setFilesState(next);
+    try {
+      const all = new DataTransfer();
+      next.forEach((f) => all.items.add(f));
+      if (fileInput.current) fileInput.current.files = all.files;
+    } catch {
+      // Very old browsers: the input keeps only its latest pick.
+    }
+  };
+  const previews = useMemo(
+    () => files.map((f) => (f.type.startsWith("image/") ? URL.createObjectURL(f) : null)),
+    [files],
+  );
+  useEffect(() => () => previews.forEach((u) => u && URL.revokeObjectURL(u)), [previews]);
 
   // After a successful post, start over (adjusting state during render, not in an effect).
   if (state !== seenState) {
@@ -70,6 +88,7 @@ export function CommentComposer({
       setBody(defaultBody);
       setMentionIds(defaultMentionIds);
       setFileKey((k) => k + 1);
+      setFilesState([]);
       onDone?.();
     }
   }
@@ -121,11 +140,16 @@ export function CommentComposer({
           id={`${id}-body`}
           name="body"
           value={body}
-          required
+          required={!files.length}
           maxLength={10_000}
           rows={3}
           autoFocus={autoFocus}
-          placeholder={placeholder ?? "Write a comment… Type @ to mention someone"}
+          placeholder={
+            placeholder ??
+            (allowFiles
+              ? "Write a comment… Type @ to mention someone, or paste a screenshot"
+              : "Write a comment… Type @ to mention someone")
+          }
           role="combobox"
           aria-expanded={open}
           aria-controls={`${id}-mentions`}
@@ -136,6 +160,24 @@ export function CommentComposer({
             updateQuery(e.target);
           }}
           onClick={(e) => updateQuery(e.currentTarget)}
+          onPaste={(e) => {
+            if (!allowFiles) return;
+            // A pasted screenshot (or copied image) goes with the comment and shows below.
+            const pics = [...e.clipboardData.files].filter((f) => f.type.startsWith("image/"));
+            if (!pics.length) return;
+            e.preventDefault();
+            const stamp = new Date().toISOString().slice(0, 19).replace(/[T:]/g, "-");
+            setFiles([
+              ...files,
+              ...pics.map((f, i) =>
+                f.name && f.name !== "image.png"
+                  ? f
+                  : new File([f], `screenshot-${stamp}${pics.length > 1 ? `-${i + 1}` : ""}.png`, {
+                      type: f.type,
+                    }),
+              ),
+            ]);
+          }}
           onBlur={() => setTimeout(() => setQuery(null), 150)}
           onKeyDown={(e) => {
             if (!open) return;
@@ -179,11 +221,40 @@ export function CommentComposer({
           </ul>
         ) : null}
       </div>
+      {files.length ? (
+        <ul aria-label="Files to post" className="flex flex-wrap gap-2">
+          {files.map((f, i) => (
+            <li key={`${f.name}-${i}`} className="relative">
+              {previews[i] ? (
+                // eslint-disable-next-line @next/next/no-img-element -- a local preview of the pasted image
+                <img
+                  src={previews[i]!}
+                  alt={f.name}
+                  className="h-24 max-w-48 rounded-md border object-cover"
+                />
+              ) : (
+                <span className="bg-surface-muted flex h-10 items-center gap-1.5 rounded-md border px-2 text-[12px]">
+                  <FileText className="size-3.5" aria-hidden />
+                  <span className="max-w-40 truncate">{f.name}</span>
+                </span>
+              )}
+              <button
+                type="button"
+                aria-label={`Remove ${f.name}`}
+                onClick={() => setFiles(files.filter((_, j) => j !== i))}
+                className="bg-surface text-muted-foreground hover:text-foreground absolute -top-2 -right-2 grid size-5 place-items-center rounded-full border shadow-sm"
+              >
+                <X className="size-3" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
       {mentionIds.map((userId) => (
         <input key={userId} type="hidden" name="mention" value={userId} />
       ))}
       <div className="flex flex-wrap items-center gap-2">
-        <Button type="submit" size="sm" disabled={pending || !body.trim()}>
+        <Button type="submit" size="sm" disabled={pending || (!body.trim() && !files.length)}>
           {pending ? "Posting…" : submitLabel}
         </Button>
         {onCancel ? (
@@ -197,9 +268,15 @@ export function CommentComposer({
             <input
               key={fileKey}
               suppressHydrationWarning
+              ref={fileInput}
               type="file"
               name="files"
               multiple
+              onChange={(e) => {
+                // Adds to the pasted files instead of replacing them.
+                const picked = [...(e.currentTarget.files ?? [])];
+                setFiles([...files, ...picked]);
+              }}
               aria-label="Attach files to this comment"
               className="max-w-52 text-[12px]"
             />

@@ -7,6 +7,7 @@ import { Pencil, Reply, Trash2 } from "lucide-react";
 import { createCommentAction, deleteCommentAction, updateCommentAction } from "@/modules/comments/actions";
 import { Alert } from "@/components/ui/alert";
 import { AttachmentList, type AttachmentItem } from "@/components/tasks/task-side-panels";
+import { isPreviewableImage } from "@/lib/file-format";
 import { CommentComposer, type Mentionable } from "./comment-composer";
 
 export interface CommentView {
@@ -107,6 +108,29 @@ function CommentItem({
             <LinkPreviews workspaceSlug={workspaceSlug} text={comment.body} />
           </>
         )}
+        {comment.attachments.some((f) => isPreviewableImage(f.mimeType)) ? (
+          <div className="flex flex-wrap gap-2">
+            {comment.attachments
+              .filter((f) => isPreviewableImage(f.mimeType))
+              .map((f) => (
+                <a
+                  key={f.id}
+                  href={`/w/${workspaceSlug}/files/${f.id}`}
+                  target="_blank"
+                  rel="noopener"
+                  title="Open full size"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element -- authorised, short-lived URLs */}
+                  <img
+                    src={`/w/${workspaceSlug}/files/${f.id}`}
+                    alt={f.originalName}
+                    loading="lazy"
+                    className="max-h-80 max-w-full rounded-md border object-contain"
+                  />
+                </a>
+              ))}
+          </div>
+        ) : null}
         <AttachmentList workspaceSlug={workspaceSlug} files={comment.attachments} />
         {!editing ? (
           <div className="text-muted-foreground flex gap-3 text-[12px]">
